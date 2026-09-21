@@ -1,0 +1,6 @@
+# 공개 저장소에는 화면(public/)만 올린다.
+# 서버 코드(server/, supabase/)에는 퀴즈 정답이 들어 있으므로 절대 올리지 않는다.
+/*
+!/.gitignore
+!/README.md
+!/public/
