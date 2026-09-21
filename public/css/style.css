@@ -1,4 +1,4 @@
-/* 제2회 한마당 몬스터 육성 배틀 — G-DEAL(gdeal.io) 색감을 따른 스타일 */
+/* 제2회 한마당 지딜 몬스터 원정대 — G-DEAL(gdeal.io) 색감을 따른 스타일 */
 @import url('https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css');
 
 @font-face { font-family: 'Paperlogy'; font-weight: 400; font-display: swap; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2') format('woff2'); }
@@ -1174,6 +1174,403 @@ img { max-width: 100%; }
   .week-banner h2 { font-size: 17px; }
 }
 
+/* ---------------------------------------------------------------- 협력형 원정대 */
+.avatar-img { display: block; image-rendering: pixelated; }
+.face {
+  display: inline-grid; place-items: center; flex: none;
+  padding: 2px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--team) 18%, #fff);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--team) 55%, #fff);
+}
+.crew-wall { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.crew-wall--sm { margin-top: 10px; }
+.crew-wall .is-idle { opacity: 0.35; filter: grayscale(0.8); }
+.crew-wall small { font-family: var(--pixel); font-size: 12px; color: var(--ink-3); }
+
+/* 시작 화면 */
+.onboard__slogan {
+  display: inline-block;
+  margin: -2px 0 12px;
+  padding: 6px 18px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--green-700) !important;
+  font-family: var(--pixel);
+  font-size: 18px !important;
+  box-shadow: 0 6px 18px rgba(20, 83, 45, 0.18);
+}
+.parade--roll { gap: 2px; }
+.parade--roll figure { margin: 0; display: flex; flex-direction: column; align-items: center; }
+.parade--roll img { animation-delay: var(--d); }
+.parade--roll figcaption {
+  margin-top: -4px;
+  font-family: var(--pixel);
+  font-size: 11px;
+  color: #fff;
+  opacity: 0;
+  animation: rollCall 0.4s steps(2) forwards;
+  animation-delay: calc(var(--d) * 2 + 0.3s);
+}
+.onboard__note { margin: -6px 0 12px; font-size: 13px; color: var(--ink-3); }
+.avatar-pick { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
+.avatar-pick__item {
+  display: grid; place-items: center;
+  aspect-ratio: 1;
+  padding: 4px;
+  border: 2px solid var(--line-2);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+}
+.avatar-pick__item img { width: 100%; height: auto; max-width: 48px; }
+.avatar-pick__item:hover { border-color: var(--green); transform: translateY(-2px); }
+.avatar-pick__item.is-selected { border-color: var(--green); background: var(--green-50); box-shadow: 0 4px 14px rgba(102, 174, 125, 0.35); }
+.avatar-pick__item.is-selected img { animation: idle 0.6s steps(1) infinite; }
+.onboard__crew h2 { margin-bottom: 12px; font-size: 16px; }
+.onboard__crew h2 b { font-family: var(--pixel); color: var(--green-700); }
+
+/* 원정 지도 */
+.home .journey, .home .boss-card { grid-column: 1 / -1; }
+.journey__path { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; position: relative; }
+.journey__path::before {
+  content: ''; position: absolute; left: 10%; right: 10%; top: 34px; height: 4px;
+  background: repeating-linear-gradient(90deg, var(--green-200) 0 10px, transparent 10px 18px);
+}
+.journey__node { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.journey__img {
+  position: relative; display: grid; place-items: center;
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--line-2);
+}
+.journey__img .boss-img { width: 56px; height: 56px; }
+.journey__img .icon { position: absolute; right: -6px; bottom: -6px; }
+.journey__me {
+  position: absolute; left: -4px; top: -4px;
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--green); color: #fff;
+  font-size: 12px; font-style: normal; font-weight: 800;
+}
+.journey__node b { font-size: 12.5px; }
+.journey__node small { font-size: 11.5px; color: var(--ink-3); }
+.journey__node.is-future .boss-img { filter: brightness(0) opacity(0.25); }
+.journey__node.is-now .journey__img { border-color: var(--boss); box-shadow: 0 0 0 5px color-mix(in srgb, var(--boss) 22%, transparent); animation: idle 1.2s steps(1) infinite; }
+.journey__node.is-now small { color: var(--green-700); font-weight: 700; }
+.journey__node.is-win .journey__img { border-color: var(--green); background: var(--green-50); }
+.journey__node.is-win .boss-img { filter: grayscale(0.7) opacity(0.6); }
+.journey__node.is-win small { color: var(--green-700); font-weight: 700; }
+.journey__node.is-lost .boss-img { filter: grayscale(1) opacity(0.45); }
+.journey__node.is-lost small { color: #c2334a; }
+.journey__node--final .journey__img { width: 80px; height: 80px; margin-top: -4px; border-color: color-mix(in srgb, var(--boss) 55%, #fff); background: #f4f0ff; }
+
+/* 이번 주 보스 카드 */
+.boss-card { background: linear-gradient(180deg, color-mix(in srgb, var(--boss) 10%, #fff) 0%, #fff 55%); }
+.boss-card__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.boss-card__head .eyebrow { color: color-mix(in srgb, var(--boss) 70%, #000); }
+.boss-card__head h2 { margin-top: 2px; font-size: 26px; font-weight: 800; }
+.boss-card__hp { font-family: var(--pixel); text-align: right; white-space: nowrap; }
+.boss-card__hp b { font-size: 26px; font-weight: 400; color: #c2334a; }
+.boss-card__hp small { color: var(--ink-3); }
+.boss-card.is-defeated .boss-card__hp b { color: var(--green-700); }
+.boss-hp { height: 20px; padding: 3px; border-radius: 8px; background: #fff; border: 2px solid #2f2a4a; }
+.boss-hp span {
+  display: block; height: 100%; border-radius: 3px;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0 6px, transparent 6px 12px), linear-gradient(90deg, #f06b7a, #f5b82e);
+  transition: width 0.6s steps(12);
+}
+.boss-arena {
+  position: relative;
+  height: 240px;
+  margin: 12px 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--boss) 30%, transparent) 0, transparent 40%),
+    radial-gradient(rgba(47, 42, 74, 0.1) 1.5px, transparent 1.5px) 0 0 / 16px 16px,
+    linear-gradient(180deg, #f6f3ff 0%, #fbfdfc 100%);
+}
+.boss-arena__boss { position: absolute; left: 50%; top: 50%; width: 144px; height: 144px; transform: translate(-50%, -52%); }
+.boss-arena__boss .boss-img { width: 100%; height: 100%; animation: idle 1.1s steps(1) infinite; }
+.boss-card.is-defeated .boss-arena__boss .boss-img { filter: grayscale(0.9) opacity(0.55); transform: rotate(-10deg); animation: none; }
+.boss-arena__seal { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); animation: pop 0.6s ease-out; }
+.boss-arena__seal .icon { width: 72px; height: 72px; filter: drop-shadow(0 6px 14px rgba(245, 184, 46, 0.6)); animation: idle 1s steps(1) 0.6s infinite; }
+.boss-arena__crew { list-style: none; margin: 0; padding: 0; }
+.boss-arena__crew li {
+  position: absolute;
+  display: flex; flex-direction: column; align-items: center;
+  width: 64px;
+}
+.boss-arena__crew li:nth-child(1) { left: 4%; top: 6%; }
+.boss-arena__crew li:nth-child(2) { left: 80%; top: 6%; }
+.boss-arena__crew li:nth-child(3) { left: 17%; top: 36%; }
+.boss-arena__crew li:nth-child(4) { left: 67%; top: 36%; }
+.boss-arena__crew li:nth-child(5) { left: 2%; top: 64%; }
+.boss-arena__crew li:nth-child(6) { left: 82%; top: 64%; }
+.boss-arena__crew li:nth-child(7) { left: 24%; top: 70%; }
+.boss-arena__crew li:nth-child(8) { left: 60%; top: 70%; }
+.boss-arena__crew .avatar-img { padding: 2px; border-radius: 10px; background: #fff; box-shadow: inset 0 0 0 2px var(--team), 0 3px 8px rgba(0, 0, 0, 0.08); }
+.boss-arena__crew li:nth-child(odd) .avatar-img { transform: scaleX(-1); }
+.boss-arena__crew b { margin-top: -6px; padding: 0 5px; border-radius: 6px; background: #d8455a; color: #fff; font-family: var(--pixel); font-size: 11px; font-weight: 400; }
+.boss-arena__crew small { max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--ink-3); }
+.boss-arena__crew li.is-me .avatar-img { box-shadow: inset 0 0 0 2px var(--team), 0 0 0 3px var(--gold); }
+.boss-arena__crew li.is-new { animation: popIn 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.4); }
+.boss-arena__crew li.is-new b { animation: dmgPop 0.8s steps(4); }
+.boss-arena__empty { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font-size: 13px; color: var(--ink-3); }
+.boss-arena .float-text { bottom: 56%; }
+.boss-card__stats { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-3); }
+.boss-card__stats b { font-family: var(--pixel); font-weight: 400; font-size: 15px; color: var(--ink); }
+.share { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--bg); }
+.share__head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+.share__head span { font-family: var(--pixel); color: var(--ink-2); }
+.share__head em { font-style: normal; color: var(--green-700); }
+.boss-card__note { margin-top: 10px; font-size: 13px; color: var(--ink-3); }
+.boss-card.is-defeated .boss-card__note { color: var(--green-700); font-weight: 600; }
+.feed-note { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); text-align: center; }
+
+/* 원정대 현황 (작게) */
+.mini-crew { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.mini-crew li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 12px; }
+.mini-crew li.is-mine { background: var(--green-50); box-shadow: inset 0 0 0 2px var(--green-200); }
+.mini-crew__body > div:first-child { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.mini-crew__body b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-crew__body small { margin-left: auto; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+.mini-crew__num { font-family: var(--pixel); font-size: 13px; color: var(--ink-2); min-width: 44px; text-align: right; }
+
+/* 응원 효과 */
+.fx-chip--cheer { background: var(--pink-50); color: #b8324b; }
+.fx-dot--cheer { background: var(--pink-50); color: #b8324b; }
+.stage.is-cheered::before {
+  content: ''; position: absolute; inset: 0; z-index: 1;
+  background: radial-gradient(circle at 50% 60%, rgba(240, 107, 122, 0.16), transparent 60%);
+}
+.stage__hearts i {
+  position: absolute; bottom: var(--ground); z-index: 4;
+  width: 10px; height: 10px;
+  background: #f06b7a;
+  clip-path: polygon(50% 100%, 0 40%, 25% 0, 50% 22%, 75% 0, 100% 40%);
+  animation: spark 1.8s steps(8) infinite;
+}
+
+/* 가방 선물 */
+.gift-teams { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.gift-team {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 12px 4px 4px;
+  border: 2px solid var(--line-2);
+  border-radius: var(--pill);
+  background: #fff;
+  font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+}
+.gift-team.is-selected { border-color: var(--team); background: color-mix(in srgb, var(--team) 10%, #fff); }
+.members .face { grid-row: span 2; }
+
+/* 원정대 화면 */
+.alliance { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
+.alliance__team { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 12px; border-radius: 14px; background: var(--bg); }
+.alliance__team.is-mine { background: color-mix(in srgb, var(--team) 10%, #fff); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--team) 45%, #fff); }
+.alliance__mon { position: relative; display: grid; place-items: center; width: 72px; height: 72px; border-radius: 14px; background: #fff; }
+.alliance__mon .monster-img { width: 64px; height: 64px; }
+.alliance__crown { position: absolute; top: -10px; left: 50%; margin-left: -12px; }
+.alliance__title { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.alliance__title b { font-size: 15px; }
+.alliance__title > span:not(.fx-dot) { font-size: 12.5px; color: var(--ink-3); }
+.alliance__meta { margin-top: 6px; font-size: 12px; color: var(--ink-3); }
+.crew-note { margin: 14px 0 0; text-align: center; }
+
+/* 최종 결전 */
+.final { display: grid; gap: 20px; }
+.final-hero {
+  display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: center;
+  background: linear-gradient(135deg, #2b2150 0%, #4a3a86 100%);
+  color: #fff;
+}
+.final-hero .eyebrow { padding: 3px 10px; border-radius: var(--pill); background: rgba(255, 255, 255, 0.18); color: #fff; }
+.final-hero h2 { margin: 8px 0 4px; font-size: 28px; font-weight: 800; }
+.final-hero p { color: rgba(255, 255, 255, 0.85); font-size: 14px; }
+.final-hero__boss { display: grid; place-items: center; height: 200px; border-radius: 16px; background: radial-gradient(circle, rgba(255, 72, 136, 0.35) 0, transparent 65%); }
+.final-hero__boss .boss-img { width: 192px; height: 192px; animation: idle 1s steps(1) infinite; }
+.final-hero.is-won .final-hero__boss .boss-img { filter: grayscale(1) opacity(0.5); transform: rotate(-14deg); animation: none; }
+.boss-hp--final { margin-top: 14px; border-color: #ffd3e0; background: rgba(255, 255, 255, 0.12); }
+.final-hero__hp { margin-top: 6px; font-family: var(--pixel); font-size: 13px; }
+.final-hero__hp b { font-size: 18px; font-weight: 400; color: #ffd3e0; }
+.seals { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.seal { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 64px; padding: 6px 4px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); }
+.seal .boss-img { filter: brightness(0) invert(1) opacity(0.35); }
+.seal small { font-size: 10.5px; color: rgba(255, 255, 255, 0.75); }
+.seal.is-got { background: rgba(255, 213, 90, 0.2); box-shadow: inset 0 0 0 2px rgba(255, 213, 90, 0.7); }
+.seal.is-got small { color: #ffe08a; font-weight: 700; }
+.seal.is-lost { opacity: 0.55; }
+
+.cheer-panel { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; background: var(--pink-50); border: 2px solid #f7b6c1; }
+.cheer-panel__head { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.cheer-panel__head .eyebrow { color: #b8324b; }
+.cheer-panel__time { font-family: var(--pixel); font-size: 28px; color: #b8324b; }
+.cheer-btn {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: min(100%, 320px);
+  padding: 22px 16px 18px;
+  border: 0;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #f06b7a, #f5b82e);
+  color: #fff;
+  box-shadow: 0 10px 0 #c2334a, 0 16px 30px rgba(240, 107, 122, 0.45);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.cheer-btn b { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+.cheer-btn small { font-size: 12.5px; opacity: 0.9; }
+.cheer-btn .avatar-img { width: 64px; height: 64px; }
+.cheer-btn.is-tap { transform: translateY(6px); box-shadow: 0 4px 0 #c2334a, 0 8px 18px rgba(240, 107, 122, 0.45); }
+.cheer-btn.is-full { animation: shake 0.3s steps(3) 1; }
+.cheer-heart { position: absolute; bottom: 60%; font-size: 26px; color: #fff; pointer-events: none; animation: floatUp 0.9s ease-out forwards; text-shadow: 0 2px 0 rgba(194, 51, 74, 0.6); }
+.cheer-panel__mine { font-size: 15px; color: var(--ink-2); }
+.cheer-panel__mine b { font-family: var(--pixel); font-size: 24px; font-weight: 400; color: #b8324b; }
+.cheer-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; width: 100%; max-width: 480px; }
+.cheer-bars li { display: grid; grid-template-columns: 28px minmax(0, 1fr) 56px; align-items: center; gap: 8px; }
+.cheer-bars .bar { height: 10px; background: #fff; }
+.cheer-bars b { font-family: var(--pixel); font-size: 12px; font-weight: 400; text-align: right; }
+.cheer-panel__crew { justify-content: center; }
+
+.final-wait, .final-win { text-align: center; }
+.final-wait h2, .final-win h2 { margin: 6px 0 6px; font-size: 21px; font-weight: 800; }
+.final-wait p, .final-win p { color: var(--ink-3); }
+.final-win { background: var(--gold-50); border: 2px solid #fde7a8; }
+.final-win__crew { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; margin: 12px 0; }
+.final-win__crew img { animation: idle 0.7s steps(1) infinite; }
+.final-win__crew img:nth-child(2n) { animation-delay: 0.35s; }
+.final-awards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; text-align: left; }
+.final-awards li { display: flex; flex-direction: column; padding: 10px 12px; border-radius: 12px; background: #fff; }
+.final-awards small { font-size: 12px; color: var(--ink-3); }
+.final-awards b { font-size: 15px; }
+.final-steps { list-style: none; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.final-steps li { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 12px; background: var(--bg); }
+.final-steps b { color: var(--green-700); }
+.final-steps span { font-size: 13.5px; color: var(--ink-2); }
+.final-lineup { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+.final-lineup li { display: flex; flex-direction: column; align-items: center; padding: 6px 2px; border-radius: 12px; background: color-mix(in srgb, var(--team) 10%, #fff); }
+.final-lineup small { font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.final-lineup b { font-family: var(--pixel); font-size: 12px; font-weight: 400; }
+.round-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.prizes { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.prize {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 16px 12px 14px;
+  border: 2px dashed #d9c8ff;
+  border-radius: 16px;
+  background: #faf7ff;
+  text-align: center;
+}
+.prize__no {
+  position: absolute; left: 10px; top: 8px;
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: #8b6fd6; color: #fff;
+  font-family: var(--pixel); font-size: 13px;
+}
+.prize__box { display: grid; place-items: center; min-height: 72px; }
+.prize__box .icon { width: 72px; height: 72px; animation: idle 1.2s steps(1) infinite; }
+.prize__name { font-size: 18px; font-weight: 800; color: #5b3fa8; animation: popIn 0.4s ease-out; }
+.prize__award { font-size: 13.5px; }
+.prize__winner { font-size: 13px; font-weight: 700; color: var(--green-700); }
+.prize__hint, .prize__wait { font-size: 12px; color: var(--ink-3); }
+.prize.is-mine { border-style: solid; border-color: var(--gold); background: var(--gold-50); box-shadow: 0 0 0 4px rgba(245, 184, 46, 0.2); }
+.prize.is-open { border-style: solid; border-color: #b9a4f0; background: #fff; }
+
+/* 라운드 재생 */
+.raid { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.raid__boss { position: relative; display: grid; place-items: center; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(139, 111, 214, 0.35), transparent 70%); }
+.raid__boss .boss-img { width: 160px; height: 160px; transition: transform 0.18s steps(3); }
+.raid__boss.is-hit .boss-img { animation: shake 0.3s steps(3) 1; filter: brightness(1.7); }
+.raid__boss.is-attacking .boss-img { transform: scale(1.15); }
+.raid__boss.is-ko .boss-img { filter: grayscale(1) opacity(0.45); transform: rotate(-16deg) translateY(12px); }
+.raid__boss .float-text { left: 50%; bottom: 55%; }
+.raid .boss-hp { width: 100%; border-color: #2f2a4a; background: #fff; }
+.raid__hpnum { font-family: var(--pixel); font-size: 13px; color: var(--ink-2); }
+.raid__team { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; }
+.raid__team img { transition: transform 0.15s steps(2); }
+.raid__team img.is-attacking { transform: translateY(-14px) scale(1.15); }
+.raid__team img.is-hit { animation: shake 0.3s steps(3) 1; }
+.raid__team img.is-cheer { filter: drop-shadow(0 0 8px #f06b7a); transform: scale(1.2); }
+.battle__log li.is-seal { color: #ffe08a; }
+.battle__log li.is-boss { color: #c4b5fd; }
+.battle__log li.is-cheer { color: #fbcfe8; }
+
+.defeat-img, .welcome-img, .prize-reveal { display: flex; align-items: flex-end; justify-content: center; gap: 4px; }
+.defeat-img .boss-img { width: 112px; height: 112px; filter: grayscale(0.8) opacity(0.6); transform: rotate(-12deg); }
+.defeat-img .icon { width: 72px; height: 72px; animation: idle 0.8s steps(1) infinite; }
+.welcome-img .avatar-img { width: 96px; height: 96px; }
+.prize-reveal .icon { width: 112px; height: 112px; animation: shake 0.3s steps(3) 3, idle 1s steps(1) 0.9s infinite; }
+
+/* 운영자 */
+.admin-manual { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 8px; }
+.admin-manual select, .admin-manual input, .admin-prizes select, .admin-input {
+  min-height: 38px; padding: 6px 10px;
+  border: 2px solid var(--line-2); border-radius: 10px;
+  font: inherit; font-size: 14px; background: #fff;
+}
+.admin-manual input { width: 120px; }
+.admin-input { width: 100%; min-width: 120px; }
+.admin-prizes__btns { white-space: nowrap; }
+.admin-prizes__btns .btn { margin: 2px; }
+.admin-prizes__foot { margin-top: 12px; }
+.admin-final__now { margin-top: 10px; }
+.admin-users li .avatar-img { flex: none; }
+
+@media (max-width: 900px) {
+  .final-hero { grid-template-columns: minmax(0, 1fr); text-align: center; }
+  .final-hero__boss { height: 170px; }
+  .final-hero__boss .boss-img { width: 160px; height: 160px; }
+  .seals { justify-content: center; }
+  .final-lineup { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .avatar-pick { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .journey__path { gap: 2px; }
+  .journey__path::before { top: 26px; }
+  .journey__img { width: 54px; height: 54px; border-width: 2px; }
+  .journey__img .boss-img { width: 44px; height: 44px; }
+  .journey__img .icon { width: 18px; height: 18px; right: -4px; bottom: -4px; }
+  .journey__node--final .journey__img { width: 58px; height: 58px; }
+  .journey__node b { font-size: 10.5px; }
+  .journey__node small { font-size: 10px; }
+  .boss-card__head h2 { font-size: 22px; }
+  .boss-card__hp b { font-size: 20px; }
+  .boss-arena { height: 220px; }
+  .boss-arena__boss { width: 112px; height: 112px; }
+  .boss-arena__crew li { width: 52px; }
+  .boss-arena__crew .avatar-img { width: 34px; height: 34px; }
+  .boss-arena__crew li:nth-child(2) { left: 76%; }
+  .boss-arena__crew li:nth-child(4) { left: 64%; }
+  .boss-arena__crew li:nth-child(6) { left: 78%; }
+  .boss-arena__crew li:nth-child(3) { left: 14%; }
+  .alliance { grid-template-columns: minmax(0, 1fr); }
+  .alliance__team { grid-template-columns: 56px minmax(0, 1fr); }
+  .alliance__mon { width: 56px; height: 56px; }
+  .alliance__mon .monster-img { width: 48px; height: 48px; }
+  .final-steps { grid-template-columns: minmax(0, 1fr); }
+  .final-lineup { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .prizes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cheer-btn b { font-size: 26px; }
+  .admin-prizes thead { display: none; }
+  .admin-prizes tr { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .admin-prizes td { border: 0; padding: 2px; }
+  .admin-prizes td:nth-child(n + 3) { grid-column: 2; }
+}
+
 /* ---------------------------------------------------------------- 움직임 */
 @keyframes idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes wobble { 0%, 55%, 100% { transform: rotate(0); } 65% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); } 85% { transform: rotate(-4deg); } }
@@ -1189,6 +1586,9 @@ img { max-width: 100%; }
 @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(8px); } }
 @keyframes toastIn { from { opacity: 0; transform: translateY(-10px); } }
 @keyframes fall { to { transform: translateY(105vh) rotate(540deg); } }
+@keyframes rollCall { to { opacity: 1; } }
+@keyframes dmgPop { 0% { transform: scale(1.8); } 100% { transform: scale(1); } }
+@keyframes pop { from { transform: translate(-50%, -50%) scale(0.2); } to { transform: translate(-50%, -50%) scale(1); } }
 
 /* ---------------------------------------------------------------- 반응형 */
 @media (max-width: 1180px) {
