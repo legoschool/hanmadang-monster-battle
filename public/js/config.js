@@ -3,7 +3,7 @@
 
 // 게임 서버(수파베이스) 주소. 수파베이스 프로젝트를 만든 뒤 Project URL을 넣는다.
 // 예: 'https://abcdefghijklmnop.supabase.co'
-const SUPABASE_URL = '';
+const SUPABASE_URL = 'https://oawbzsdjkzucxlcyhgdr.supabase.co';
 const isLocal = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname);
 export const API_BASE = isLocal || !SUPABASE_URL ? '/api' : `${SUPABASE_URL}/functions/v1/api`;
 export const SERVER_READY = isLocal || !!SUPABASE_URL;
