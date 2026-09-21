@@ -9,7 +9,7 @@ const POLL_MS = 12000;
 
 let state = null;
 const ui = {
-  pickTeam: null, quizReveal: null, rankTab: 'team', rankMode: 'today', giftKind: 'food',
+  pickTeam: null, quizReveal: null, rankTab: 'team', rankMode: 'week', giftKind: 'food',
   rpsLast: null, busy: false, codeRevealed: false, hintsShown: {},
   adminOverview: null, adminError: '',
 };
@@ -133,11 +133,11 @@ function onRouteChange() {
 
 async function autoCheckIn() {
   const u = me();
-  if (!u || u.attendedDays.includes(state.day)) return;
+  if (!u || state.week < 1 || u.visitedWeeks.includes(state.week)) return;
   const res = await act('checkin');
   if (!res?.ok) return;
   render();
-  toast(`${icon('food', 22)}<span><b>${state.day}일차 출석 체크!</b> 먹이 ${res.food}개를 받았어요</span>`, 'good');
+  toast(`${icon('food', 22)}<span><b>${state.week}주차 첫 방문 보너스!</b> 먹이 ${res.food}개를 받았어요</span>`, 'good');
 }
 
 // ---------------------------------------------------------------- 모달 내용
@@ -265,6 +265,7 @@ const actions = {
       const data = await API.join({ name, teamId: ui.pickTeam, code: $('joinCode')?.value });
       API.setToken(data.token);
       apply(data.state, seq, data.token);
+      ui.joinCheckin = data.checkin;
     } catch (e) {
       el.disabled = false;
       err.textContent = e.message;
@@ -274,13 +275,13 @@ const actions = {
     history.replaceState(null, '', '#/home');
     render();
     window.scrollTo(0, 0);
-    toast(`${icon('food', 22)}<span><b>${state.day}일차 출석 체크!</b> 먹이 ${RULES.attendanceFood}개를 받았어요</span>`, 'good');
+    if (ui.joinCheckin?.ok) toast(`${icon('food', 22)}<span><b>${state.week}주차 첫 방문 보너스!</b> 먹이 ${ui.joinCheckin.food}개를 받았어요</span>`, 'good');
     const egg = G.levelInfo(state.teams[t.id].exp).stage.key === 'egg';
     revealModal({
       img: `<img class="px pop" src="${egg ? eggOf(t.id) : spriteOf(t.id)}" width="160" height="160" alt="" onerror="this.onerror=null;this.src='${spriteOf(t.id)}'">`,
       eyebrow: t.community,
       title: egg ? `${t.monster}의 알을 만났어요!` : `${G.josa(t.monster, '을/를')} 만났어요!`,
-      text: '매일 출석하고 AI 퀴즈를 풀어 먹이를 모아 주세요. 먹이를 줄수록 우리 팀 몬스터가 자라요.',
+      text: '1주일에 한 번씩 들러 AI 퀴즈와 미션으로 먹이를 모아 주세요. 먹이를 줄수록 우리 팀 몬스터가 자라요.',
       actions: '<button class="btn btn--primary" data-action="modal-close">시작하기</button>',
     });
   },
@@ -334,7 +335,7 @@ const actions = {
     }
   },
   'quiz-hint': (el) => {
-    const key = `${state.day}-${el.dataset.q}`;
+    const key = `${state.week}-${el.dataset.q}`;
     ui.hintsShown[key] = (ui.hintsShown[key] || 0) + 1;
     render();
     document.querySelector('.hint:last-of-type')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -363,7 +364,7 @@ const actions = {
       img: icon(ic, 96),
       eyebrow: r.jackpot ? 'JACKPOT!' : '럭키박스',
       title: esc(r.label),
-      text: r.jackpot ? '축하해요! 우리 팀 몬스터를 폭풍 성장시켜 주세요.' : '내일 또 열 수 있어요.',
+      text: r.jackpot ? '축하해요! 우리 팀 몬스터를 폭풍 성장시켜 주세요.' : res.left ? `이번 주에 ${res.left}번 더 열 수 있어요.` : '이번 주 럭키박스를 모두 열었어요. 다음 주에 또 만나요!',
       actions: r.reward.points
         ? '<button class="btn btn--primary" data-action="modal-close">받기</button>'
         : '<button class="btn btn--soft" data-action="modal-close">받기</button><button class="btn btn--primary" data-action="go" data-href="#/home">바로 먹이 주기</button>',
@@ -402,7 +403,7 @@ const actions = {
       text: `먹이 ${res.before}개 → <b>${res.after}개</b>`,
       actions: win
         ? '<button class="btn btn--soft" data-action="modal-close">확인</button><button class="btn btn--primary" data-action="go" data-href="#/home">먹이 주러 가기</button>'
-        : '<button class="btn btn--primary" data-action="modal-close">내일 다시 도전</button>',
+        : `<button class="btn btn--primary" data-action="modal-close">${res.left ? '다시 도전하기' : '다음 주에 다시 도전'}</button>`,
     });
   },
   gacha: async (el) => {
@@ -530,11 +531,22 @@ const actions = {
     ui.adminOverview = null;
     render();
   },
-  'admin-next-day': async () => {
-    if (!confirm(`${ui.adminOverview.day + 1}일차로 넘길까요? 오늘의 시상이 발표되고 되돌릴 수 없어요.`)) return;
-    const res = await adminCall('nextDay');
+  'admin-next-week': async () => {
+    const next = ui.adminOverview.week + 1;
+    if (!confirm(`${next > ui.adminOverview.weeks ? '결전의 날(현장)' : `${next}주차`}로 넘길까요? 지난주 시상과 팀 목표 보상이 지급되고 되돌릴 수 없어요.`)) return;
+    const res = await adminCall('nextWeek');
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
-    else if (res) toast(`<span><b>${res.day}일차</b>가 시작됐어요</span>`, 'good');
+    else if (res) toast(`<span><b>${res.week > ui.adminOverview.weeks ? '결전의 날' : `${res.week}주차`}</b>가 시작됐어요</span>`, 'good');
+  },
+  'admin-golden': async (el) => {
+    const minutes = Number(el.dataset.minutes) || 30;
+    if (!confirm(`지금부터 ${minutes}분 동안 골든타임(먹이 경험치 ${RULES.golden.multiplier}배)을 켤까요?`)) return;
+    const res = await adminCall('golden', { minutes });
+    if (res?.ok) toast(`<span><b>골든타임 시작!</b> ${res.minutes}분 동안 먹이 경험치 ${RULES.golden.multiplier}배</span>`, 'good');
+  },
+  'admin-golden-stop': async () => {
+    const res = await adminCall('goldenStop');
+    if (res?.ok) toast('<span>골든타임을 끝냈어요</span>', 'good');
   },
   'admin-battle': async (el) => {
     el.disabled = true;
@@ -604,6 +616,7 @@ async function poll() {
   const typing = document.activeElement?.matches('input, textarea, select');
   const changed = await refresh();
   if (changed && !modalOpen() && !typing && !ui.busy) render();
+  if (changed) autoCheckIn(); // 화면을 켜 둔 채 새 주차가 열린 경우
 }
 setInterval(poll, POLL_MS);
 document.addEventListener('visibilitychange', () => {

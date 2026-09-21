@@ -1,12 +1,53 @@
 // 게임 규칙. 모든 함수는 state를 직접 바꾸고 결과 객체를 돌려준다.
-// 판정은 서버(worker/game-room.js)가 이 파일로 한다. 브라우저는 순위 계산과 화면 표시에만 쓴다.
+// 판정은 서버(server/api.js)가 이 파일로 한다. 브라우저는 순위 계산과 화면 표시에만 쓴다.
+//
+// 일정은 '주' 단위다. week 0 = 시즌 시작 전, 1~4 = 사전 참여 주, FINAL_WEEK = 현장 모임(결전의 날).
+// 한 주 안에서는 언제 몰아서 해도 되도록, 하루 제한 대신 '한 주에 몇 번' 제한을 쓴다.
 import { EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, expForLevel } from './config.js';
 
+export const SCHEMA = 2; // 저장 데이터 모양이 바뀌면 올린다 (예전 모양은 새로 시작)
+export const FINAL_WEEK = EVENT.weeks + 1;
 const MIN = 60 * 1000;
+const DAY = 24 * 60 * MIN;
 export const HANDS = { rock: '✊', scissors: '✌️', paper: '✋' };
 const BEATS = { rock: 'scissors', scissors: 'paper', paper: 'rock' };
 
 export const teamById = (id) => TEAMS.find((t) => t.id === id);
+
+// ---------------------------------------------------------------- 일정
+const EVENT_MS = Date.parse(`${EVENT.eventDate}T00:00:00+09:00`);
+const SEASON_START_MS = EVENT_MS - EVENT.weeks * 7 * DAY;
+
+// 지금 몇 주차인지 (한국 시간 기준, 시즌 시작일 00시에 1주차가 열린다)
+export function weekForTime(now = Date.now()) {
+  if (now < SEASON_START_MS) return 0;
+  return Math.min(FINAL_WEEK, Math.floor((now - SEASON_START_MS) / (7 * DAY)) + 1);
+}
+
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+function kstLabel(ms) {
+  const d = new Date(ms + 9 * 60 * MIN); // UTC 기준 필드로 한국 날짜를 읽는다
+  return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일(${WEEKDAYS[d.getUTCDay()]})`;
+}
+
+// 주차별 기간 표시: { start: '11월 21일(토)', end: '11월 27일(금)' }
+export function weekDates(week) {
+  if (week >= FINAL_WEEK) return { start: kstLabel(EVENT_MS), end: kstLabel(EVENT_MS) };
+  const w = Math.max(1, week);
+  const start = SEASON_START_MS + (w - 1) * 7 * DAY;
+  return { start: kstLabel(start), end: kstLabel(start + 6 * DAY) };
+}
+
+export const eventDateLabel = () => kstLabel(EVENT_MS);
+
+// 현장 모임까지 남은 날 (당일 0)
+export function daysToEvent(now = Date.now()) {
+  const kstToday = Math.floor((now + 9 * 60 * MIN) / DAY);
+  const kstEvent = Math.floor((EVENT_MS + 9 * 60 * MIN) / DAY);
+  return kstEvent - kstToday;
+}
+
+export const isPlayWeek = (week) => week >= 1 && week <= EVENT.weeks;
 
 // ---------------------------------------------------------------- 도우미
 export function josa(word, pair) {
@@ -42,15 +83,23 @@ export function pushFeed(state, icon, text, teamId = null) {
   if (state.feed.length > 80) state.feed.length = 80;
 }
 
+const notOpen = (state) => (state.week < 1
+  ? { ok: false, reason: `${weekDates(1).start}에 1주차가 열려요. 조금만 기다려 주세요!` }
+  : { ok: false, reason: '사전 참여 기간이 끝났어요. 현장에서 만나요!' });
+
 // ---------------------------------------------------------------- 팀과 사용자
-export function newTeam(id, day = 1) {
-  return { id, exp: 0, expAtDayStart: { [day]: 0 }, boosterUntil: 0, wetUntil: 0, wetBy: null, crownDay: 0 };
+export function newTeam(id, week = 0) {
+  return { id, exp: 0, expAtWeekStart: { [week]: 0 }, boosterUntil: 0, wetUntil: 0, wetBy: null, crownWeek: 0 };
 }
 
 export function newGameState() {
-  const state = { version: 1, seq: 0, day: 1, users: {}, teams: {}, feed: [], awards: {}, coffeeStock: RULES.coffeeStock, tournament: null };
-  for (const t of TEAMS) state.teams[t.id] = newTeam(t.id);
-  pushFeed(state, 'crown', `${EVENT.name} 몬스터 육성 배틀이 시작됐어요!`);
+  const state = {
+    schema: SCHEMA, version: 1, seq: 0, week: 0,
+    users: {}, teams: {}, feed: [], awards: {},
+    coffeeStock: RULES.coffeeStock, tournament: null, goldenUntil: 0,
+  };
+  for (const t of TEAMS) state.teams[t.id] = newTeam(t.id, 0);
+  pushFeed(state, 'crown', `${EVENT.name} 몬스터 육성 배틀에 오신 걸 환영해요!`);
   return state;
 }
 
@@ -59,44 +108,48 @@ export function newUser({ id, name, teamId }) {
     id, name, teamId,
     food: 0, premium: 0, points: 0, totalPoints: 0,
     items: { booster: 0, balloon: 0, coffee: 0 },
-    coupons: [], attendedDays: [],
-    daily: freshDaily(0),
+    coupons: [], visitedWeeks: [],
+    weekly: freshWeekly(-1),
   };
 }
 
-function freshDaily(day) {
-  return { day, quiz: [null, null, null], quizDoneAt: 0, lucky: null, rps: null, points: 0 };
+function freshWeekly(week) {
+  return { week, quiz: [], quizDoneAt: 0, luckyCount: 0, luckyLog: [], rpsCount: 0, rpsLog: [], points: 0 };
 }
 
-export function daily(state, user) {
-  if (user.daily.day !== state.day) user.daily = freshDaily(state.day);
-  return user.daily;
+export function weekly(state, user) {
+  if (user.weekly.week !== state.week) user.weekly = freshWeekly(state.week);
+  return user.weekly;
 }
 
 function addPoints(state, user, n) {
   user.points += n;
   user.totalPoints += n;
-  daily(state, user).points += n;
+  weekly(state, user).points += n;
 }
 
 export const teammates = (state, user) =>
   Object.values(state.users).filter((u) => u.teamId === user.teamId && u.id !== user.id);
 
-// ---------------------------------------------------------------- 출석
+export const teamMemberCount = (state, teamId) =>
+  Object.values(state.users).filter((u) => u.teamId === teamId).length;
+
+// ---------------------------------------------------------------- 주간 첫 방문
 export function checkIn(state, userId) {
   const u = state.users[userId];
-  daily(state, u);
-  if (u.attendedDays.includes(state.day)) return { ok: false };
-  u.attendedDays.push(state.day);
-  u.food += RULES.attendanceFood;
-  return { ok: true, food: RULES.attendanceFood };
+  weekly(state, u);
+  if (state.week < 1 || u.visitedWeeks.includes(state.week)) return { ok: false };
+  u.visitedWeeks.push(state.week);
+  u.food += RULES.weeklyVisitFood;
+  return { ok: true, food: RULES.weeklyVisitFood };
 }
 
 // ---------------------------------------------------------------- 먹이
-export function expMultiplier(team, now = Date.now()) {
+export function expMultiplier(state, team, now = Date.now()) {
   let m = 1;
   if (team.boosterUntil > now) m *= RULES.booster.multiplier;
   if (team.wetUntil > now) m *= RULES.balloon.multiplier;
+  if ((state.goldenUntil || 0) > now) m *= RULES.golden.multiplier;
   return m;
 }
 
@@ -109,7 +162,7 @@ export function feedMonster(state, userId, kind, amount) {
   if (n <= 0) return { ok: false, reason: kind === 'premium' ? '고급 먹이가 없어요' : '먹이가 없어요' };
 
   const before = levelInfo(team.exp);
-  const gained = Math.max(1, Math.round(n * RULES.exp[kind] * expMultiplier(team)));
+  const gained = Math.max(1, Math.round(n * RULES.exp[kind] * expMultiplier(state, team)));
   team.exp += gained;
   if (kind === 'premium') u.premium -= n;
   else u.food -= n;
@@ -126,10 +179,11 @@ export function feedMonster(state, userId, kind, amount) {
 }
 
 // ---------------------------------------------------------------- 퀴즈
-// questions: 그날의 문제 3개 (정답이 들어 있어서 서버에서만 넘겨준다)
+// questions: 그 주의 문제들 (정답이 들어 있어서 서버에서만 넘겨준다)
 export function answerQuiz(state, userId, qi, choice, questions) {
+  if (!isPlayWeek(state.week)) return notOpen(state);
   const u = state.users[userId];
-  const d = daily(state, u);
+  const d = weekly(state, u);
   const q = questions[qi];
   if (!q || !Number.isInteger(choice) || choice < 0 || choice >= q.options.length) return { ok: false, reason: '잘못된 답이에요' };
   if (d.quiz[qi]) return { ok: false, reason: '이미 푼 문제예요' };
@@ -137,13 +191,13 @@ export function answerQuiz(state, userId, qi, choice, questions) {
   d.quiz[qi] = { choice, correct };
   if (correct) addPoints(state, u, RULES.quizPoints);
 
-  const done = d.quiz.every(Boolean);
-  const perfect = done && d.quiz.every((a) => a.correct);
+  const done = questions.every((_, i) => d.quiz[i]);
+  const perfect = done && questions.every((_, i) => d.quiz[i].correct);
   if (done) {
     d.quizDoneAt = Date.now();
     if (perfect) {
       u.premium += RULES.quizPerfectPremium;
-      pushFeed(state, 'premium', `${u.name}님이 오늘의 AI 퀴즈를 모두 맞혔어요!`, u.teamId);
+      pushFeed(state, 'premium', `${u.name}님이 ${state.week}주차 AI 퀴즈를 모두 맞혔어요!`, u.teamId);
     }
   }
   return { ok: true, correct, done, perfect };
@@ -151,24 +205,27 @@ export function answerQuiz(state, userId, qi, choice, questions) {
 
 // ---------------------------------------------------------------- 럭키박스
 export function openLuckyBox(state, userId, rand = Math.random) {
+  if (!isPlayWeek(state.week)) return notOpen(state);
   const u = state.users[userId];
-  const d = daily(state, u);
-  if (d.lucky) return { ok: false, reason: '오늘은 이미 열었어요' };
+  const d = weekly(state, u);
+  if (d.luckyCount >= RULES.luckyPerWeek) return { ok: false, reason: '이번 주 럭키박스를 모두 열었어요. 다음 주에 또 만나요!' };
   const row = pickWeighted(LUCKY_BOX, rand);
   if (row.reward.food) u.food += row.reward.food;
   if (row.reward.premium) u.premium += row.reward.premium;
   if (row.reward.points) addPoints(state, u, row.reward.points);
-  d.lucky = row.label;
+  d.luckyCount++;
+  d.luckyLog.push(row.label);
   if (row.jackpot) pushFeed(state, 'luckybox', `${u.name}님이 럭키박스 잭팟을 터뜨렸어요! 먹이 100개!`, u.teamId);
-  return { ok: true, row };
+  return { ok: true, row, left: RULES.luckyPerWeek - d.luckyCount };
 }
 
 // ---------------------------------------------------------------- AI 보스 가위바위보
 export function playRps(state, userId, hand, rand = Math.random) {
+  if (!isPlayWeek(state.week)) return notOpen(state);
   const u = state.users[userId];
-  const d = daily(state, u);
+  const d = weekly(state, u);
   if (!HANDS[hand]) return { ok: false, reason: '가위, 바위, 보 중에 골라 주세요' };
-  if (d.rps) return { ok: false, reason: '오늘은 이미 도전했어요' };
+  if (d.rpsCount >= RULES.rpsPerWeek) return { ok: false, reason: '이번 주 도전을 모두 했어요. 다음 주에 다시 도전해요!' };
   const keys = Object.keys(HANDS);
   const boss = keys[Math.floor(rand() * keys.length)];
   if (boss === hand) return { ok: true, outcome: 'draw', boss };
@@ -176,9 +233,10 @@ export function playRps(state, userId, hand, rand = Math.random) {
   const win = BEATS[hand] === boss;
   const before = u.food;
   u.food = Math.floor(before * (win ? RULES.rps.winMultiplier : RULES.rps.loseRatio));
-  d.rps = win ? 'win' : 'lose';
+  d.rpsCount++;
+  d.rpsLog.push(win ? 'win' : 'lose');
   if (win && before >= 10) pushFeed(state, 'food', `${u.name}님이 AI 보스를 이기고 먹이를 ${u.food}개로 불렸어요!`, u.teamId);
-  return { ok: true, outcome: d.rps, boss, before, after: u.food };
+  return { ok: true, outcome: win ? 'win' : 'lose', boss, before, after: u.food, left: RULES.rpsPerWeek - d.rpsCount };
 }
 
 // ---------------------------------------------------------------- 쿠폰 뽑기와 아이템
@@ -245,77 +303,117 @@ export function gift(state, fromId, toId, kind) {
   if (!b || b.teamId !== a.teamId || a.id === b.id) return { ok: false, reason: '같은 커뮤니티 멤버에게만 줄 수 있어요' };
   if (!g || !g.has(a)) return { ok: false, reason: '줄 수 있는 아이템이 없어요' };
   g.move(a, b);
-  pushFeed(state, g.icon, `${a.name}님이 ${b.name}님에게 ${josa(g.name, "을/를")} 선물했어요`, a.teamId);
+  pushFeed(state, g.icon, `${a.name}님이 ${b.name}님에게 ${josa(g.name, '을/를')} 선물했어요`, a.teamId);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------- 골든타임 (운영자)
+export function startGolden(state, minutes = RULES.golden.minutes) {
+  const m = Math.max(5, Math.min(180, Number(minutes) || RULES.golden.minutes));
+  state.goldenUntil = Date.now() + m * MIN;
+  pushFeed(state, 'booster', `골든타임 시작! ${m}분 동안 모든 팀의 먹이 경험치가 ${RULES.golden.multiplier}배예요`);
+  return { ok: true, until: state.goldenUntil, minutes: m };
+}
+
+export function stopGolden(state) {
+  state.goldenUntil = 0;
   return { ok: true };
 }
 
 // ---------------------------------------------------------------- 순위와 시상
+export function teamGoal(state, teamId, week = state.week) {
+  const s = state.teams[teamId];
+  const target = RULES.teamGoal.base + RULES.teamGoal.perMember * teamMemberCount(state, teamId);
+  const gain = s.exp - (s.expAtWeekStart[week] ?? s.exp);
+  return { target, gain, progress: Math.min(1, gain / target), done: gain >= target };
+}
+
 export function teamRanking(state) {
   const members = {};
   for (const u of Object.values(state.users)) members[u.teamId] = (members[u.teamId] || 0) + 1;
   return TEAMS
     .map((t) => {
       const s = state.teams[t.id];
-      return { ...t, s, exp: s.exp, info: levelInfo(s.exp), members: members[t.id] || 0, todayGain: s.exp - (s.expAtDayStart[state.day] ?? 0) };
+      return { ...t, s, exp: s.exp, info: levelInfo(s.exp), members: members[t.id] || 0, weekGain: s.exp - (s.expAtWeekStart[state.week] ?? s.exp) };
     })
     .sort((a, b) => b.exp - a.exp)
     .map((t, i) => ({ ...t, rank: i + 1 }));
 }
 
 export function userRanking(state, mode) {
-  const score = (u) => (mode === 'today' ? (u.daily.day === state.day ? u.daily.points : 0) : u.totalPoints);
+  const score = (u) => (mode === 'week' ? (u.weekly.week === state.week ? u.weekly.points : 0) : u.totalPoints);
   return Object.values(state.users)
     .map((u) => ({ u, score: score(u) }))
     .sort((a, b) => b.score - a.score)
     .map((r, i) => ({ ...r, rank: i + 1 }));
 }
 
-// 지식왕: 오늘 퀴즈를 모두 맞힌 사람 중 가장 빨리 끝낸 사람. 없으면 오늘 포인트 1위.
-export function knowledgeKing(state, day = state.day) {
-  const players = Object.values(state.users).filter((u) => u.daily.day === day);
+// 주간 지식왕: 그 주 퀴즈를 모두 맞힌 사람 중 가장 빨리 끝낸 사람. 없으면 그 주 포인트 1위.
+export function knowledgeKing(state, week = state.week) {
+  const players = Object.values(state.users).filter((u) => u.weekly.week === week);
   const perfect = players
-    .filter((u) => u.daily.quizDoneAt && u.daily.quiz.every((a) => a && a.correct))
-    .sort((a, b) => a.daily.quizDoneAt - b.daily.quizDoneAt);
+    .filter((u) => u.weekly.quizDoneAt && u.weekly.quiz.length && u.weekly.quiz.every((a) => a && a.correct))
+    .sort((a, b) => a.weekly.quizDoneAt - b.weekly.quizDoneAt);
   if (perfect.length) return { user: perfect[0], perfect: true, list: perfect.slice(0, 3) };
-  const byPoints = players.filter((u) => u.daily.points > 0).sort((a, b) => b.daily.points - a.daily.points);
+  const byPoints = players.filter((u) => u.weekly.points > 0).sort((a, b) => b.weekly.points - a.weekly.points);
   return byPoints.length ? { user: byPoints[0], perfect: false, list: byPoints.slice(0, 3) } : null;
 }
 
-export const hasCrown = (state, teamId) => state.teams[teamId].crownDay === state.day;
+export const hasCrown = (state, teamId) => state.teams[teamId].crownWeek === state.week && state.week > 0;
 
-// ---------------------------------------------------------------- 하루 넘기기
-export function advanceDay(state) {
-  if (state.day >= EVENT.totalDays) return { ok: false, reason: '마지막 날이에요' };
-  const d = state.day;
+// ---------------------------------------------------------------- 한 주 마무리
+export function advanceWeek(state) {
+  if (state.week >= FINAL_WEEK) return { ok: false, reason: '이미 현장 모임 날이에요' };
+  const w = state.week;
+  let award = null;
 
-  const king = knowledgeKing(state, d);
-  const storm = TEAMS
-    .map((t) => ({ id: t.id, gain: state.teams[t.id].exp - (state.teams[t.id].expAtDayStart[d] ?? 0) }))
-    .sort((a, b) => b.gain - a.gain)[0];
-  const award = { kingId: king?.user.id ?? null, kingPerfect: !!king?.perfect, stormTeam: storm.id, stormGain: storm.gain };
-  state.awards[d] = award;
+  if (isPlayWeek(w)) {
+    const king = knowledgeKing(state, w);
+    const storm = TEAMS
+      .map((t) => ({ id: t.id, gain: state.teams[t.id].exp - (state.teams[t.id].expAtWeekStart[w] ?? 0) }))
+      .sort((a, b) => b.gain - a.gain)[0];
 
-  state.day = d + 1;
-  for (const t of TEAMS) state.teams[t.id].expAtDayStart[state.day] = state.teams[t.id].exp;
-  state.teams[storm.id].crownDay = state.day;
+    // 팀 목표를 이룬 팀은 그 주에 들어온 팀원 모두에게 보상
+    const teamGoals = [];
+    for (const t of TEAMS) {
+      const goal = teamGoal(state, t.id, w);
+      if (!goal.done) continue;
+      const active = Object.values(state.users).filter((u) => u.teamId === t.id && u.visitedWeeks.includes(w));
+      for (const u of active) {
+        u.premium += RULES.teamGoal.rewardPremium;
+        u.points += RULES.teamGoal.rewardPoints;
+        u.totalPoints += RULES.teamGoal.rewardPoints;
+      }
+      teamGoals.push({ teamId: t.id, gain: goal.gain, target: goal.target, rewarded: active.length });
+    }
 
-  const st = teamById(storm.id);
-  pushFeed(state, 'crown', `${d}일차 폭풍성장 팀은 ${st.community}! ${st.monster}에게 오늘 하루 왕관이 씌워졌어요`, storm.id);
-  if (king) pushFeed(state, 'point', `${d}일차 지식왕은 ${teamById(king.user.teamId).community} ${king.user.name}님!`, king.user.teamId);
-  if (state.day === EVENT.totalDays) {
-    state.tournament = { seeds: teamRanking(state).map((t) => t.id), results: {} };
-    pushFeed(state, 'crown', '마지막 날! 최종 토너먼트 대진표가 확정됐어요');
+    award = { kingId: king?.user.id ?? null, kingPerfect: !!king?.perfect, stormTeam: storm.id, stormGain: storm.gain, teamGoals };
+    state.awards[w] = award;
+    if (storm.gain > 0) state.teams[storm.id].crownWeek = w + 1;
+
+    const st = teamById(storm.id);
+    if (storm.gain > 0) pushFeed(state, 'crown', `${w}주차 폭풍성장 팀은 ${st.community}! ${st.monster}에게 한 주 동안 왕관이 씌워졌어요`, storm.id);
+    if (king) pushFeed(state, 'point', `${w}주차 지식왕은 ${teamById(king.user.teamId).community} ${king.user.name}님!`, king.user.teamId);
+    for (const g of teamGoals) pushFeed(state, 'premium', `${teamById(g.teamId).community} 팀 목표 달성! 참여한 ${g.rewarded}명에게 고급 먹이를 드렸어요`, g.teamId);
   }
-  return { ok: true, day: state.day, award };
+
+  state.week = w + 1;
+  for (const t of TEAMS) state.teams[t.id].expAtWeekStart[state.week] = state.teams[t.id].exp;
+
+  if (state.week === FINAL_WEEK) {
+    state.tournament = { seeds: teamRanking(state).map((t) => t.id), results: {} };
+    pushFeed(state, 'crown', `사전 참여 끝! ${eventDateLabel()} 현장 최종 토너먼트 대진표가 확정됐어요`);
+  } else {
+    pushFeed(state, 'luckybox', `${state.week}주차가 열렸어요! 새 퀴즈와 럭키박스가 기다리고 있어요`);
+  }
+  return { ok: true, week: state.week, award };
 }
 
-// 행사 시작일이 정해져 있으면 한국 시간 자정마다 자동으로 다음 날로 넘어간다.
-export function syncDay(state, now = Date.now()) {
-  if (!EVENT.startDate) return false;
-  const start = Date.parse(`${EVENT.startDate}T00:00:00+09:00`);
-  const target = Math.min(EVENT.totalDays, Math.floor((now - start) / (24 * 60 * MIN)) + 1);
+// 날짜가 되면 자동으로 주차를 넘긴다 (앞으로만 간다. 운영자가 미리 넘긴 주차는 그대로 둔다)
+export function syncWeek(state, now = Date.now()) {
+  const target = weekForTime(now);
   let changed = false;
-  while (state.day < target && advanceDay(state).ok) changed = true;
+  while (state.week < target && advanceWeek(state).ok) changed = true;
   return changed;
 }
 

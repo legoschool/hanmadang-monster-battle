@@ -153,6 +153,7 @@ img { max-width: 100%; }
 .wallet-chips { display: flex; gap: 6px; }
 .mini-chip {
   display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap;
   padding: 4px 10px 4px 6px;
   border-radius: var(--pill);
   background: #fff;
@@ -194,6 +195,7 @@ img { max-width: 100%; }
 
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .sec-head h2 {
+  flex: none;
   padding-left: 12px;
   border-left: 4px solid var(--green);
   font-size: 18px;
@@ -368,7 +370,7 @@ img { max-width: 100%; }
 
 /* ---------------------------------------------------------------- 홈 */
 .home { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px; align-items: start; padding-top: 8px; }
-.home__side { display: grid; gap: 20px; }
+.home__side { display: grid; gap: 20px; grid-row: span 3; } /* 오른쪽 열이 길어도 왼쪽(몬스터·순위·소식)이 빈틈없이 이어지게 */
 .t-banner { grid-column: 1 / -1; }
 
 .monster-card { padding: 18px; }
@@ -1119,10 +1121,64 @@ img { max-width: 100%; }
 .admin-users li .btn { margin-left: auto; }
 .admin-danger .btn { margin-right: 8px; }
 
+
+/* ---------------------------------------------------------------- 주간 구성 */
+.week-banner { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; padding: 18px 22px; background: var(--grad-soft); border: 1px solid var(--green-100); }
+.week-banner__no {
+  display: grid; place-items: center; flex: none;
+  min-width: 76px; height: 76px; padding: 0 10px;
+  border-radius: 18px;
+  background: var(--grad);
+  color: #fff;
+  font-family: var(--pixel);
+  font-size: 30px;
+  line-height: 1;
+  box-shadow: var(--glow);
+}
+.week-banner__no small { display: block; margin-top: 4px; font-size: 12px; }
+.week-banner h2 { margin: 4px 0 4px; font-size: 20px; font-weight: 800; }
+.week-banner p { color: var(--ink-2); font-size: 14px; }
+.week-banner--pre .week-banner__no { font-size: 18px; background: linear-gradient(135deg, #8b6fd6, #4ecdc4); }
+.week-banner--final .week-banner__no { font-size: 17px; background: linear-gradient(135deg, #f5b82e, #f06b7a); }
+
+.golden-banner {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--r);
+  background: linear-gradient(135deg, #fff3c4, #ffe08a);
+  border: 2px solid var(--gold);
+  color: var(--gold-700);
+  animation: goldGlow 1.6s ease-in-out infinite;
+}
+.golden-banner div { flex: 1; font-size: 15px; }
+.golden-banner b { color: #8a5a00; }
+.golden-banner time { font-family: var(--pixel); font-size: 18px; }
+
+.goal__bar { height: 18px; padding: 2px; border-radius: 6px; background: var(--bg); border: 2px solid var(--line-2); }
+.goal__bar span { display: block; height: 100%; border-radius: 3px; transition: width 0.6s steps(10); }
+.goal__nums { margin-top: 8px; font-family: var(--pixel); font-size: 14px; color: var(--ink-2); }
+.goal__nums em { font-style: normal; color: var(--green-700); }
+.goal__desc { margin-top: 4px; font-size: 13px; color: var(--ink-3); }
+
+.todo__note { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+.todo__locked { padding: 14px 16px; border-radius: 12px; background: var(--bg); color: var(--ink-2); font-size: 14px; }
+
+.stamps--weeks { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.stamp__date { font-size: 11px !important; color: var(--ink-4) !important; font-weight: 400 !important; }
+.admin-golden { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 640px) {
+  .week-banner { padding: 16px; gap: 12px; }
+  .week-banner__no { min-width: 60px; height: 60px; font-size: 24px; }
+  .week-banner h2 { font-size: 17px; }
+}
+
 /* ---------------------------------------------------------------- 움직임 */
 @keyframes idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes wobble { 0%, 55%, 100% { transform: rotate(0); } 65% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); } 85% { transform: rotate(-4deg); } }
 @keyframes eat { 0% { transform: scale(1); } 25% { transform: scale(1.1, 0.9); } 55% { transform: scale(0.94, 1.08) translateY(-12px); } 100% { transform: scale(1); } }
+@keyframes goldGlow { 50% { box-shadow: 0 0 0 6px rgba(245, 184, 46, 0.28); } }
 @keyframes pulse { 0%, 100% { opacity: 0.55; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
 @keyframes rain { from { transform: translateY(0); } to { transform: translateY(360px); } }
 @keyframes spark { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-200px); opacity: 0; } }
@@ -1137,7 +1193,7 @@ img { max-width: 100%; }
 /* ---------------------------------------------------------------- 반응형 */
 @media (max-width: 1180px) {
   .home { grid-template-columns: minmax(0, 1fr); }
-  .home__side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home__side { grid-row: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home__side .wallet { grid-column: 1 / -1; }
   .play { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .item-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
