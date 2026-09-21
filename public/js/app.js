@@ -1,5 +1,5 @@
 // 앱 시작, 화면 이동, 버튼 동작. 모든 판정은 서버가 하고 화면은 서버가 보낸 상태를 그린다.
-import { EVENT, RULES, ITEMS, spriteOf, eggOf } from './config.js';
+import { EVENT, RULES, ITEMS, SERVER_READY, spriteOf, eggOf } from './config.js';
 import * as G from './game.js';
 import * as API from './api.js';
 import * as V from './views.js';
@@ -612,6 +612,15 @@ document.addEventListener('visibilitychange', () => {
 
 async function boot() {
   buildNav();
+  if (!SERVER_READY) {
+    $('app').classList.add('is-onboarding');
+    $('view').innerHTML = `
+      <div class="boot">
+        <img class="px" src="assets/icons/luckybox.png" width="96" height="96" alt="">
+        <p><b>${EVENT.name} 몬스터 육성 배틀을 준비하고 있어요.</b><br>곧 문이 열려요. 조금만 기다려 주세요!</p>
+      </div>`;
+    return;
+  }
   $('view').innerHTML = '<div class="boot"><span class="boot__spinner"></span><p>몬스터들을 깨우는 중…</p></div>';
   try {
     await refresh({ force: true });

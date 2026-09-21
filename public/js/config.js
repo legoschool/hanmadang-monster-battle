@@ -6,12 +6,13 @@
 const SUPABASE_URL = '';
 const isLocal = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname);
 export const API_BASE = isLocal || !SUPABASE_URL ? '/api' : `${SUPABASE_URL}/functions/v1/api`;
+export const SERVER_READY = isLocal || !!SUPABASE_URL;
 
 export const EVENT = {
   name: '제2회 한마당',
   title: '커뮤니티 몬스터 육성 배틀',
   totalDays: 7,        // 마지막 날(7일차)에 최종 토너먼트
-  startDate: null,     // 'YYYY-MM-DD'로 정하면 날짜에 맞춰 일차가 자동으로 넘어감. null이면 데모 버튼으로 넘김
+  startDate: null,     // 'YYYY-MM-DD'로 정하면 날짜에 맞춰 일차가 자동으로 넘어감. null이면 운영자 화면에서 넘김
 };
 
 export const TEAMS = [
