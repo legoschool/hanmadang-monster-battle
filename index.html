@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>제2회 한마당 몬스터 육성 배틀</title>
+  <meta name="description" content="제2회 한마당 커뮤니티 몬스터 육성 배틀 — 매일 미션으로 우리 커뮤니티 몬스터를 키우고 마지막 날 토너먼트에서 겨뤄요.">
+  <meta name="theme-color" content="#66ae7d">
+  <link rel="icon" type="image/png" href="assets/icons/crown.png">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <a class="brand" href="#/home">
+        <span class="brand__mark"><img class="px" src="assets/icons/crown.png" width="28" height="28" alt=""></span>
+        <span class="brand__text"><b>한마당 몬스터</b><small>제2회 한마당</small></span>
+      </a>
+      <nav class="side-nav" id="sideNav" aria-label="메뉴"></nav>
+      <div class="sidebar__foot" id="sideProfile"></div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <a class="brand brand--mobile" href="#/home" aria-label="홈">
+          <span class="brand__mark"><img class="px" src="assets/icons/crown.png" width="24" height="24" alt=""></span>
+        </a>
+        <span class="day-chip" id="dayChip"></span>
+        <div class="wallet-chips" id="walletChips"></div>
+        <button class="icon-btn" id="toolsBtn" data-action="settings-open" aria-label="내 정보" title="내 정보"></button>
+      </header>
+      <main class="view" id="view"></main>
+      <footer class="foot">제2회 한마당 · 커뮤니티 몬스터 육성 배틀</footer>
+    </div>
+
+    <nav class="bottom-nav" id="bottomNav" aria-label="메뉴"></nav>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
