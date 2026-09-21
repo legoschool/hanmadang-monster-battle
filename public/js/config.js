@@ -8,11 +8,14 @@ const isLocal = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].in
 export const API_BASE = isLocal || !SUPABASE_URL ? '/api' : `${SUPABASE_URL}/functions/v1/api`;
 export const SERVER_READY = isLocal || !!SUPABASE_URL;
 
+// 일정: 현장 모임 전 4주 동안 1주일씩 시즌을 열고, 현장 모임 날 최종 토너먼트를 한다.
+// 시즌 시작일은 현장 모임일에서 거꾸로 계산한다 (12월 19일 - 4주 = 11월 21일 토요일).
+// 날짜가 되면 주차가 자동으로 넘어가고, 운영자 화면에서 앞당겨 넘길 수도 있다.
 export const EVENT = {
   name: '제2회 한마당',
   title: '커뮤니티 몬스터 육성 배틀',
-  totalDays: 7,        // 마지막 날(7일차)에 최종 토너먼트
-  startDate: null,     // 'YYYY-MM-DD'로 정하면 날짜에 맞춰 일차가 자동으로 넘어감. null이면 운영자 화면에서 넘김
+  eventDate: '2026-12-19', // 현장 모임 · 최종 토너먼트
+  weeks: 4,                // 사전 참여 주 수
 };
 
 export const TEAMS = [
@@ -28,9 +31,13 @@ export const TEAMS = [
 ];
 
 export const RULES = {
-  attendanceFood: 3,              // 출석하면 기본 먹이
+  weeklyVisitFood: 5,             // 그 주에 처음 들어오면 먹이
   quizPoints: 10,                 // 퀴즈 1문제 맞힐 때마다 포인트
-  quizPerfectPremium: 1,          // 3문제 모두 맞히면 고급 먹이
+  quizPerfectPremium: 2,          // 그 주 문제를 모두 맞히면 고급 먹이
+  luckyPerWeek: 3,                // 럭키박스: 한 주에 몇 번
+  rpsPerWeek: 2,                  // AI 보스 가위바위보: 한 주에 몇 번 (비기면 안 셈)
+  teamGoal: { base: 200, perMember: 60, rewardPremium: 1, rewardPoints: 20 }, // 주간 팀 목표 = 기본 + 팀원 수 × 1인당
+  golden: { multiplier: 2, minutes: 30 },  // 운영자가 켜는 골든타임: 먹이 경험치 2배
   exp: { food: 10, premium: 60 }, // 먹이 1개당 팀 경험치
   booster: { multiplier: 1.5, minutes: 60 },
   balloon: { multiplier: 0.7, minutes: 60 },
@@ -67,8 +74,8 @@ export const ITEMS = {
 export const STAGES = [
   { key: 'egg',   name: '알',     minLevel: 1 },
   { key: 'baby',  name: '아기',   minLevel: 2 },
-  { key: 'teen',  name: '성장기', minLevel: 5 },
-  { key: 'final', name: '완전체', minLevel: 9 },
+  { key: 'teen',  name: '성장기', minLevel: 6 },
+  { key: 'final', name: '완전체', minLevel: 11 },
 ];
 
 // 레벨 n이 되는 데 필요한 누적 경험치: Lv2 100, Lv3 300, Lv4 600, Lv5 1000 ...
