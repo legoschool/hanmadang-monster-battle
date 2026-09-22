@@ -13,7 +13,7 @@ let state = null;
 const ui = {
   pickTeam: null, pickAvatar: null, quizReveal: null, crewTab: 'alliance', crewMode: 'week',
   giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {},
-  adminOverview: null, adminError: '', adminPrizes: null,
+  adminOverview: null, adminError: '', adminPrizes: null, schedDraft: null,
   seenHit: 0, seenRounds: null, seenPrizes: null,
   cheerQueue: 0, cheerInflight: 0, cheerPending: 0,
 };
@@ -31,7 +31,10 @@ const ALIASES = { rank: 'crew', tournament: 'final' }; // 예전 주소
 
 const $ = (id) => document.getElementById(id);
 const me = () => (state?.me ? state.users[state.me] : null);
-const pace = () => G.paceOf(state); // 고른 진행 속도의 말: 주차/이번 주/다음 주 …
+const pace = () => G.paceOf(state); // 회차 길이에 맞는 말: 주차/이번 주/다음 주 …
+// 날짜 입력칸 (한국 시간) ↔ 시각
+const kstInput = (ms) => new Date(ms + 9 * 3600 * 1000).toISOString().slice(0, 16);
+const fromKstInput = (v) => (v ? Date.parse(`${v}:00+09:00`) : NaN);
 
 // ---------------------------------------------------------------- 기기에 남기는 "봤음" 표시
 function seen(key) {
@@ -761,15 +764,42 @@ const actions = {
     else if (res) toast(`<span><b>${res.week > ui.adminOverview.weeks ? '결전의 날' : `${res.week}${pace().round}`}</b>가 시작됐어요</span>`, 'good');
   },
   'admin-pace': async (el) => {
-    const key = el.dataset.pace;
-    const P = PACES[key];
-    const msg = key === 'real'
-      ? '실제 일정(1주일, 11월 21일 시작)으로 되돌릴까요?'
-      : `미리 해 보기: 지금부터 ${P.label}마다 새 ${P.round}가 열리게 할까요? 지금 ${state.week < 1 ? `1${P.round}가 바로 시작돼요` : `${pace().round}는 이 순간 새로 시작돼요`}.`;
-    if (!confirm(msg)) return;
-    const res = await adminCall('pace', { pace: key });
+    const Q = PACES[el.dataset.pace];
+    if (!confirm(`빠른 미리 해 보기: 지금 회차를 바로 새로 시작하고, ${Q.label}마다 다음 회차가 열리게 할까요?`)) return;
+    const res = await adminCall('pace', { pace: el.dataset.pace });
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
-    else if (res) toast(`<span><b>${key === 'real' ? '실제 일정' : `${P.label}마다`}</b> 진행으로 바꿨어요</span>`, 'good');
+    else if (res) {
+      ui.schedDraft = null;
+      render();
+      toast(`<span><b>${Q.label}마다</b> 새 회차가 열려요 (미리 해 보기)</span>`, 'good');
+    }
+  },
+  'admin-sched-now': () => {
+    const v = kstInput(now());
+    $('schedStart').value = v;
+    ui.schedDraft = { start: v, end: $('schedEnd').value };
+  },
+  'admin-sched-event': () => {
+    const v = kstInput(G.eventDefaultMs());
+    $('schedEnd').value = v;
+    ui.schedDraft = { start: $('schedStart').value, end: v };
+  },
+  'admin-sched-save': async () => {
+    const start = fromKstInput($('schedStart').value);
+    const end = fromKstInput($('schedEnd').value);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return toast('<span>시작과 끝 날짜를 모두 넣어 주세요</span>', 'warn');
+    const sch = { start, end, quick: false };
+    const P = G.paceFor(sch);
+    const msg = `이 일정으로 저장할까요?\n\n시작: ${G.weekDates(sch, 1).start}\n끝(현장 결전): ${G.eventDateLabel(sch)}\n회차마다 ${P.label}씩 ${EVENT.weeks}번`
+      + (start <= now() ? '\n\n시작 시각이 이미 지났으면 지금 바로 그 회차로 넘어가요.' : '');
+    if (!confirm(msg)) return;
+    const res = await adminCall('schedule', { start, end });
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) {
+      ui.schedDraft = null;
+      render();
+      toast('<span><b>일정을 저장했어요</b></span>', 'good');
+    }
   },
   'admin-golden': async (el) => {
     const minutes = Number(el.dataset.minutes) || 30;
@@ -848,6 +878,7 @@ const actions = {
     const res = await adminCall('reset', { confirm: typed });
     if (res?.ok) {
       ui.adminPrizes = null;
+      ui.schedDraft = null;
       ui.seenRounds = 0;
       ui.seenPrizes = new Set();
       toast('<span>전체 초기화했어요</span>', 'good');
@@ -888,6 +919,7 @@ document.addEventListener('input', (e) => {
     });
   }
   if (t.dataset.prizeName !== undefined) editablePrizes()[Number(t.dataset.prizeName)].name = t.value;
+  if (t.id === 'schedStart' || t.id === 'schedEnd') ui.schedDraft = { start: $('schedStart').value, end: $('schedEnd').value };
 });
 document.addEventListener('change', (e) => {
   const t = e.target;

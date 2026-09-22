@@ -7,7 +7,7 @@ import {
   teamById, bossOf, levelInfo, weekly, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
-  scheduleOf, paceOf, realSchedule,
+  scheduleOf, paceOf, roundLength, eventDefaultMs,
 } from './game.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
 
@@ -36,11 +36,15 @@ export const NAV = [
 ];
 
 const secHead = (title, extra = '') => `<div class="sec-head"><h2>${title}</h2>${extra}</div>`;
+const eventDateLabelDefault = () => eventDateLabel({ end: eventDefaultMs() });
 const pillLink = (href, label = '더보기') => `<a class="pill-link" href="${href}">${label} <span aria-hidden="true">→</span></a>`;
 const pageHead = (title, sub) => `<header class="page-head"><h1>${title}</h1><p>${sub}</p></header>`;
 // 결전까지 남은 시간: 실제 일정은 D-88, 미리 해 보기는 1초마다 줄어드는 시계
-const eventCountdown = (S) => (S.real ? untilEventLabel(S, clockNow())
+const DAY_MS = 24 * 3600 * 1000;
+const eventCountdown = (S) => (eventStart(S) - clockNow() >= DAY_MS ? untilEventLabel(S, clockNow())
   : `<time data-until="${eventStart(S)}">${timeLeft(eventStart(S))}</time> 뒤`);
+// 날짜 입력칸 값 (한국 시간): '2026-09-22T21:47'
+const kstInput = (ms) => new Date(ms + 9 * 3600 * 1000).toISOString().slice(0, 16);
 const teamChip = (t) => `<span class="team-chip"><i style="background:${t.color}"></i>${esc(t.community)}</span>`;
 
 export const avatarImg = (id, size = 40, cls = '') =>
@@ -106,7 +110,7 @@ export function renderOnboarding(state, ui) {
       <span class="eyebrow">${EVENT.name}</span>
       <h1>지딜 몬스터 <em>원정대</em></h1>
       <p class="onboard__slogan">${EVENT.slogan}</p>
-      <p>9개 커뮤니티 몬스터가 한 팀이 되어 ${S.real ? '한 달 동안 매주' : `${P.label}마다`} 나타나는 보스를 함께 물리치고,<br class="br-desktop">
+      <p>9개 커뮤니티 몬스터가 한 팀이 되어 ${P.every} 나타나는 보스를 함께 물리치고,<br class="br-desktop">
         ${eventDateLabel(S)} 한마당 현장에서 대마왕 글리치와 최종 결전을 벌여요.</p>
       <div class="parade parade--roll" aria-hidden="true">
         ${TEAMS.map((t, i) => `
@@ -465,7 +469,7 @@ export function renderHome(state, ui) {
 function weekBanner(state, t) {
   const S = scheduleOf(state);
   const P = paceOf(state);
-  const paceBadge = S.real ? '' : `<span class="pace-badge">미리 해 보기 · ${P.label}마다 새 ${P.round}</span>`;
+  const paceBadge = S.quick ? `<span class="pace-badge">미리 해 보기 · ${P.label}마다 새 ${P.round}</span>` : '';
   if (state.week < 1) {
     const crew = Object.values(state.users);
     return `
@@ -474,7 +478,7 @@ function weekBanner(state, t) {
       <div>
         <span class="eyebrow">원정대 모집 중</span>${paceBadge}
         <h2>${weekDates(S, 1).start}, 1${P.round} 원정 출발!</h2>
-        <p>${S.real ? '한 달 동안 1주일씩' : `${P.label}마다 한 마리씩`} 보스 4마리를 함께 물리치고, ${eventDateLabel(S)} 현장에서 대마왕 글리치와 최종 결전을 해요.
+        <p>${P.every} 한 마리씩 보스 4마리를 함께 물리치고, ${eventDateLabel(S)} 현장에서 대마왕 글리치와 최종 결전을 해요.
           지금 원정대 <b>${num(crew.length)}명</b>, ${esc(t.community)}에서 <b>${crew.filter((u) => u.teamId === t.id).length}명</b>이 모였어요.</p>
         <div class="crew-wall crew-wall--sm">${crew.slice(-24).reverse().map((u) => face(u, 28)).join('')}</div>
       </div>
@@ -500,7 +504,7 @@ function weekBanner(state, t) {
         <span class="eyebrow">${dates.start} ~ ${dates.end}</span>${paceBadge}
         <h2>「${esc(state.weekInfo?.title || '')}」 ${P.series}</h2>
         <p>${P.now} 퀴즈 주제: <b>${esc(state.weekInfo?.theme || '')}</b> · ${P.now} 안에 언제든 몰아서 해도 돼요.</p>
-        ${S.real ? '' : `<p class="week-banner__next">${state.week < EVENT.weeks ? `다음 ${P.round}` : '결전'}까지 <time data-until="${next}" data-refresh>${timeLeft(next)}</time></p>`}
+        ${roundLength(S) >= 3 * DAY_MS ? '' : `<p class="week-banner__next">${state.week < EVENT.weeks ? `다음 ${P.round}` : '결전'}까지 <time data-until="${next}" data-refresh>${timeLeft(next)}</time></p>`}
       </div>
     </section>`;
 }
@@ -1123,13 +1127,11 @@ export function renderAdmin(state, ui) {
   const prizes = ui.adminPrizes || ov.prizes;
 
   return `
-  ${pageHead('운영자', `참가자 ${num(ov.userCount)}명 · ${weekText} · 현장 모임 ${eventDateLabel(S)}${S.real ? '' : ` · 미리 해 보기(${P.label})`}`)}
+  ${pageHead('운영자', `참가자 ${num(ov.userCount)}명 · ${weekText} · 현장 모임 ${eventDateLabel(S)}${S.quick ? ` · 미리 해 보기(${P.label})` : ''}`)}
   <div class="admin">
     <section class="card">
       ${secHead('진행 관리')}
-      <p class="sec-desc">${S.real
-        ? `날짜가 되면 자동으로 넘어가요(${weekDates(S, 1).start} 1주차 시작, 매주 토요일 0시).`
-        : `지금은 미리 해 보기 속도예요. ${P.label}마다 자동으로 넘어가요.`} 리허설이나 일정 조정이 필요할 때만 눌러 주세요. 넘기면 ${P.prev} 시상과 팀 몫 보상이 지급되고, 못 잡은 보스는 도망가요.</p>
+      <p class="sec-desc">${P.label}마다 자동으로 넘어가요(1${P.round} ${weekDates(S, 1).start} 시작 → ${eventDateLabel(S)} 결전). 앞당겨야 할 때만 눌러 주세요. 넘기면 ${P.prev} 시상과 팀 몫 보상이 지급되고, 못 잡은 보스는 도망가요.</p>
       <button class="btn btn--primary" data-action="admin-next-week" ${ov.week >= FINAL_WEEK ? 'disabled' : ''}>${ov.week >= FINAL_WEEK ? '이미 결전의 날이에요' : nextText}</button>
       <table class="admin-table">
         <thead><tr><th>커뮤니티</th><th>대원</th><th>${P.now} 참여</th><th>${P.now} 피해</th><th>경험치</th></tr></thead>
@@ -1138,13 +1140,28 @@ export function renderAdmin(state, ui) {
     </section>
 
     <section class="card">
-      ${secHead('진행 속도 (미리 해 보기)', `<span class="sec-note">지금: ${S.real ? '실제 일정 · 1주일' : `${P.label}마다`}</span>`)}
-      <p class="sec-desc">속도를 고르면 지금 ${P.round}가 바로 새로 시작되고, 그 뒤로 고른 시간마다 다음 ${P.round}가 자동으로 열려요. 퀴즈·보스·럭키박스·가위바위보 횟수도 그때마다 새로 바뀌어요. 미리 해 보기 속도에서는 혼자서도 해 볼 수 있게 보스 최소 체력을 ${RULES.boss.minHpTest}으로 낮춰요.</p>
-      <div class="admin-golden">
-        ${['day', 'hour', 'min30', 'min10'].map((k) => `<button class="btn ${!S.real && S.pace === k ? 'btn--primary' : 'btn--soft'}" data-action="admin-pace" data-pace="${k}">${PACES[k].label}</button>`).join('')}
-        <button class="btn ${S.real ? 'btn--primary' : 'btn--soft'}" data-action="admin-pace" data-pace="real">실제 일정 (1주일 · ${weekDates(realSchedule(), 1).start} 시작)</button>
+      ${secHead('일정 (시작 · 끝)', `<span class="sec-note">회차마다 ${P.label}${S.quick ? ' · 미리 해 보기' : ''}</span>`)}
+      <p class="sec-desc">시작 날짜에 1${P.round}가 열리고, 끝 날짜(현장 결전)까지를 똑같이 ${EVENT.weeks}번으로 나눠 회차가 바뀌어요. 회차마다 퀴즈·보스·럭키박스·가위바위보 횟수가 새로 열려요. 날짜와 시각은 한국 시간이에요.</p>
+      <div class="admin-sched">
+        <label class="admin-sched__field"><span>시작</span>
+          <input type="datetime-local" id="schedStart" value="${ui.schedDraft?.start ?? kstInput(S.start)}">
+          <button class="btn btn--soft btn--sm" data-action="admin-sched-now">지금</button>
+        </label>
+        <label class="admin-sched__field"><span>끝 (현장 결전)</span>
+          <input type="datetime-local" id="schedEnd" value="${ui.schedDraft?.end ?? kstInput(S.end)}">
+          <button class="btn btn--soft btn--sm" data-action="admin-sched-event">${eventDateLabelDefault()}</button>
+        </label>
+        <button class="btn btn--primary" data-action="admin-sched-save">일정 저장</button>
       </div>
-      <p class="sec-desc admin-pace__note">다 해 본 뒤에는 맨 아래 “전체 초기화”를 누르세요. 실제 일정과 샘플 상품으로 돌아가요.</p>
+      <ol class="admin-rounds">
+        ${BOSSES.map((b) => `<li${state.week === b.week ? ' class="is-now"' : ''}><b>${b.week}${P.round}</b><span>${weekDates(S, b.week).start} ~ ${weekDates(S, b.week).end}</span><small>${esc(b.name)}</small></li>`).join('')}
+        <li${state.week >= FINAL_WEEK ? ' class="is-now"' : ''}><b>결전</b><span>${eventDateLabel(S)}</span><small>${esc(FINAL_BOSS.name)}</small></li>
+      </ol>
+      <p class="sec-desc admin-sched__quick">빠른 미리 해 보기 — 지금 회차를 바로 새로 시작하고, 회차마다 이 시간씩 (보스 체력이 낮아져 혼자서도 해 볼 수 있어요)</p>
+      <div class="admin-golden">
+        ${Object.entries(PACES).map(([k, q]) => `<button class="btn btn--soft" data-action="admin-pace" data-pace="${k}">${q.label}</button>`).join('')}
+      </div>
+      <p class="sec-desc admin-pace__note">미리 해 보기가 끝나면 맨 아래 “전체 초기화”를 누르세요. “지금 바로 시작 → ${eventDateLabelDefault()} 결전” 일정과 샘플 상품으로 돌아가요.</p>
     </section>
 
     <section class="card">

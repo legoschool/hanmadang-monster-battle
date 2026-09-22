@@ -8,10 +8,11 @@ import {
   EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, expForLevel,
 } from './config.js';
 
-export const SCHEMA = 3; // 저장 데이터 모양이 바뀌면 올린다 (예전 모양은 새로 시작)
+export const SCHEMA = 4; // 저장 데이터 모양이 바뀌면 올린다 (예전 모양은 새로 시작). 4: 일정을 시작~끝 날짜로
 export const FINAL_WEEK = EVENT.weeks + 1;
 const MIN = 60 * 1000;
-const DAY = 24 * 60 * MIN;
+const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
 const HITS_LIMIT = 24;      // 보스 전투 장면에 보여 줄 최근 공격 수
 const CHEER_GRACE = 3000;   // 응원 타임이 끝난 뒤에도 늦게 도착한 응원을 받아 주는 시간
 export const HANDS = { rock: '✊', scissors: '✌️', paper: '✋' };
@@ -22,23 +23,62 @@ export const bossOf = (week) => BOSSES.find((b) => b.week === week) ?? null;
 export const isAvatar = (id) => AVATARS.some((a) => a.id === id);
 
 // ---------------------------------------------------------------- 일정
-// 일정(schedule)은 게임 상태에 저장된다: { pace, start, real }
-//   실제 일정: 1주일 속도, 11월 21일(토) 0시 시작 (현장 모임 12월 19일 - 4주)
-//   미리 해 보기: 운영자가 고른 속도(1일·1시간·30분·10분)로, 고른 순간부터 시작
+// 일정(schedule)은 게임 상태에 저장된다: { start, end, quick }
+//   start: 1주차(1회차)가 열리는 시각, end: 현장 결전이 시작되는 시각. 그 사이를 4번으로 똑같이 나눈다.
+//   기본값: 게임을 만든(초기화한) 순간 바로 시작 → 12월 19일(토) 0시 결전. 운영자 화면에서 두 날짜를 고친다.
+//   quick: 운영자가 고른 "빠른 미리 해 보기"(10분·30분·1시간·1일). 혼자서도 해 볼 수 있게 보스 체력을 낮춘다.
 const EVENT_MS = Date.parse(`${EVENT.eventDate}T00:00:00+09:00`);
-const SEASON_START_MS = EVENT_MS - EVENT.weeks * 7 * DAY;
+export const eventDefaultMs = () => EVENT_MS;
+const LEGACY_MS = { week: 7 * DAY, day: DAY, hour: HOUR, min30: 30 * MIN, min10: 10 * MIN };
 
-export const realSchedule = () => ({ pace: 'week', start: SEASON_START_MS, real: true });
-export const scheduleOf = (state) => state?.schedule || realSchedule();
-export const paceOf = (state) => PACES[scheduleOf(state).pace] || PACES.week;
-const periodMs = (sch) => (PACES[sch.pace] || PACES.week).ms;
-export const roundStart = (sch, week) => sch.start + (week - 1) * periodMs(sch);
-export const eventStart = (sch) => roundStart(sch, FINAL_WEEK);
+export function defaultSchedule(now = Date.now()) {
+  const end = EVENT_MS > now + EVENT.weeks * MIN ? EVENT_MS : now + EVENT.weeks * 7 * DAY;
+  return { start: Math.floor(now / MIN) * MIN, end, quick: false };
+}
 
-// 지금 몇 주차(회차)인지 — 시작 시각에 1주차가 열리고, 속도만큼 지나면 다음 주차
+// 예전 모양({ pace, start, real })도 읽어 준다
+export function normalizeSchedule(sch) {
+  if (!sch) return { start: EVENT_MS - EVENT.weeks * 7 * DAY, end: EVENT_MS, quick: false };
+  if (sch.end) return sch;
+  const ms = LEGACY_MS[sch.pace] || LEGACY_MS.week;
+  return { start: sch.start, end: sch.start + EVENT.weeks * ms, quick: !sch.real };
+}
+export const scheduleOf = (state) => normalizeSchedule(state?.schedule);
+export const roundLength = (sch) => (sch.end - sch.start) / EVENT.weeks;
+export const roundStart = (sch, week) => Math.round(sch.start + (week - 1) * roundLength(sch));
+export const eventStart = (sch) => sch.end;
+
+// 회차 길이에 맞는 말: 1주일 → 주차·이번 주, 하루 → 일차·오늘, 그 밖 → 회차·이번 회차
+const WORDS = {
+  week:  { round: '주차', now: '이번 주', next: '다음 주', prev: '지난주', per: '한 주에', once: '1주일에 한 번', series: '주간', every: '매주' },
+  day:   { round: '일차', now: '오늘', next: '내일', prev: '어제', per: '하루에', once: '하루에 한 번', series: '편', every: '매일' },
+  round: { round: '회차', now: '이번 회차', next: '다음 회차', prev: '지난 회차', per: '한 회차에', once: '한 회차에 한 번', series: '편' },
+};
+export function periodLabel(ms) {
+  const exact = (unit) => Math.abs(ms / unit - Math.round(ms / unit)) < 0.01;
+  if (exact(7 * DAY) && Math.round(ms / (7 * DAY)) === 1) return '1주일';
+  if (ms >= DAY) return exact(DAY) ? `${Math.round(ms / DAY)}일` : `약 ${Math.round(ms / DAY)}일`;
+  if (ms >= HOUR) return exact(HOUR) ? `${Math.round(ms / HOUR)}시간` : `약 ${Math.round(ms / HOUR)}시간`;
+  return exact(MIN) ? `${Math.round(ms / MIN)}분` : `약 ${Math.max(1, Math.round(ms / MIN))}분`;
+}
+export function paceFor(sch) {
+  const len = roundLength(sch);
+  const kind = len >= 6 * DAY && len <= 8 * DAY ? 'week' : len >= 20 * HOUR && len <= 28 * HOUR ? 'day' : 'round';
+  const label = periodLabel(len);
+  const w = WORDS[kind];
+  return {
+    ...w, kind, label,
+    every: w.every || `${label}마다`,
+    once: kind === 'round' && !label.startsWith('약') ? `${label}에 한 번` : w.once,
+  };
+}
+export const paceOf = (state) => paceFor(scheduleOf(state));
+
+// 지금 몇 주차(회차)인지 — 시작 시각에 1주차가 열리고, 한 회차 길이만큼 지나면 다음 주차
 export function weekForTime(sch, now = Date.now()) {
   if (now < sch.start) return 0;
-  return Math.min(FINAL_WEEK, Math.floor((now - sch.start) / periodMs(sch)) + 1);
+  if (now >= sch.end) return FINAL_WEEK;
+  return Math.min(EVENT.weeks, Math.floor((now - sch.start) / roundLength(sch)) + 1);
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -48,37 +88,39 @@ function kst(ms) {
 }
 const dateLabel = (ms) => { const k = kst(ms); return `${k.mo}월 ${k.da}일(${k.wd})`; };
 const clockLabel = (ms) => { const k = kst(ms); return `${k.h}:${String(k.mi).padStart(2, '0')}`; };
+const isMidnight = (ms) => { const k = kst(ms); return k.h === 0 && k.mi === 0; };
 function whenLabel(sch, ms) {
-  if (sch.real) return dateLabel(ms);
-  return periodMs(sch) >= DAY ? `${dateLabel(ms)} ${clockLabel(ms)}` : clockLabel(ms);
+  if (roundLength(sch) < DAY) return clockLabel(ms);
+  return isMidnight(ms) ? dateLabel(ms) : `${dateLabel(ms)} ${clockLabel(ms)}`;
 }
 
-// 주차별 기간 표시. 실제: { start: '11월 21일(토)', end: '11월 27일(금)' }, 10분 속도: { start: '14:00', end: '14:09' }
+// 주차별 기간 표시. 예: { start: '11월 21일(토)', end: '11월 27일(금)' }, 10분씩: { start: '14:00', end: '14:09' }
 export function weekDates(sch, week) {
   const w = Math.min(Math.max(1, week), FINAL_WEEK);
   const start = roundStart(sch, w);
   if (w >= FINAL_WEEK) return { start: whenLabel(sch, start), end: whenLabel(sch, start) };
-  return { start: whenLabel(sch, start), end: whenLabel(sch, start + periodMs(sch) - (sch.real ? DAY : MIN)) };
+  const next = roundStart(sch, w + 1);
+  const dayAligned = roundLength(sch) >= DAY && isMidnight(start) && isMidnight(next);
+  return { start: whenLabel(sch, start), end: whenLabel(sch, next - (dayAligned ? DAY : MIN)) };
 }
 
-export const eventDateLabel = (sch) => (sch.real ? dateLabel(eventStart(sch)) : `${dateLabel(eventStart(sch))} ${clockLabel(eventStart(sch))}`);
+export const eventDateLabel = (sch) => (isMidnight(sch.end) ? dateLabel(sch.end) : `${dateLabel(sch.end)} ${clockLabel(sch.end)}`);
 
-// 현장 모임(결전)까지 남은 날 (실제 일정 기준, 당일 0)
+// 현장 결전까지 남은 날 (달력 기준, 당일 0)
 export function daysToEvent(sch, now = Date.now()) {
-  const kstToday = Math.floor((now + 9 * 60 * MIN) / DAY);
-  const kstEvent = Math.floor((eventStart(sch) + 9 * 60 * MIN) / DAY);
+  const kstToday = Math.floor((now + 9 * HOUR) / DAY);
+  const kstEvent = Math.floor((sch.end + 9 * HOUR) / DAY);
   return kstEvent - kstToday;
 }
 
-// 결전까지 남은 시간 표시: 실제 일정은 'D-88', 미리 해 보기는 '1시간 20분 뒤' 같은 모양
+// 결전까지 남은 시간 표시: 하루 넘게 남으면 'D-88', 하루 안이면 '1시간 20분 뒤'
 export function untilEventLabel(sch, now = Date.now()) {
-  if (sch.real) {
+  const left = sch.end - now;
+  if (left <= 0) return 'D-DAY';
+  if (left >= DAY) {
     const d = daysToEvent(sch, now);
     return d > 0 ? `D-${d}` : 'D-DAY';
   }
-  const left = eventStart(sch) - now;
-  if (left <= 0) return 'D-DAY';
-  if (left >= DAY) return `D-${Math.ceil(left / DAY)}`;
   const m = Math.ceil(left / MIN);
   return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분 뒤` : `${m}분 뒤`;
 }
@@ -145,7 +187,7 @@ export function newGameState() {
   const state = {
     schema: SCHEMA, version: 1, seq: 0, week: 0,
     users: {}, teams: {}, feed: [], awards: {}, bosses: {}, hits: [],
-    coffeeStock: RULES.coffeeStock, goldenUntil: 0, final: null, schedule: realSchedule(),
+    coffeeStock: RULES.coffeeStock, goldenUntil: 0, final: null, schedule: defaultSchedule(),
     prizes: DEFAULT_PRIZES.map(({ award, name }) => ({ name, award, winner: null, openedAt: 0 })),
   };
   for (const t of TEAMS) state.teams[t.id] = newTeam(t.id, 0);
@@ -207,7 +249,7 @@ export function bossInfo(state, w = state.week) {
     const dmg = state.teams[t.id].dmgByWeek[w] || 0;
     return { id: t.id, share, dmg, rate: share ? dmg / share : 0, active: activeCount(state, t.id, w) };
   });
-  const minHp = scheduleOf(state).real ? RULES.boss.minHp : RULES.boss.minHpTest;
+  const minHp = scheduleOf(state).quick ? RULES.boss.minHpTest : RULES.boss.minHp;
   const live = Math.max(minHp, teams.reduce((s, t) => s + t.share, 0));
   const maxHp = rec.defeatedAt ? rec.maxHpAtDefeat : rec.escaped ? rec.maxHpAtEnd || live : live;
   return {
@@ -589,30 +631,48 @@ export function advanceWeek(state) {
   return { ok: true, week: state.week, award };
 }
 
-// 운영자가 진행 속도를 고른다. 지금 주차는 이 순간 새로 시작하고, 그 뒤로 고른 시간마다 다음 주차가 열린다.
-// 'real'은 실제 일정(11/21 시작, 1주일)으로 되돌린다. 이미 실제 일정보다 앞서 있으면 초기화가 먼저 필요하다.
-export function setPace(state, pace, now = Date.now()) {
-  if (pace === 'real') {
-    if (state.week > weekForTime(realSchedule(), now)) {
-      return { ok: false, reason: '실제 일정보다 앞서 진행돼 있어요. "전체 초기화"를 하면 실제 일정으로 돌아가요.' };
+// 운영자가 시작·끝 날짜를 정한다. 이미 지난 회차로 되돌아가는 일정은 받지 않는다(그럴 때는 초기화 먼저).
+export function setSchedule(state, start, end, now = Date.now()) {
+  const a = Math.round(Number(start));
+  const b = Math.round(Number(end));
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return { ok: false, reason: '시작과 끝 날짜를 넣어 주세요' };
+  if (b <= a) return { ok: false, reason: '끝 날짜는 시작 날짜보다 뒤여야 해요' };
+  if ((b - a) / EVENT.weeks < MIN) return { ok: false, reason: `시작과 끝 사이가 너무 짧아요 (적어도 ${EVENT.weeks}분)` };
+  const sch = { start: a, end: b, quick: false };
+  const target = weekForTime(sch, now);
+  if (target < state.week) {
+    // 아직 보스 공격·시상·결전 기록이 없으면 앞 회차(또는 모집 기간)로 미룰 수 있다
+    const played = Object.keys(state.awards).length > 0 || !!state.final || Object.values(state.bosses).some((x) => x.dmg > 0);
+    if (played) {
+      return { ok: false, reason: '이미 원정 기록이 쌓여서 앞 회차로 되돌릴 수 없어요. 날짜를 미루려면 "전체 초기화"를 한 뒤 다시 저장해 주세요.' };
     }
-    state.schedule = realSchedule();
-    pushFeed(state, 'booster', `운영진이 실제 일정으로 되돌렸어요. ${weekDates(state.schedule, 1).start}에 1주차 원정이 시작돼요.`);
-    return { ok: true, pace: 'real' };
+    state.week = target;
+    state.hits = [];
   }
-  const P = PACES[pace];
-  if (!P || pace === 'week') return { ok: false, reason: '속도를 골라 주세요' };
+  state.schedule = sch;
+  const P = paceFor(sch);
+  pushFeed(state, 'booster', `운영진이 일정을 정했어요: ${weekDates(sch, 1).start} 시작 → ${eventDateLabel(sch)} 현장 결전. ${P.label}마다 새 ${P.round}가 열려요!`);
+  return { ok: true };
+}
+
+// 빠른 미리 해 보기: 지금 회차가 이 순간 새로 시작하고, 고른 시간마다 다음 회차가 열린다
+export function setPace(state, pace, now = Date.now()) {
+  const Q = PACES[pace];
+  if (!Q) return { ok: false, reason: '속도를 골라 주세요' };
   const w = Math.max(1, Math.min(state.week, FINAL_WEEK));
-  state.schedule = { pace, start: now - (w - 1) * P.ms, real: false };
-  pushFeed(state, 'booster', `미리 해 보기! 지금부터 ${P.label}마다 새 ${P.round}가 열려요. 퀴즈·보스·럭키박스 횟수도 그때마다 새로 바뀌어요.`);
+  const start = now - (w - 1) * Q.ms;
+  state.schedule = { start, end: start + EVENT.weeks * Q.ms, quick: true };
+  pushFeed(state, 'booster', `미리 해 보기! 지금부터 ${Q.label}마다 새 회차가 열려요. 퀴즈·보스·럭키박스 횟수도 그때마다 새로 바뀌어요.`);
   return { ok: true, pace };
 }
 
-// 미리 해 보기 속도에서 운영자가 주차를 앞당기면, 새 주차가 지금 시작한 것으로 일정을 맞춘다
+// 빠른 미리 해 보기에서 운영자가 회차를 앞당기면, 새 회차가 지금 시작한 것으로 일정을 맞춘다
 export function rebaseSchedule(state, now = Date.now()) {
   const sch = scheduleOf(state);
-  if (sch.real || state.week < 1) return;
-  state.schedule = { ...sch, start: now - (Math.min(state.week, FINAL_WEEK) - 1) * periodMs(sch) };
+  if (!sch.quick || state.week < 1) return;
+  const len = roundLength(sch);
+  const start = now - (Math.min(state.week, FINAL_WEEK) - 1) * len;
+  state.schedule = { start, end: start + EVENT.weeks * len, quick: true };
 }
 
 // 시간이 되면 자동으로 주차를 넘긴다 (앞으로만 간다. 운영자가 미리 넘긴 주차는 그대로 둔다)

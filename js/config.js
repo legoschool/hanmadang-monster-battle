@@ -8,26 +8,25 @@ const isLocal = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].in
 export const API_BASE = isLocal || !SUPABASE_URL ? '/api' : `${SUPABASE_URL}/functions/v1/api`;
 export const SERVER_READY = isLocal || !!SUPABASE_URL;
 
-// 일정: 현장 모임 전 4주 동안 1주일씩 원정을 떠나고, 현장 모임 날 다 함께 최종 결전을 한다.
-// 시즌 시작일은 현장 모임일에서 거꾸로 계산한다 (12월 19일 - 4주 = 11월 21일 토요일).
-// 날짜가 되면 주차가 자동으로 넘어가고, 운영자 화면에서 앞당겨 넘길 수도 있다.
+// 원정은 4회차로 나뉘고, 끝 날짜(현장 모임)에 다 함께 최종 결전을 한다.
+// 회차는 시간이 되면 자동으로 넘어가고, 운영자 화면에서 앞당겨 넘길 수도 있다.
 export const EVENT = {
   name: '제2회 한마당',
   title: '지딜 몬스터 원정대',
   slogan: '우리는 모두 지딜!',
-  eventDate: '2026-12-19', // 현장 모임 · 최종 결전
+  eventDate: '2026-12-19', // 현장 모임 · 최종 결전 (끝 날짜 기본값, 운영자 화면에서 바꿀 수 있음)
   weeks: 4,                // 사전 참여 주 수
 };
 
-// 진행 속도: 운영자 화면에서 고른다. 실제 일정은 1주일(11/21 시작, 매주 토요일 0시).
-// 나머지는 미리 해 보기용 — 고른 시간마다 새 회차(퀴즈·보스·횟수 제한)가 열린다.
+// 일정: 운영자 화면에서 시작·끝(현장 결전) 날짜를 정하고, 그 사이를 4번으로 똑같이 나눠 회차가 바뀐다.
+// 처음(초기화 뒤)에는 "지금 바로 시작 → 12월 19일(토) 0시 결전"이다.
+// 아래는 운영자 화면의 "빠른 미리 해 보기" 버튼: 지금부터 회차마다 이 시간씩.
 const HOUR = 3600 * 1000;
 export const PACES = {
-  week:  { label: '1주일', ms: 7 * 24 * HOUR, round: '주차', now: '이번 주', next: '다음 주', prev: '지난주', per: '한 주에', once: '1주일에 한 번', series: '주간' },
-  day:   { label: '1일',   ms: 24 * HOUR, round: '일차', now: '오늘', next: '내일', prev: '어제', per: '하루에', once: '하루에 한 번', series: '편' },
-  hour:  { label: '1시간', ms: HOUR, round: '회차', now: '이번 회차', next: '다음 회차', prev: '지난 회차', per: '한 회차에', once: '1시간에 한 번', series: '편' },
-  min30: { label: '30분',  ms: HOUR / 2, round: '회차', now: '이번 회차', next: '다음 회차', prev: '지난 회차', per: '한 회차에', once: '30분에 한 번', series: '편' },
-  min10: { label: '10분',  ms: HOUR / 6, round: '회차', now: '이번 회차', next: '다음 회차', prev: '지난 회차', per: '한 회차에', once: '10분에 한 번', series: '편' },
+  day:   { label: '1일',   ms: 24 * HOUR },
+  hour:  { label: '1시간', ms: HOUR },
+  min30: { label: '30분',  ms: HOUR / 2 },
+  min10: { label: '10분',  ms: HOUR / 6 },
 };
 
 // 9개 커뮤니티는 경쟁 상대가 아니라 한 원정대다.

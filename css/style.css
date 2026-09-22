@@ -1589,6 +1589,17 @@ img { max-width: 100%; }
 .week-banner__next time { font-family: var(--pixel); font-size: 16px; color: #5b3fa8; }
 .admin-warn { margin: -4px 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--gold-50); border: 1px solid #f2cf73; color: var(--gold-700); font-size: 13.5px; font-weight: 600; }
 .admin-pace__note { margin-top: 10px; }
+.admin-sched { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; margin: 4px 0 14px; }
+.admin-sched__field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.admin-sched__field span { width: 100%; font-size: 12.5px; font-weight: 700; color: var(--ink-3); }
+.admin-sched__field input { min-height: 40px; padding: 6px 10px; border: 2px solid var(--line-2); border-radius: 10px; font: inherit; font-size: 14px; background: #fff; }
+.admin-sched__field input:focus { outline: none; border-color: var(--green); }
+.admin-rounds { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 4px; }
+.admin-rounds li { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--bg); font-size: 13.5px; }
+.admin-rounds li.is-now { background: var(--green-50); box-shadow: inset 0 0 0 2px var(--green-200); }
+.admin-rounds b { color: var(--green-700); }
+.admin-rounds small { color: var(--ink-3); }
+.admin-sched__quick { margin-top: 6px; }
 
 /* ---------------------------------------------------------------- 움직임 */
 @keyframes idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
