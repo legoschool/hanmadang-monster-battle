@@ -281,7 +281,7 @@ img { max-width: 100%; }
 }
 
 /* ---------------------------------------------------------------- 시작 화면 */
-.onboard { max-width: 880px; margin: 0 auto; padding: 32px 0 24px; display: grid; gap: 24px; }
+.onboard { max-width: 880px; margin: 0 auto; padding: 32px 0 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
 .onboard__hero {
   position: relative;
   overflow: hidden;
@@ -1224,7 +1224,8 @@ img { max-width: 100%; }
   cursor: pointer;
   transition: border-color 0.15s, transform 0.15s, background 0.15s;
 }
-.avatar-pick__item img { width: 100%; height: auto; max-width: 48px; }
+.avatar-pick__item { min-width: 0; }
+.avatar-pick__item img { width: 100%; min-width: 0; height: auto; max-width: 48px; }
 .avatar-pick__item:hover { border-color: var(--green); transform: translateY(-2px); }
 .avatar-pick__item.is-selected { border-color: var(--green); background: var(--green-50); box-shadow: 0 4px 14px rgba(102, 174, 125, 0.35); }
 .avatar-pick__item.is-selected img { animation: idle 0.6s steps(1) infinite; }
@@ -1314,7 +1315,7 @@ img { max-width: 100%; }
 .boss-arena__crew li:nth-child(7) { left: 24%; top: 70%; }
 .boss-arena__crew li:nth-child(8) { left: 60%; top: 70%; }
 .boss-arena__crew .avatar-img { padding: 2px; border-radius: 10px; background: #fff; box-shadow: inset 0 0 0 2px var(--team), 0 3px 8px rgba(0, 0, 0, 0.08); }
-.boss-arena__crew li:nth-child(odd) .avatar-img { transform: scaleX(-1); }
+.boss-arena__crew li:nth-child(even) .avatar-img { transform: scaleX(-1); } /* 오른쪽 대원은 보스(왼쪽)를 보게 */
 .boss-arena__crew b { margin-top: -6px; padding: 0 5px; border-radius: 6px; background: #d8455a; color: #fff; font-family: var(--pixel); font-size: 11px; font-weight: 400; }
 .boss-arena__crew small { max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--ink-3); }
 .boss-arena__crew li.is-me .avatar-img { box-shadow: inset 0 0 0 2px var(--team), 0 0 0 3px var(--gold); }
@@ -1538,7 +1539,8 @@ img { max-width: 100%; }
 }
 
 @media (max-width: 640px) {
-  .avatar-pick { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .avatar-pick { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .avatar-pick__item { padding: 2px; }
   .journey__path { gap: 2px; }
   .journey__path::before { top: 26px; }
   .journey__img { width: 54px; height: 54px; border-width: 2px; }

@@ -95,7 +95,7 @@ export const RULES = {
     escapeAdd: 0.1,               // 놓친 보스 1마리 = 글리치 체력 10% 증가
     atk: 30, atkPerLevel: 10, hitsPerRound: 3, critRate: 0.12, critMul: 1.5,
     cheerDamage: 0.5,             // 응원 1번 = 피해 0.5
-    cheerSendMax: 30,             // 한 번에 보낼 수 있는 응원 수
+    cheerSendMax: 60,             // 한 번에 보낼 수 있는 응원 수 (폰은 6초마다 모아서 보낸다)
     cheerUserMax: 300,            // 한 사람이 응원 타임 한 번에 낼 수 있는 응원 수
     cheerSeconds: 30,
   },

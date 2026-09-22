@@ -7,7 +7,7 @@ import { esc, num, icon, openModal, updateModal, closeModal, modalOpen, toast, f
 
 const POLL_MS = 12000;
 const POLL_FINAL_MS = 4000;   // 결전의 날에는 응원·라운드를 빨리 받아 온다
-const CHEER_FLUSH_MS = 4000;  // 누른 응원을 모아서 보내는 간격
+const CHEER_FLUSH_MS = 6000;  // 누른 응원을 모아서 보내는 간격 (서버 부담을 줄이려고 넉넉히)
 
 let state = null;
 const ui = {
@@ -358,7 +358,9 @@ async function flushCheers({ final = false } = {}) {
     const n = Math.min(ui.cheerQueue, RULES.final.cheerSendMax);
     ui.cheerQueue -= n;
     ui.cheerInflight = n;
-    await act('finalCheer', { n });
+    const res = await act('finalCheer', { n });
+    // 응원 응답에는 전체 상태가 없으니 내 응원 수만 서버 값으로 맞춰 둔다
+    if (res?.ok && state?.final) state.final.mine = Math.max(state.final.mine || 0, res.mine);
     ui.cheerInflight = 0;
     syncCheerCount();
   }

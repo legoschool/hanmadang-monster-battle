@@ -242,7 +242,8 @@ function bossCard(state, u, ui) {
   const info = bossInfo(state);
   const my = info.teams.find((x) => x.id === u.teamId);
   const d = weekly(state, u);
-  const hits = (state.hits || []).slice(0, 8);
+  // 한 사람은 한 번만: 가장 최근 공격으로 보여 준다
+  const hits = (state.hits || []).filter((h, i, all) => all.findIndex((x) => x.uid === h.uid) === i).slice(0, 8);
   const over = Math.max(0, my.dmg - my.share);
   return `
     <section class="card boss-card ${info.defeated ? 'is-defeated' : ''}" style="--boss:${info.color}">
@@ -1149,7 +1150,8 @@ export function renderAdmin(state, ui) {
             <td>${i + 1}</td>
             <td><input class="admin-input" data-prize-name="${i}" value="${esc(p.name)}" maxlength="40" placeholder="예: 커피 머신"></td>
             <td><select data-prize-award="${i}">${Object.entries(PRIZE_AWARDS).map(([k, a]) => `<option value="${k}" ${k === p.award ? 'selected' : ''}>${esc(a.label)}</option>`).join('')}</select></td>
-            <td>${p.winner ? esc(prizeWinnerName(state, p.winner) || (p.winner.type === 'team' ? teamById(p.winner.id)?.community : '')) : '-'}${p.openedAt ? '<small>열림</small>' : ''}</td>
+            <td>${p.winner ? esc(prizeWinnerName(state, p.winner) || (p.winner.type === 'team' ? teamById(p.winner.id)?.community : ''))
+              : fin?.wonAt && p.award !== 'lucky' ? '<small>해당자 없음 · 받는 상을 “행운 추첨”으로 바꿔 저장한 뒤 추첨하세요</small>' : '-'}${p.openedAt ? '<small>열림</small>' : ''}</td>
             <td class="admin-prizes__btns">
               ${p.award === 'lucky' && !p.winner ? `<button class="btn btn--soft btn--sm" data-action="admin-prize-draw" data-index="${i}">추첨</button>` : ''}
               ${p.winner && !p.openedAt ? `<button class="btn btn--primary btn--sm" data-action="admin-prize-open" data-index="${i}">열기</button>` : ''}
