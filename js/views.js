@@ -1,12 +1,13 @@
 // 페이지 화면 (HTML 문자열을 만든다)
 import {
-  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS,
+  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, PACES, SAMPLE_MARK,
   spriteOf, bossImgOf, avatarOf,
 } from './config.js';
 import {
   teamById, bossOf, levelInfo, weekly, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
-  FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, daysToEvent,
+  FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
+  scheduleOf, paceOf, realSchedule,
 } from './game.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
 
@@ -27,7 +28,7 @@ export const svg = (name) =>
 
 export const NAV = [
   { route: 'home', label: '홈', short: '홈' },
-  { route: 'mission', label: '이번 주 미션', short: '미션' },
+  { route: 'mission', label: '원정 미션', short: '미션' },
   { route: 'play', label: '도전 · 뽑기', short: '도전' },
   { route: 'bag', label: '가방', short: '가방' },
   { route: 'crew', label: '원정대', short: '원정대' },
@@ -37,6 +38,9 @@ export const NAV = [
 const secHead = (title, extra = '') => `<div class="sec-head"><h2>${title}</h2>${extra}</div>`;
 const pillLink = (href, label = '더보기') => `<a class="pill-link" href="${href}">${label} <span aria-hidden="true">→</span></a>`;
 const pageHead = (title, sub) => `<header class="page-head"><h1>${title}</h1><p>${sub}</p></header>`;
+// 결전까지 남은 시간: 실제 일정은 D-88, 미리 해 보기는 1초마다 줄어드는 시계
+const eventCountdown = (S) => (S.real ? untilEventLabel(S, clockNow())
+  : `<time data-until="${eventStart(S)}">${timeLeft(eventStart(S))}</time> 뒤`);
 const teamChip = (t) => `<span class="team-chip"><i style="background:${t.color}"></i>${esc(t.community)}</span>`;
 
 export const avatarImg = (id, size = 40, cls = '') =>
@@ -57,11 +61,12 @@ function feedIcon(item) {
 export function renderShellParts(state) {
   const u = me(state);
   const t = teamById(u.teamId);
-  const dDay = daysToEvent(clockNow());
+  const S = scheduleOf(state);
+  const P = paceOf(state);
   let day;
-  if (state.week < 1) day = `<b>원정대 모집 중</b> · ${weekDates(1).start} 출발`;
+  if (state.week < 1) day = `<b>원정대 모집 중</b> · ${weekDates(S, 1).start} 출발`;
   else if (state.week >= FINAL_WEEK) day = `<b>결전의 날</b> · 대마왕 글리치`;
-  else day = `<b>${state.week}주차</b> · ${bossOf(state.week).name} · D-${dDay}`;
+  else day = `<b>${state.week}${P.round}</b> · ${bossOf(state.week).name} · 결전 ${eventCountdown(S)}`;
   return {
     day,
     wallet: `
@@ -92,6 +97,8 @@ export function renderAvatarGrid(selected, action) {
 }
 
 export function renderOnboarding(state, ui) {
+  const S = scheduleOf(state);
+  const P = paceOf(state);
   const crew = Object.values(state.users);
   return `
   <div class="onboard">
@@ -99,8 +106,8 @@ export function renderOnboarding(state, ui) {
       <span class="eyebrow">${EVENT.name}</span>
       <h1>지딜 몬스터 <em>원정대</em></h1>
       <p class="onboard__slogan">${EVENT.slogan}</p>
-      <p>9개 커뮤니티 몬스터가 한 팀이 되어 한 달 동안 매주 나타나는 보스를 함께 물리치고,<br class="br-desktop">
-        ${eventDateLabel()} 한마당 현장에서 대마왕 글리치와 최종 결전을 벌여요.</p>
+      <p>9개 커뮤니티 몬스터가 한 팀이 되어 ${S.real ? '한 달 동안 매주' : `${P.label}마다`} 나타나는 보스를 함께 물리치고,<br class="br-desktop">
+        ${eventDateLabel(S)} 한마당 현장에서 대마왕 글리치와 최종 결전을 벌여요.</p>
       <div class="parade parade--roll" aria-hidden="true">
         ${TEAMS.map((t, i) => `
           <figure style="--d:${(i * 0.18).toFixed(2)}s">
@@ -156,9 +163,9 @@ export function renderOnboarding(state, ui) {
 
     <section class="how">
       ${[
-        ['food', '1주일에 한 번이면 충분', '주마다 새 AI 퀴즈와 보스가 열려요. 그 주 안에 언제든 몰아서 해도 돼요.'],
+        ['food', `${P.once}이면 충분`, `${P.label}마다 새 AI 퀴즈와 보스가 열려요. 그 안에 언제든 몰아서 해도 돼요.`],
         ['seal', '다 함께 보스 물리치기', '먹이·퀴즈·가위바위보가 모두 보스 공격이 돼요. 쓰러뜨리면 참여한 모두가 보상을 받아요.'],
-        ['mystery', `${eventDateLabel()} 최종 결전`, '모은 봉인 조각과 현장 응원으로 대마왕 글리치를 물리쳐요. 상품은 “?” 상자 속에!'],
+        ['mystery', `${eventDateLabel(S)} 최종 결전`, '모은 봉인 조각과 현장 응원으로 대마왕 글리치를 물리쳐요. 상품은 “?” 상자 속에!'],
       ].map(([ic, title, text], i) => `
         <div class="how__item">
           ${icon(ic, 48)}
@@ -195,7 +202,7 @@ function effectChips(state, teamId) {
   const ts = state.teams[teamId];
   const now = clockNow();
   const chips = [];
-  if (hasCrown(state, teamId)) chips.push(`<span class="fx-chip fx-chip--crown">${icon('crown', 16)}지난주 MVP 팀</span>`);
+  if (hasCrown(state, teamId)) chips.push(`<span class="fx-chip fx-chip--crown">${icon('crown', 16)}${paceOf(state).prev} MVP 팀</span>`);
   if (ts.boosterUntil > now) chips.push(`<span class="fx-chip fx-chip--boost">${icon('booster', 16)}부스터 ×${RULES.booster.multiplier} · <time data-until="${ts.boosterUntil}">${timeLeft(ts.boosterUntil)}</time></span>`);
   if (ts.cheerUntil > now) {
     const from = ts.cheerFrom ? teamById(ts.cheerFrom)?.community : '';
@@ -206,18 +213,20 @@ function effectChips(state, teamId) {
 
 // 원정 지도: 4주 보스 + 현장 결전
 export function journeyMap(state, u = null) {
+  const S = scheduleOf(state);
+  const P = paceOf(state);
   const nodes = BOSSES.map((b) => {
     const rec = state.bosses[b.week];
     let status = 'future';
     if (rec?.defeatedAt) status = 'win';
     else if (rec?.escaped || (b.week < state.week && state.week > 0)) status = 'lost';
     else if (b.week === state.week) status = 'now';
-    const label = { win: '격파 · 봉인', lost: '놓침', now: '원정 중', future: weekDates(b.week).start.replace(/\(.\)/, '') }[status];
+    const label = { win: '격파 · 봉인', lost: '놓침', now: '원정 중', future: weekDates(S, b.week).start.replace(/\(.\)/, '') }[status];
     const visited = u?.visitedWeeks.includes(b.week);
     return `
       <li class="journey__node is-${status}" style="--boss:${b.color}">
-        <span class="journey__img">${bossImg(b.id, 56)}${status === 'win' ? icon('seal', 24, '봉인 조각') : ''}${visited ? '<i class="journey__me" title="내가 참여한 주">✓</i>' : ''}</span>
-        <b>${b.week}주차 · ${esc(b.name)}</b>
+        <span class="journey__img">${bossImg(b.id, 56)}${status === 'win' ? icon('seal', 24, '봉인 조각') : ''}${visited ? '<i class="journey__me" title="내가 참여한 ${P.round}">✓</i>' : ''}</span>
+        <b>${b.week}${P.round} · ${esc(b.name)}</b>
         <small>${label}</small>
       </li>`;
   }).join('');
@@ -231,7 +240,7 @@ export function journeyMap(state, u = null) {
         <li class="journey__node journey__node--final is-${won ? 'win' : state.week >= FINAL_WEEK ? 'now' : 'future'}" style="--boss:${FINAL_BOSS.color}">
           <span class="journey__img">${bossImg(FINAL_BOSS.id, 56)}</span>
           <b>${esc(FINAL_BOSS.name)}</b>
-          <small>${won ? '승리!' : eventDateLabel().replace(/\(.\)/, '') + ' 결전'}</small>
+          <small>${won ? '승리!' : eventDateLabel(S).replace(/\(.\)/, '') + ' 결전'}</small>
         </li>
       </ol>
     </section>`;
@@ -239,6 +248,7 @@ export function journeyMap(state, u = null) {
 
 // 이번 주 보스 카드: 최근에 공격한 대원 아바타가 보스 주위에 나타난다
 function bossCard(state, u, ui) {
+  const P = paceOf(state);
   const info = bossInfo(state);
   const my = info.teams.find((x) => x.id === u.teamId);
   const d = weekly(state, u);
@@ -249,7 +259,7 @@ function bossCard(state, u, ui) {
     <section class="card boss-card ${info.defeated ? 'is-defeated' : ''}" style="--boss:${info.color}">
       <div class="boss-card__head">
         <div>
-          <span class="eyebrow">${state.week}주차 보스 · ${esc(info.title)}</span>
+          <span class="eyebrow">${state.week}${P.round} 보스 · ${esc(info.title)}</span>
           <h2>${esc(info.name)}</h2>
         </div>
         <div class="boss-card__hp">${info.defeated ? '<b>격파!</b>' : `<b>${num(info.hp)}</b><small> / ${num(info.maxHp)}</small>`}</div>
@@ -280,8 +290,8 @@ function bossCard(state, u, ui) {
         <div class="goal__bar"><span style="width:${Math.max(3, pct(my.dmg, my.share))}%;background:${teamById(u.teamId).color}"></span></div>
       </div>
       <p class="boss-card__note">${info.defeated
-        ? `원정대가 ${josa(info.name, '을/를')} 물리쳤어요! 봉인 조각을 얻었어요. 지금부터 주는 피해도 우리 팀 몫과 이번 주 시상에 그대로 쌓여요.`
-        : `먹이 주기, 퀴즈 정답, 가위바위보 승리가 모두 보스 공격이 돼요. 쓰러뜨리면 이번 주 참여한 모두가 고급 먹이 ${RULES.boss.defeatReward.premium}개 + ${RULES.boss.defeatReward.points}P!`}</p>
+        ? `원정대가 ${josa(info.name, '을/를')} 물리쳤어요! 봉인 조각을 얻었어요. 지금부터 주는 피해도 우리 팀 몫과 ${P.now} 시상에 그대로 쌓여요.`
+        : `먹이 주기, 퀴즈 정답, 가위바위보 승리가 모두 보스 공격이 돼요. 쓰러뜨리면 ${P.now} 참여한 모두가 고급 먹이 ${RULES.boss.defeatReward.premium}개 + ${RULES.boss.defeatReward.points}P!`}</p>
     </section>`;
 }
 
@@ -298,8 +308,9 @@ export function renderHome(state, ui) {
   const prevAward = state.awards[state.week - 1];
   const liveKing = play ? knowledgeKing(state) : null;
   const liveAce = play ? weeklyAce(state) : null;
-  const dDay = daysToEvent(clockNow());
-  const finalDay = state.week >= FINAL_WEEK || dDay <= 0;
+  const S = scheduleOf(state);
+  const P = paceOf(state);
+  const finalDay = state.week >= FINAL_WEEK || clockNow() >= eventStart(S);
   const golden = (state.goldenUntil || 0) > clockNow();
   const visited = u.visitedWeeks.includes(state.week);
   const alliance = allianceList(state);
@@ -307,8 +318,8 @@ export function renderHome(state, ui) {
   const seals = BOSSES.filter((b) => state.bosses[b.week]?.defeatedAt).length;
 
   const todo = [
-    { done: visited, icon: 'food', title: '이번 주 첫 방문 보너스', desc: `먹이 ${RULES.weeklyVisitFood}개`, href: '#/mission', state: visited ? '받음' : '받기' },
-    { done: qTotal && qDone === qTotal, icon: 'premium', title: '이번 주 AI 퀴즈', desc: `정답마다 보스에게 ${RULES.boss.quizDamage} 피해`, href: '#/mission', state: `${qDone}/${qTotal}` },
+    { done: visited, icon: 'food', title: `${P.now} 첫 방문 보너스`, desc: `먹이 ${RULES.weeklyVisitFood}개`, href: '#/mission', state: visited ? '받음' : '받기' },
+    { done: qTotal && qDone === qTotal, icon: 'premium', title: `${P.now} AI 퀴즈`, desc: `정답마다 보스에게 ${RULES.boss.quizDamage} 피해`, href: '#/mission', state: `${qDone}/${qTotal}` },
     { done: d.luckyCount >= RULES.luckyPerWeek, icon: 'luckybox', title: '럭키박스', desc: '잭팟 먹이 100개', href: '#/play', state: `${d.luckyCount}/${RULES.luckyPerWeek}` },
     { done: d.rpsCount >= RULES.rpsPerWeek, icon: 'point', title: `${boss ? boss.name : '보스'} 가위바위보`, desc: `이기면 먹이 2배 + 보스에게 ${RULES.boss.rpsWinDamage} 피해`, href: '#/play', state: `${d.rpsCount}/${RULES.rpsPerWeek}` },
   ];
@@ -364,7 +375,7 @@ export function renderHome(state, ui) {
       </section>
 
       <section class="card">
-        ${secHead('이번 주 할 일', pillLink('#/mission', '미션'))}
+        ${secHead(`${P.now} 할 일`, pillLink('#/mission', '미션'))}
         ${play ? `
         <ul class="todo">
           ${todo.map((it) => `
@@ -376,9 +387,9 @@ export function renderHome(state, ui) {
               </a>
             </li>`).join('')}
         </ul>
-        <p class="todo__note">이번 주 안에만 하면 돼요. 바쁜 날은 건너뛰고 한 번에 몰아서 해도 괜찮아요.</p>`
+        <p class="todo__note">${P.now} 안에만 하면 돼요. 바쁠 때는 건너뛰고 한 번에 몰아서 해도 괜찮아요.</p>`
         : `<p class="todo__locked">${state.week < 1
-          ? `${weekDates(1).start}에 1주차 원정이 시작돼요. 지금은 우리 커뮤니티 친구들을 원정대로 불러 주세요!`
+          ? `${weekDates(S, 1).start}에 1${P.round} 원정이 시작돼요. 지금은 우리 커뮤니티 친구들을 원정대로 불러 주세요!`
           : '사전 원정은 모두 끝났어요. 현장에서 다 함께 대마왕 글리치를 물리쳐요!'}</p>`}
       </section>
 
@@ -386,19 +397,19 @@ export function renderHome(state, ui) {
         ${secHead('명예의 전당', pillLink('#/crew?tab=hall'))}
         <div class="honor__grid">
           <div class="honor__item">
-            <span class="honor__label">${icon('crown', 20)}지난주 MVP 팀</span>
+            <span class="honor__label">${icon('crown', 20)}${P.prev} MVP 팀</span>
             ${prevAward?.mvpTeam
               ? `<b>${esc(teamById(prevAward.mvpTeam).community)}</b><small>몫 달성률 ${Math.round(prevAward.mvpRate * 100)}%</small>`
-              : '<b class="muted">첫 주가 끝나면 발표해요</b>'}
+              : `<b class="muted">첫 ${P.round}가 끝나면 발표해요</b>`}
           </div>
           <div class="honor__item">
-            <span class="honor__label">${icon('point', 20)}지난주 지식왕</span>
+            <span class="honor__label">${icon('point', 20)}${P.prev} 지식왕</span>
             ${prevAward?.kingId && state.users[prevAward.kingId]
               ? `<b>${esc(state.users[prevAward.kingId].name)}</b><small>${esc(teamById(state.users[prevAward.kingId].teamId).community)}</small>`
-              : '<b class="muted">첫 주가 끝나면 발표해요</b>'}
+              : `<b class="muted">첫 ${P.round}가 끝나면 발표해요</b>`}
           </div>
           <div class="honor__item honor__item--wide">
-            <span class="honor__label">이번 주 에이스 · 지식왕 후보</span>
+            <span class="honor__label">${P.now} 에이스 · 지식왕 후보</span>
             ${liveAce || liveKing
               ? `<b>${liveAce ? `${esc(liveAce.user.name)} (피해 ${num(liveAce.dmg)})` : '-'}</b><small>지식왕 후보: ${liveKing ? esc(liveKing.user.name) : '아직 없어요'}</small>`
               : `<b class="muted">${play ? '아직 없어요. 첫 주인공이 되어 보세요!' : '원정이 시작되면 겨뤄요'}</b>`}
@@ -436,8 +447,8 @@ export function renderHome(state, ui) {
 
     <a class="card t-banner" href="#/final">
       <div class="t-banner__text">
-        <span class="eyebrow">${!finalDay ? `D-${dDay}` : 'TODAY'}</span>
-        <h2>${eventDateLabel()} 대마왕 글리치와 최종 결전</h2>
+        <span class="eyebrow">${!finalDay ? eventCountdown(S) : 'TODAY'}</span>
+        <h2>${eventDateLabel(S)} 대마왕 글리치와 최종 결전</h2>
         <p>${!finalDay
           ? `지금까지 봉인 조각 ${seals}/4. 현장 상품 “?” 상자 ${state.prizes.length}개가 기다리고 있어요!`
           : '오늘 한마당 현장에서 다 함께 글리치를 물리쳐요. 응원 버튼을 준비하세요!'}</p>
@@ -452,15 +463,18 @@ export function renderHome(state, ui) {
 
 // 이번 주 안내 띠: 원정대 모집 / N주차 / 결전의 날
 function weekBanner(state, t) {
+  const S = scheduleOf(state);
+  const P = paceOf(state);
+  const paceBadge = S.real ? '' : `<span class="pace-badge">미리 해 보기 · ${P.label}마다 새 ${P.round}</span>`;
   if (state.week < 1) {
     const crew = Object.values(state.users);
     return `
     <section class="card week-banner week-banner--pre">
       <span class="week-banner__no">GO!</span>
       <div>
-        <span class="eyebrow">원정대 모집 중</span>
-        <h2>${weekDates(1).start}, 1주차 원정 출발!</h2>
-        <p>한 달 동안 1주일씩 보스 4마리를 함께 물리치고, ${eventDateLabel()} 현장에서 대마왕 글리치와 최종 결전을 해요.
+        <span class="eyebrow">원정대 모집 중</span>${paceBadge}
+        <h2>${weekDates(S, 1).start}, 1${P.round} 원정 출발!</h2>
+        <p>${S.real ? '한 달 동안 1주일씩' : `${P.label}마다 한 마리씩`} 보스 4마리를 함께 물리치고, ${eventDateLabel(S)} 현장에서 대마왕 글리치와 최종 결전을 해요.
           지금 원정대 <b>${num(crew.length)}명</b>, ${esc(t.community)}에서 <b>${crew.filter((u) => u.teamId === t.id).length}명</b>이 모였어요.</p>
         <div class="crew-wall crew-wall--sm">${crew.slice(-24).reverse().map((u) => face(u, 28)).join('')}</div>
       </div>
@@ -471,26 +485,30 @@ function weekBanner(state, t) {
     <section class="card week-banner week-banner--final">
       <span class="week-banner__no">D-DAY</span>
       <div>
-        <span class="eyebrow">결전의 날</span>
-        <h2>${eventDateLabel()} 대마왕 글리치와 최종 결전</h2>
+        <span class="eyebrow">결전의 날</span>${paceBadge}
+        <h2>${eventDateLabel(S)} 대마왕 글리치와 최종 결전</h2>
         <p>한 달 동안 함께 키운 몬스터 9마리와 원정대 모두가 힘을 합쳐요. 결전 화면에서 응원 버튼을 기다려 주세요!</p>
       </div>
     </section>`;
   }
-  const dates = weekDates(state.week);
+  const dates = weekDates(S, state.week);
+  const next = roundStart(S, state.week + 1);
   return `
     <section class="card week-banner">
-      <span class="week-banner__no">${state.week}<small>주차</small></span>
+      <span class="week-banner__no">${state.week}<small>${P.round}</small></span>
       <div>
-        <span class="eyebrow">${dates.start} ~ ${dates.end}</span>
-        <h2>「${esc(state.weekInfo?.title || '')}」 주간</h2>
-        <p>이번 주 퀴즈 주제: <b>${esc(state.weekInfo?.theme || '')}</b> · 이번 주 안에 언제든 몰아서 해도 돼요.</p>
+        <span class="eyebrow">${dates.start} ~ ${dates.end}</span>${paceBadge}
+        <h2>「${esc(state.weekInfo?.title || '')}」 ${P.series}</h2>
+        <p>${P.now} 퀴즈 주제: <b>${esc(state.weekInfo?.theme || '')}</b> · ${P.now} 안에 언제든 몰아서 해도 돼요.</p>
+        ${S.real ? '' : `<p class="week-banner__next">${state.week < EVENT.weeks ? `다음 ${P.round}` : '결전'}까지 <time data-until="${next}" data-refresh>${timeLeft(next)}</time></p>`}
       </div>
     </section>`;
 }
 
 // ================================================================ 이번 주 미션
 export function renderMission(state, ui) {
+  const S = scheduleOf(state);
+  const P = paceOf(state);
   const u = me(state);
   const d = weekly(state, u);
   const qs = state.quiz;
@@ -498,14 +516,14 @@ export function renderMission(state, ui) {
   const visited = u.visitedWeeks.includes(state.week);
 
   let attendMsg;
-  if (state.week < 1) attendMsg = `${weekDates(1).start}에 1주차 원정이 시작돼요. 그때 첫 방문 보너스를 받을 수 있어요.`;
+  if (state.week < 1) attendMsg = `${weekDates(S, 1).start}에 1${P.round} 원정이 시작돼요. 그때 첫 방문 보너스를 받을 수 있어요.`;
   else if (state.week >= FINAL_WEEK) attendMsg = '사전 원정이 모두 끝났어요. 현장에서 만나요!';
   else attendMsg = visited
-    ? `${icon('food', 24)} ${state.week}주차 첫 방문 보너스로 먹이 ${RULES.weeklyVisitFood}개를 받았어요.`
-    : '이번 주 첫 방문 보너스를 받아요.';
+    ? `${icon('food', 24)} ${state.week}${P.round} 첫 방문 보너스로 먹이 ${RULES.weeklyVisitFood}개를 받았어요.`
+    : `${P.now} 첫 방문 보너스를 받아요.`;
 
   return `
-  ${pageHead('이번 주 미션', '한 주에 한 번만 들러도 충분해요. 퀴즈를 맞힐 때마다 그 주 보스에게 지식 공격이 들어가요.')}
+  ${pageHead(`${P.now} 미션`, `${P.once}만 들러도 충분해요. 퀴즈를 맞힐 때마다 ${P.now} 보스에게 지식 공격이 들어가요.`)}
   <div class="mission">
     ${journeyMap(state, u)}
     <section class="card attend">
@@ -514,12 +532,12 @@ export function renderMission(state, ui) {
     </section>
 
     <section class="card quiz-card">
-      ${secHead(play ? `${state.week}주차 AI 퀴즈` : 'AI 퀴즈', `<span class="sec-note">정답마다 ${RULES.quizPoints}P + 보스에게 ${RULES.boss.quizDamage} 피해 · 모두 맞히면 고급 먹이 ${RULES.quizPerfectPremium}개</span>`)}
+      ${secHead(play ? `${state.week}${P.round} AI 퀴즈` : 'AI 퀴즈', `<span class="sec-note">정답마다 ${RULES.quizPoints}P + 보스에게 ${RULES.boss.quizDamage} 피해 · 모두 맞히면 고급 먹이 ${RULES.quizPerfectPremium}개</span>`)}
       ${play && qs
         ? `<p class="quiz-theme"><span class="tag">「${esc(state.weekInfo.title)}」</span><b>${esc(state.weekInfo.theme)}</b></p>
            ${renderQuiz(state, ui, u, d, qs)}`
         : `<p class="todo__locked">${state.week < 1
-          ? `${weekDates(1).start}에 1주차 문제 6개가 열려요. 알파고부터 딥페이크까지, 선생님이 수업에서 바로 쓸 수 있는 AI 이야기가 기다리고 있어요.`
+          ? `${weekDates(S, 1).start}에 1${P.round} 문제 6개가 열려요. 알파고부터 딥페이크까지, 선생님이 수업에서 바로 쓸 수 있는 AI 이야기가 기다리고 있어요.`
           : '사전 퀴즈는 모두 끝났어요. 수고 많으셨어요!'}</p>`}
     </section>
 
@@ -527,7 +545,7 @@ export function renderMission(state, ui) {
     <section class="card tip-card">
       <span class="tip-card__badge" aria-hidden="true">TIP</span>
       <div>
-        <span class="eyebrow">이번 주 AI 꿀팁</span>
+        <span class="eyebrow">${P.now} AI 꿀팁</span>
         <h3>${esc(tip.title)}</h3>
         <p>${esc(tip.body)}</p>
       </div>
@@ -549,6 +567,7 @@ function renderHints(state, ui, q, qi) {
 }
 
 function renderQuiz(state, ui, u, d, qs) {
+  const P = paceOf(state);
   const progress = `<div class="quiz__progress" style="grid-template-columns:repeat(${qs.length},minmax(0,1fr))">${qs.map((_, i) => {
     const a = d.quiz[i];
     return `<span class="${a ? (a.correct ? 'is-correct' : 'is-wrong') : ''}"></span>`;
@@ -564,7 +583,7 @@ function renderQuiz(state, ui, u, d, qs) {
       <div class="quiz__summary ${perfect ? 'is-perfect' : ''}">
         ${icon(perfect ? 'premium' : 'point', 64)}
         <h3>${perfect ? `${qs.length}문제 모두 정답!` : `${qs.length}문제 중 ${correct}문제 정답`}</h3>
-        <p>포인트 <b>+${correct * RULES.quizPoints}P</b> · 보스에게 <b>${correct * RULES.boss.quizDamage}</b> 피해${perfect ? ` · 고급 먹이 <b>+${RULES.quizPerfectPremium}</b>` : ''}. ${state.week < EVENT.weeks ? '다음 주에 새 문제가 열려요.' : '사전 퀴즈를 모두 마쳤어요!'}</p>
+        <p>포인트 <b>+${correct * RULES.quizPoints}P</b> · 보스에게 <b>${correct * RULES.boss.quizDamage}</b> 피해${perfect ? ` · 고급 먹이 <b>+${RULES.quizPerfectPremium}</b>` : ''}. ${state.week < EVENT.weeks ? `${P.next} 새 문제가 열려요.` : '사전 퀴즈를 모두 마쳤어요!'}</p>
       </div>
       <ol class="quiz__review">
         ${qs.map((q, i) => `
@@ -611,6 +630,8 @@ function renderQuiz(state, ui, u, d, qs) {
 const HAND_NAMES = { rock: '바위', scissors: '가위', paper: '보' };
 
 export function renderPlay(state, ui) {
+  const S = scheduleOf(state);
+  const P = paceOf(state);
   const u = me(state);
   const d = weekly(state, u);
   const play = isPlayWeek(state.week);
@@ -622,32 +643,32 @@ export function renderPlay(state, ui) {
     <details class="odds"><summary>확률 보기</summary>
       <ul>${rows.map(([label, w]) => `<li><span>${label}</span><b>${w}%</b></li>`).join('')}</ul>
     </details>`;
-  const locked = state.week < 1 ? `${weekDates(1).start}에 열려요` : '사전 원정이 끝났어요';
+  const locked = state.week < 1 ? `${weekDates(S, 1).start}에 열려요` : '사전 원정이 끝났어요';
 
   let bossLine = '내 손을 읽을 수 있을까?';
-  if (lastRps === 'win') bossLine = rpsLeft ? '크윽… 한 판 더 붙자!' : '크윽… 다음 주에 보자!';
-  if (lastRps === 'lose') bossLine = rpsLeft ? '후후, 또 덤벼 보겠나?' : '후후, 다음 주에 또 와라!';
+  if (lastRps === 'win') bossLine = rpsLeft ? '크윽… 한 판 더 붙자!' : `크윽… ${P.next} 보자!`;
+  if (lastRps === 'lose') bossLine = rpsLeft ? '후후, 또 덤벼 보겠나?' : `후후, ${P.next} 또 와라!`;
 
   return `
-  ${pageHead('도전 · 뽑기', `운과 배짱으로 원정을 도와요. 럭키박스는 한 주에 ${RULES.luckyPerWeek}번, 보스 가위바위보는 ${RULES.rpsPerWeek}번!`)}
+  ${pageHead('도전 · 뽑기', `운과 배짱으로 원정을 도와요. 럭키박스는 ${P.per} ${RULES.luckyPerWeek}번, 보스 가위바위보는 ${RULES.rpsPerWeek}번!`)}
   <div class="play">
     <section class="card play-card">
-      ${secHead('럭키박스', play ? `<span class="sec-note">이번 주 남은 횟수 <b>${luckyLeft}</b>/${RULES.luckyPerWeek}</span>` : '')}
+      ${secHead('럭키박스', play ? `<span class="sec-note">${P.now} 남은 횟수 <b>${luckyLeft}</b>/${RULES.luckyPerWeek}</span>` : '')}
       <div class="lucky" id="lucky">
         <div class="lucky__box ${play && !luckyLeft ? 'is-open' : ''}" id="luckyBox">${icon('luckybox', 96, '럭키박스')}</div>
-        <p class="play-desc">누구나 한 주에 ${RULES.luckyPerWeek}번! 아주 낮은 확률로 <b>먹이 100개 잭팟</b>이 나와요.</p>
+        <p class="play-desc">누구나 ${P.per} ${RULES.luckyPerWeek}번! 아주 낮은 확률로 <b>먹이 100개 잭팟</b>이 나와요.</p>
       </div>
-      ${d.luckyLog.length ? `<p class="play-result is-win">이번 주 결과: <b>${d.luckyLog.map(esc).join(' · ')}</b></p>` : ''}
+      ${d.luckyLog.length ? `<p class="play-result is-win">${P.now} 결과: <b>${d.luckyLog.map(esc).join(' · ')}</b></p>` : ''}
       ${!play
         ? `<button class="btn btn--soft btn--block" disabled>${locked}</button>`
         : luckyLeft
           ? `<button class="btn btn--primary btn--block" data-action="lucky-open">럭키박스 열기 (${luckyLeft}번 남음)</button>`
-          : `<button class="btn btn--soft btn--block" disabled>다음 주에 다시 열 수 있어요</button>`}
+          : `<button class="btn btn--soft btn--block" disabled>${P.next} 다시 열 수 있어요</button>`}
       ${odds(LUCKY_BOX.map((r) => [r.label, r.w]))}
     </section>
 
     <section class="card play-card rps">
-      ${secHead(`${esc(boss.name)} 도전장`, play ? `<span class="sec-note">이번 주 남은 도전 <b>${rpsLeft}</b>/${RULES.rpsPerWeek}</span>` : '')}
+      ${secHead(`${esc(boss.name)} 도전장`, play ? `<span class="sec-note">${P.now} 남은 도전 <b>${rpsLeft}</b>/${RULES.rpsPerWeek}</span>` : '')}
       <div class="rps__arena">
         <div class="rps__boss">
           ${bossImg(boss.id, 64)}
@@ -668,7 +689,7 @@ export function renderPlay(state, ui) {
               ${Object.entries(HANDS).map(([k, e]) => `
                 <button class="hand-btn" data-action="rps" data-hand="${k}"><span>${e}</span>${HAND_NAMES[k]}</button>`).join('')}
             </div>`
-          : `<button class="btn btn--soft btn--block" disabled>다음 주에 다시 도전할 수 있어요</button>`}
+          : `<button class="btn btn--soft btn--block" disabled>${P.next} 다시 도전할 수 있어요</button>`}
     </section>
 
     <section class="card play-card gacha">
@@ -744,7 +765,7 @@ export function renderBag(state, ui) {
     </section>` : ''}
 
     <section class="card">
-      ${secHead('선물하기', `<span class="sec-note">다른 커뮤니티에게 주면 우리 팀 우정 점수 +1 (한 주 ${RULES.friend.giftCapPerWeek}번까지)</span>`)}
+      ${secHead('선물하기', `<span class="sec-note">다른 커뮤니티에게 주면 우리 팀 우정 점수 +1 (${paceOf(state).per} ${RULES.friend.giftCapPerWeek}번까지)</span>`)}
       <div class="gift-kinds" role="radiogroup" aria-label="선물할 것">
         ${Object.entries(GIFT_KINDS).map(([k, gk]) => `
           <button class="gift-kind ${k === kind ? 'is-selected' : ''}" role="radio" aria-checked="${k === kind}" data-action="gift-kind" data-kind="${k}">
@@ -788,6 +809,8 @@ export function renderCheerPicker(state) {
 
 // ================================================================ 원정대
 export function renderCrew(state, ui) {
+  const S = scheduleOf(state);
+  const P = paceOf(state);
   const u = me(state);
   const tab = ui.crewTab || 'alliance';
   const play = isPlayWeek(state.week);
@@ -814,7 +837,7 @@ export function renderCrew(state, ui) {
               </div>
               ${play ? `
               <div class="goal__bar"><span style="width:${Math.max(3, pct(r.dmg, r.share))}%;background:${r.color}"></span></div>
-              <div class="alliance__meta">이번 주 몫 ${num(r.dmg)} / ${num(r.share)} (${Math.round(r.rate * 100)}%) · 참여 ${r.active}/${r.members}명 · 우정 ${r.friend}</div>`
+              <div class="alliance__meta">${P.now} 몫 ${num(r.dmg)} / ${num(r.share)} (${Math.round(r.rate * 100)}%) · 참여 ${r.active}/${r.members}명 · 우정 ${r.friend}</div>`
               : `<div class="alliance__meta">대원 ${r.members}명 · 경험치 ${num(r.exp)}</div>`}
               <div class="crew-wall crew-wall--sm">
                 ${crew.slice(0, 24).map((m) => `<span class="${play && !m.visitedWeeks.includes(state.week) ? 'is-idle' : ''}" title="${esc(m.name)}">${face(m, 26)}</span>`).join('')}
@@ -824,7 +847,7 @@ export function renderCrew(state, ui) {
           </li>`;
         }).join('')}
       </ul>
-      <p class="sec-desc crew-note">순위가 아니라 함께 가는 모습이에요. 이번 주에 활동한 대원은 선명하게, 아직인 대원은 흐리게 보여요.</p>`;
+      <p class="sec-desc crew-note">순위가 아니라 함께 가는 모습이에요. ${P.now} 활동한 대원은 선명하게, 아직인 대원은 흐리게 보여요.</p>`;
   } else if (tab === 'people') {
     const mode = ui.crewMode || 'week';
     const list = crewRanking(state, mode);
@@ -839,7 +862,7 @@ export function renderCrew(state, ui) {
       </li>`;
     body = `
       <div class="seg" role="tablist">
-        <button class="${mode === 'week' ? 'is-on' : ''}" data-action="crew-mode" data-mode="week">이번 주</button>
+        <button class="${mode === 'week' ? 'is-on' : ''}" data-action="crew-mode" data-mode="week">${P.now}</button>
         <button class="${mode === 'total' ? 'is-on' : ''}" data-action="crew-mode" data-mode="total">전체</button>
       </div>
       <p class="sec-desc">보스에게 준 피해예요. 먹이·퀴즈·가위바위보가 모두 들어가요.</p>
@@ -861,7 +884,7 @@ export function renderCrew(state, ui) {
       <div class="hall">
         ${play ? `
         <article class="hall-card is-live">
-          <span class="eyebrow">${state.week}주차 · 진행 중</span>
+          <span class="eyebrow">${state.week}${P.round} · 진행 중</span>
           ${userRow(icon('point', 32), '지식왕 후보', liveKing?.user.id)}
           ${userRow(icon('seal', 32), '에이스 후보', liveAce?.user.id, liveAce ? `피해 ${num(liveAce.dmg)}` : '')}
         </article>` : ''}
@@ -871,7 +894,7 @@ export function renderCrew(state, ui) {
           const done = (a.shares || []).filter((s) => s.done).map((s) => esc(teamById(s.teamId).community));
           return `
             <article class="hall-card">
-              <span class="eyebrow">${w}주차 시상 · ${esc(b.name)} ${a.boss?.defeated ? '격파' : '놓침'}</span>
+              <span class="eyebrow">${w}${P.round} 시상 · ${esc(b.name)} ${a.boss?.defeated ? '격파' : '놓침'}</span>
               ${teamRow(icon('crown', 32), 'MVP 팀 (몫 달성률)', a.mvpTeam, `${Math.round(a.mvpRate * 100)}%`)}
               ${teamRow(icon('cheer', 32), '우정상', a.friendTeam, `다른 팀을 ${a.friendScore}번 도움`)}
               ${teamRow(icon('food', 32), '참여왕', a.joinTeam, `참여율 ${Math.round(a.joinRate * 100)}%`)}
@@ -880,7 +903,7 @@ export function renderCrew(state, ui) {
               <div class="hall-card__row">${icon('premium', 32)}<div><small>우리 팀 몫 완수</small><b>${done.length ? done.join(', ') : '없음'}</b></div></div>
             </article>`;
         }).join('')}
-        ${weeks.length ? '' : '<p class="muted hall__empty">1주차가 끝나면 첫 시상 결과가 올라와요.</p>'}
+        ${weeks.length ? '' : `<p class="muted hall__empty">1${P.round}가 끝나면 첫 시상 결과가 올라와요.</p>`}
       </div>`;
   }
 
@@ -929,14 +952,15 @@ export function renderFinal(state, ui) {
   const hp = Math.max(0, f.maxHp - f.dmg);
   const open = cheerOpen(state, clockNow());
   const won = !!state.final?.wonAt;
-  const dDay = daysToEvent(clockNow());
+  const S = scheduleOf(state);
+  const P = paceOf(state);
 
   const seals = BOSSES.map((b) => {
     const got = f.seals.includes(b.week);
     const lost = f.escaped.includes(b.week);
-    return `<li class="seal ${got ? 'is-got' : lost ? 'is-lost' : ''}" style="--boss:${b.color}" title="${b.week}주차 ${esc(b.name)}">
+    return `<li class="seal ${got ? 'is-got' : lost ? 'is-lost' : ''}" style="--boss:${b.color}" title="${b.week}${P.round} ${esc(b.name)}">
       ${got ? icon('seal', 36, '봉인 조각') : bossImg(b.id, 36)}
-      <small>${b.week}주차 ${got ? '봉인' : lost ? '놓침' : '?'}</small>
+      <small>${b.week}${P.round} ${got ? '봉인' : lost ? '놓침' : '?'}</small>
     </li>`;
   }).join('');
 
@@ -1001,12 +1025,12 @@ export function renderFinal(state, ui) {
   }
 
   return `
-  ${pageHead('최종 결전', `${eventDateLabel()} 한마당 현장에서, 원정대 모두가 힘을 합쳐 대마왕 글리치를 물리쳐요.`)}
+  ${pageHead('최종 결전', `${eventDateLabel(S)} 한마당 현장에서, 원정대 모두가 힘을 합쳐 대마왕 글리치를 물리쳐요.`)}
   <div class="final">
     <section class="card final-hero ${won ? 'is-won' : ''}" style="--boss:${FINAL_BOSS.color}">
       <div class="final-hero__boss">${bossImg(FINAL_BOSS.id, 64)}</div>
       <div class="final-hero__body">
-        <span class="eyebrow">${onDay ? (won ? '승리!' : 'TODAY · 결전 중') : `D-${Math.max(0, dDay)} · ${eventDateLabel()}`}</span>
+        <span class="eyebrow">${onDay ? (won ? '승리!' : 'TODAY · 결전 중') : `${eventCountdown(S)} · ${eventDateLabel(S)}`}</span>
         <h2>${esc(FINAL_BOSS.name)}</h2>
         <p>${esc(FINAL_BOSS.desc)}</p>
         <div class="boss-hp boss-hp--final"><span style="width:${pct(hp, f.maxHp)}%"></span></div>
@@ -1077,7 +1101,7 @@ export function renderAdmin(state, ui) {
   const ov = ui.adminOverview;
   if (!ov) {
     return `
-    ${pageHead('운영자', '운영자 키를 넣으면 주차 관리, 골든타임, 최종 결전 진행, 현장 상품, 커피 교환 처리를 할 수 있어요.')}
+    ${pageHead('운영자', '운영자 키를 넣으면 진행 관리, 진행 속도(미리 해 보기), 골든타임, 최종 결전 진행, 현장 상품, 커피 교환 처리를 할 수 있어요.')}
     <section class="card admin-login">
       <label class="field">
         <input id="adminKey" type="password" autocomplete="off" placeholder="운영자 키">
@@ -1088,8 +1112,10 @@ export function renderAdmin(state, ui) {
     </section>`;
   }
 
-  const weekText = ov.week < 1 ? '원정대 모집 중' : ov.week >= FINAL_WEEK ? '결전의 날(현장)' : `${ov.week}주차 / ${ov.weeks}주`;
-  const nextText = ov.week + 1 >= FINAL_WEEK ? '결전의 날(현장)로 넘기기' : `${ov.week + 1}주차로 넘기기`;
+  const S = scheduleOf(state);
+  const P = paceOf(state);
+  const weekText = ov.week < 1 ? '원정대 모집 중' : ov.week >= FINAL_WEEK ? '결전의 날(현장)' : `${ov.week}${P.round} (전체 ${ov.weeks}번)`;
+  const nextText = ov.week + 1 >= FINAL_WEEK ? '결전의 날(현장)로 넘기기' : `${ov.week + 1}${P.round}로 넘기기`;
   const goldenOn = (ov.goldenUntil || 0) > clockNow();
   const fin = ov.final;
   const cheerOn = fin && !fin.wonAt && fin.cheerUntil > clockNow();
@@ -1097,16 +1123,28 @@ export function renderAdmin(state, ui) {
   const prizes = ui.adminPrizes || ov.prizes;
 
   return `
-  ${pageHead('운영자', `참가자 ${num(ov.userCount)}명 · ${weekText} · 현장 모임 ${eventDateLabel()}`)}
+  ${pageHead('운영자', `참가자 ${num(ov.userCount)}명 · ${weekText} · 현장 모임 ${eventDateLabel(S)}${S.real ? '' : ` · 미리 해 보기(${P.label})`}`)}
   <div class="admin">
     <section class="card">
-      ${secHead('주차 관리')}
-      <p class="sec-desc">날짜가 되면 자동으로 넘어가요(${weekDates(1).start} 1주차 시작, 매주 토요일 0시). 리허설이나 일정 조정이 필요할 때만 눌러 주세요. 넘기면 지난주 시상과 팀 몫 보상이 지급되고, 못 잡은 보스는 도망가요.</p>
+      ${secHead('진행 관리')}
+      <p class="sec-desc">${S.real
+        ? `날짜가 되면 자동으로 넘어가요(${weekDates(S, 1).start} 1주차 시작, 매주 토요일 0시).`
+        : `지금은 미리 해 보기 속도예요. ${P.label}마다 자동으로 넘어가요.`} 리허설이나 일정 조정이 필요할 때만 눌러 주세요. 넘기면 ${P.prev} 시상과 팀 몫 보상이 지급되고, 못 잡은 보스는 도망가요.</p>
       <button class="btn btn--primary" data-action="admin-next-week" ${ov.week >= FINAL_WEEK ? 'disabled' : ''}>${ov.week >= FINAL_WEEK ? '이미 결전의 날이에요' : nextText}</button>
       <table class="admin-table">
-        <thead><tr><th>커뮤니티</th><th>대원</th><th>이번 주 참여</th><th>이번 주 피해</th><th>경험치</th></tr></thead>
+        <thead><tr><th>커뮤니티</th><th>대원</th><th>${P.now} 참여</th><th>${P.now} 피해</th><th>경험치</th></tr></thead>
         <tbody>${ov.teams.map((t) => `<tr><td>${esc(t.community)}</td><td>${num(t.members)}</td><td>${num(t.active)}</td><td>${num(t.dmg)}</td><td>${num(t.exp)}</td></tr>`).join('')}</tbody>
       </table>
+    </section>
+
+    <section class="card">
+      ${secHead('진행 속도 (미리 해 보기)', `<span class="sec-note">지금: ${S.real ? '실제 일정 · 1주일' : `${P.label}마다`}</span>`)}
+      <p class="sec-desc">속도를 고르면 지금 ${P.round}가 바로 새로 시작되고, 그 뒤로 고른 시간마다 다음 ${P.round}가 자동으로 열려요. 퀴즈·보스·럭키박스·가위바위보 횟수도 그때마다 새로 바뀌어요. 미리 해 보기 속도에서는 혼자서도 해 볼 수 있게 보스 최소 체력을 ${RULES.boss.minHpTest}으로 낮춰요.</p>
+      <div class="admin-golden">
+        ${['day', 'hour', 'min30', 'min10'].map((k) => `<button class="btn ${!S.real && S.pace === k ? 'btn--primary' : 'btn--soft'}" data-action="admin-pace" data-pace="${k}">${PACES[k].label}</button>`).join('')}
+        <button class="btn ${S.real ? 'btn--primary' : 'btn--soft'}" data-action="admin-pace" data-pace="real">실제 일정 (1주일 · ${weekDates(realSchedule(), 1).start} 시작)</button>
+      </div>
+      <p class="sec-desc admin-pace__note">다 해 본 뒤에는 맨 아래 “전체 초기화”를 누르세요. 실제 일정과 샘플 상품으로 돌아가요.</p>
     </section>
 
     <section class="card">
@@ -1122,7 +1160,7 @@ export function renderAdmin(state, ui) {
     <section class="card">
       ${secHead('최종 결전 진행', fin ? `<span class="sec-note">${fin.wonAt ? '승리!' : `글리치 체력 ${num(fin.maxHp - fin.dmg)} / ${num(fin.maxHp)} · ${fin.rounds}라운드 진행`}</span>` : '')}
       ${!fin
-        ? `<p class="sec-desc">${eventDateLabel()} 결전의 날이 되면 여기서 응원 타임과 공격을 진행해요. 리허설은 주차를 결전의 날까지 넘겨서 해 보세요.</p>`
+        ? `<p class="sec-desc">${eventDateLabel(S)} 결전의 날이 되면 여기서 응원 타임과 공격을 진행해요. 리허설은 진행을 결전의 날까지 넘겨서 해 보세요.</p>`
         : fin.wonAt
           ? '<p class="sec-desc">글리치를 물리쳤어요! 아래 “현장 상품”에서 상자를 열거나 행운 추첨을 진행하세요.</p>'
           : `<p class="sec-desc">① 응원 타임 열기 → ② 끝나면 공격 개시 → 체력이 남으면 ①부터 다시. 큰 화면에는 이 앱의 “최종 결전” 화면을 띄워 주세요.</p>
@@ -1142,6 +1180,7 @@ export function renderAdmin(state, ui) {
 
     <section class="card">
       ${secHead('현장 상품 “?” 상자', '<span class="sec-note">이름은 상자를 열 때까지 참가자에게 보이지 않아요</span>')}
+      ${prizes.some((p) => p.name.startsWith(SAMPLE_MARK)) ? `<p class="admin-warn">${SAMPLE_MARK} 표시가 붙은 샘플 상품이 들어 있어요. 미리 해 보기용이에요. 행사 전에 실제 상품 이름으로 바꿔 저장해 주세요.</p>` : ''}
       <p class="sec-desc">상품 이름과 받는 상을 정하고 저장하세요. 결전에서 이기면 상의 주인이 자동으로 정해지고, 받은 팀원(또는 사람)이 자기 폰에서 “?”를 열어요. 여기서 대신 열 수도 있어요.</p>
       <table class="admin-table admin-prizes">
         <thead><tr><th>번호</th><th>상품 이름</th><th>받는 상</th><th>주인</th><th></th></tr></thead>

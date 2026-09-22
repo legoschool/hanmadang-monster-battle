@@ -5,7 +5,7 @@
 // 협력형: 9개 커뮤니티가 한 원정대다. 원래 하던 활동(먹이·퀴즈·가위바위보)이 그대로 그 주 보스 공격이 되고,
 // 모두 함께 보스를 쓰러뜨리면 참여자 전원이 보상을 받는다. 현장 모임 날에는 다 함께 대마왕 글리치와 싸운다.
 import {
-  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, expForLevel,
+  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, expForLevel,
 } from './config.js';
 
 export const SCHEMA = 3; // 저장 데이터 모양이 바뀌면 올린다 (예전 모양은 새로 시작)
@@ -22,36 +22,65 @@ export const bossOf = (week) => BOSSES.find((b) => b.week === week) ?? null;
 export const isAvatar = (id) => AVATARS.some((a) => a.id === id);
 
 // ---------------------------------------------------------------- 일정
+// 일정(schedule)은 게임 상태에 저장된다: { pace, start, real }
+//   실제 일정: 1주일 속도, 11월 21일(토) 0시 시작 (현장 모임 12월 19일 - 4주)
+//   미리 해 보기: 운영자가 고른 속도(1일·1시간·30분·10분)로, 고른 순간부터 시작
 const EVENT_MS = Date.parse(`${EVENT.eventDate}T00:00:00+09:00`);
 const SEASON_START_MS = EVENT_MS - EVENT.weeks * 7 * DAY;
 
-// 지금 몇 주차인지 (한국 시간 기준, 시즌 시작일 00시에 1주차가 열린다)
-export function weekForTime(now = Date.now()) {
-  if (now < SEASON_START_MS) return 0;
-  return Math.min(FINAL_WEEK, Math.floor((now - SEASON_START_MS) / (7 * DAY)) + 1);
+export const realSchedule = () => ({ pace: 'week', start: SEASON_START_MS, real: true });
+export const scheduleOf = (state) => state?.schedule || realSchedule();
+export const paceOf = (state) => PACES[scheduleOf(state).pace] || PACES.week;
+const periodMs = (sch) => (PACES[sch.pace] || PACES.week).ms;
+export const roundStart = (sch, week) => sch.start + (week - 1) * periodMs(sch);
+export const eventStart = (sch) => roundStart(sch, FINAL_WEEK);
+
+// 지금 몇 주차(회차)인지 — 시작 시각에 1주차가 열리고, 속도만큼 지나면 다음 주차
+export function weekForTime(sch, now = Date.now()) {
+  if (now < sch.start) return 0;
+  return Math.min(FINAL_WEEK, Math.floor((now - sch.start) / periodMs(sch)) + 1);
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-function kstLabel(ms) {
-  const d = new Date(ms + 9 * 60 * MIN); // UTC 기준 필드로 한국 날짜를 읽는다
-  return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일(${WEEKDAYS[d.getUTCDay()]})`;
+function kst(ms) {
+  const d = new Date(ms + 9 * 60 * MIN); // UTC 기준 필드로 한국 날짜·시각을 읽는다
+  return { mo: d.getUTCMonth() + 1, da: d.getUTCDate(), wd: WEEKDAYS[d.getUTCDay()], h: d.getUTCHours(), mi: d.getUTCMinutes() };
+}
+const dateLabel = (ms) => { const k = kst(ms); return `${k.mo}월 ${k.da}일(${k.wd})`; };
+const clockLabel = (ms) => { const k = kst(ms); return `${k.h}:${String(k.mi).padStart(2, '0')}`; };
+function whenLabel(sch, ms) {
+  if (sch.real) return dateLabel(ms);
+  return periodMs(sch) >= DAY ? `${dateLabel(ms)} ${clockLabel(ms)}` : clockLabel(ms);
 }
 
-// 주차별 기간 표시: { start: '11월 21일(토)', end: '11월 27일(금)' }
-export function weekDates(week) {
-  if (week >= FINAL_WEEK) return { start: kstLabel(EVENT_MS), end: kstLabel(EVENT_MS) };
-  const w = Math.max(1, week);
-  const start = SEASON_START_MS + (w - 1) * 7 * DAY;
-  return { start: kstLabel(start), end: kstLabel(start + 6 * DAY) };
+// 주차별 기간 표시. 실제: { start: '11월 21일(토)', end: '11월 27일(금)' }, 10분 속도: { start: '14:00', end: '14:09' }
+export function weekDates(sch, week) {
+  const w = Math.min(Math.max(1, week), FINAL_WEEK);
+  const start = roundStart(sch, w);
+  if (w >= FINAL_WEEK) return { start: whenLabel(sch, start), end: whenLabel(sch, start) };
+  return { start: whenLabel(sch, start), end: whenLabel(sch, start + periodMs(sch) - (sch.real ? DAY : MIN)) };
 }
 
-export const eventDateLabel = () => kstLabel(EVENT_MS);
+export const eventDateLabel = (sch) => (sch.real ? dateLabel(eventStart(sch)) : `${dateLabel(eventStart(sch))} ${clockLabel(eventStart(sch))}`);
 
-// 현장 모임까지 남은 날 (당일 0)
-export function daysToEvent(now = Date.now()) {
+// 현장 모임(결전)까지 남은 날 (실제 일정 기준, 당일 0)
+export function daysToEvent(sch, now = Date.now()) {
   const kstToday = Math.floor((now + 9 * 60 * MIN) / DAY);
-  const kstEvent = Math.floor((EVENT_MS + 9 * 60 * MIN) / DAY);
+  const kstEvent = Math.floor((eventStart(sch) + 9 * 60 * MIN) / DAY);
   return kstEvent - kstToday;
+}
+
+// 결전까지 남은 시간 표시: 실제 일정은 'D-88', 미리 해 보기는 '1시간 20분 뒤' 같은 모양
+export function untilEventLabel(sch, now = Date.now()) {
+  if (sch.real) {
+    const d = daysToEvent(sch, now);
+    return d > 0 ? `D-${d}` : 'D-DAY';
+  }
+  const left = eventStart(sch) - now;
+  if (left <= 0) return 'D-DAY';
+  if (left >= DAY) return `D-${Math.ceil(left / DAY)}`;
+  const m = Math.ceil(left / MIN);
+  return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분 뒤` : `${m}분 뒤`;
 }
 
 export const isPlayWeek = (week) => week >= 1 && week <= EVENT.weeks;
@@ -93,7 +122,7 @@ export function pushFeed(state, icon, text, extra = {}) {
 const who = (u) => ({ teamId: u.teamId, uid: u.id, avatar: u.avatar });
 
 const notOpen = (state) => (state.week < 1
-  ? { ok: false, reason: `${weekDates(1).start}에 1주차 원정이 시작돼요. 조금만 기다려 주세요!` }
+  ? { ok: false, reason: `${weekDates(scheduleOf(state), 1).start}에 1${paceOf(state).round} 원정이 시작돼요. 조금만 기다려 주세요!` }
   : { ok: false, reason: '사전 원정이 끝났어요. 현장 최종 결전에서 만나요!' });
 
 // 주간 기록을 건드리지 않고 보상만 준다 (주가 끝날 때 주는 보상용)
@@ -116,8 +145,8 @@ export function newGameState() {
   const state = {
     schema: SCHEMA, version: 1, seq: 0, week: 0,
     users: {}, teams: {}, feed: [], awards: {}, bosses: {}, hits: [],
-    coffeeStock: RULES.coffeeStock, goldenUntil: 0, final: null,
-    prizes: DEFAULT_PRIZES.map((award) => ({ name: '', award, winner: null, openedAt: 0 })),
+    coffeeStock: RULES.coffeeStock, goldenUntil: 0, final: null, schedule: realSchedule(),
+    prizes: DEFAULT_PRIZES.map(({ award, name }) => ({ name, award, winner: null, openedAt: 0 })),
   };
   for (const t of TEAMS) state.teams[t.id] = newTeam(t.id, 0);
   pushFeed(state, 'crown', `${EVENT.name} ${EVENT.title}에 오신 걸 환영해요! ${EVENT.slogan}`);
@@ -178,7 +207,8 @@ export function bossInfo(state, w = state.week) {
     const dmg = state.teams[t.id].dmgByWeek[w] || 0;
     return { id: t.id, share, dmg, rate: share ? dmg / share : 0, active: activeCount(state, t.id, w) };
   });
-  const live = Math.max(RULES.boss.minHp, teams.reduce((s, t) => s + t.share, 0));
+  const minHp = scheduleOf(state).real ? RULES.boss.minHp : RULES.boss.minHpTest;
+  const live = Math.max(minHp, teams.reduce((s, t) => s + t.share, 0));
   const maxHp = rec.defeatedAt ? rec.maxHpAtDefeat : rec.escaped ? rec.maxHpAtEnd || live : live;
   return {
     ...meta, week: w, maxHp, dmg: rec.dmg, hp: Math.max(0, maxHp - rec.dmg),
@@ -294,7 +324,7 @@ export function answerQuiz(state, userId, qi, choice, questions) {
     d.quizDoneAt = Date.now();
     if (perfect) {
       u.premium += RULES.quizPerfectPremium;
-      pushFeed(state, 'premium', `${u.name}님이 ${state.week}주차 AI 퀴즈를 모두 맞혔어요!`, who(u));
+      pushFeed(state, 'premium', `${u.name}님이 ${state.week}${paceOf(state).round} AI 퀴즈를 모두 맞혔어요!`, who(u));
     }
   }
   return { ok: true, correct, done, perfect, dmg: hit?.dmg || 0, defeated: !!hit?.defeated };
@@ -305,7 +335,7 @@ export function openLuckyBox(state, userId, rand = Math.random) {
   if (!isPlayWeek(state.week)) return notOpen(state);
   const u = state.users[userId];
   const d = weekly(state, u);
-  if (d.luckyCount >= RULES.luckyPerWeek) return { ok: false, reason: '이번 주 럭키박스를 모두 열었어요. 다음 주에 또 만나요!' };
+  if (d.luckyCount >= RULES.luckyPerWeek) return { ok: false, reason: `${paceOf(state).now} 럭키박스를 모두 열었어요. ${paceOf(state).next} 또 만나요!` };
   const row = pickWeighted(LUCKY_BOX, rand);
   if (row.reward.food) u.food += row.reward.food;
   if (row.reward.premium) u.premium += row.reward.premium;
@@ -322,7 +352,7 @@ export function playRps(state, userId, hand, rand = Math.random) {
   const u = state.users[userId];
   const d = weekly(state, u);
   if (!HANDS[hand]) return { ok: false, reason: '가위, 바위, 보 중에 골라 주세요' };
-  if (d.rpsCount >= RULES.rpsPerWeek) return { ok: false, reason: '이번 주 도전을 모두 했어요. 다음 주에 다시 도전해요!' };
+  if (d.rpsCount >= RULES.rpsPerWeek) return { ok: false, reason: `${paceOf(state).now} 도전을 모두 했어요. ${paceOf(state).next} 다시 도전해요!` };
   const keys = Object.keys(HANDS);
   const boss = keys[Math.floor(rand() * keys.length)];
   if (boss === hand) return { ok: true, outcome: 'draw', boss };
@@ -493,6 +523,7 @@ export function advanceWeek(state) {
   const w = state.week;
   let award = null;
 
+  const R = paceOf(state).round;
   if (isPlayWeek(w)) {
     const boss = bossOf(w);
     const rec = (state.bosses[w] ||= { dmg: 0, defeatedAt: 0, maxHpAtDefeat: 0, escaped: false });
@@ -538,10 +569,10 @@ export function advanceWeek(state) {
 
     if (!rec.defeatedAt) pushFeed(state, 'glitch', `${josa(boss.name, '이/가')} 도망쳐 대마왕 글리치에게 힘을 보탰어요… 최종 결전에서 되갚아 줘요!`, { boss: boss.id });
     const done = shares.filter((s) => s.done).map((s) => teamById(s.teamId).community);
-    if (done.length) pushFeed(state, 'premium', `${w}주차 우리 팀 몫 완수: ${done.join(', ')}! 참여한 팀원 모두 고급 먹이를 받았어요`);
-    if (mvp) pushFeed(state, 'crown', `${w}주차 MVP 팀은 ${teamById(mvp.teamId).community}! (몫 달성률 ${Math.round((mvp.dmg / mvp.share) * 100)}%) 한 주 동안 왕관을 써요`, { teamId: mvp.teamId });
-    if (friend) pushFeed(state, 'cheer', `${w}주차 우정상은 ${teamById(friend.id).community}! 다른 팀을 ${friend.friend}번 도왔어요`, { teamId: friend.id });
-    if (king) pushFeed(state, 'point', `${w}주차 지식왕은 ${teamById(king.user.teamId).community} ${king.user.name}님!`, who(king.user));
+    if (done.length) pushFeed(state, 'premium', `${w}${R} 우리 팀 몫 완수: ${done.join(', ')}! 참여한 팀원 모두 고급 먹이를 받았어요`);
+    if (mvp) pushFeed(state, 'crown', `${w}${R} MVP 팀은 ${teamById(mvp.teamId).community}! (몫 달성률 ${Math.round((mvp.dmg / mvp.share) * 100)}%) 왕관을 써요`, { teamId: mvp.teamId });
+    if (friend) pushFeed(state, 'cheer', `${w}${R} 우정상은 ${teamById(friend.id).community}! 다른 팀을 ${friend.friend}번 도왔어요`, { teamId: friend.id });
+    if (king) pushFeed(state, 'point', `${w}${R} 지식왕은 ${teamById(king.user.teamId).community} ${king.user.name}님!`, who(king.user));
   }
 
   state.week = w + 1;
@@ -550,17 +581,43 @@ export function advanceWeek(state) {
 
   if (state.week === FINAL_WEEK) {
     state.final = createFinal(state);
-    pushFeed(state, 'glitch', `사전 원정 끝! 봉인 조각 ${state.final.seals.length}개를 모았어요. ${eventDateLabel()} 한마당 현장에서 대마왕 글리치와 최종 결전!`, { boss: 'glitch' });
+    pushFeed(state, 'glitch', `사전 원정 끝! 봉인 조각 ${state.final.seals.length}개를 모았어요. ${eventDateLabel(scheduleOf(state))} 한마당 현장에서 대마왕 글리치와 최종 결전!`, { boss: 'glitch' });
   } else {
     const next = bossOf(state.week);
-    pushFeed(state, 'luckybox', `${state.week}주차 원정 시작! ${josa(next.name, '이/가')} 나타났어요. 다 함께 물리쳐요!`, { boss: next.id });
+    pushFeed(state, 'luckybox', `${state.week}${R} 원정 시작! ${josa(next.name, '이/가')} 나타났어요. 다 함께 물리쳐요!`, { boss: next.id });
   }
   return { ok: true, week: state.week, award };
 }
 
-// 날짜가 되면 자동으로 주차를 넘긴다 (앞으로만 간다. 운영자가 미리 넘긴 주차는 그대로 둔다)
+// 운영자가 진행 속도를 고른다. 지금 주차는 이 순간 새로 시작하고, 그 뒤로 고른 시간마다 다음 주차가 열린다.
+// 'real'은 실제 일정(11/21 시작, 1주일)으로 되돌린다. 이미 실제 일정보다 앞서 있으면 초기화가 먼저 필요하다.
+export function setPace(state, pace, now = Date.now()) {
+  if (pace === 'real') {
+    if (state.week > weekForTime(realSchedule(), now)) {
+      return { ok: false, reason: '실제 일정보다 앞서 진행돼 있어요. "전체 초기화"를 하면 실제 일정으로 돌아가요.' };
+    }
+    state.schedule = realSchedule();
+    pushFeed(state, 'booster', `운영진이 실제 일정으로 되돌렸어요. ${weekDates(state.schedule, 1).start}에 1주차 원정이 시작돼요.`);
+    return { ok: true, pace: 'real' };
+  }
+  const P = PACES[pace];
+  if (!P || pace === 'week') return { ok: false, reason: '속도를 골라 주세요' };
+  const w = Math.max(1, Math.min(state.week, FINAL_WEEK));
+  state.schedule = { pace, start: now - (w - 1) * P.ms, real: false };
+  pushFeed(state, 'booster', `미리 해 보기! 지금부터 ${P.label}마다 새 ${P.round}가 열려요. 퀴즈·보스·럭키박스 횟수도 그때마다 새로 바뀌어요.`);
+  return { ok: true, pace };
+}
+
+// 미리 해 보기 속도에서 운영자가 주차를 앞당기면, 새 주차가 지금 시작한 것으로 일정을 맞춘다
+export function rebaseSchedule(state, now = Date.now()) {
+  const sch = scheduleOf(state);
+  if (sch.real || state.week < 1) return;
+  state.schedule = { ...sch, start: now - (Math.min(state.week, FINAL_WEEK) - 1) * periodMs(sch) };
+}
+
+// 시간이 되면 자동으로 주차를 넘긴다 (앞으로만 간다. 운영자가 미리 넘긴 주차는 그대로 둔다)
 export function syncWeek(state, now = Date.now()) {
-  const target = weekForTime(now);
+  const target = weekForTime(scheduleOf(state), now);
   let changed = false;
   while (state.week < target && advanceWeek(state).ok) changed = true;
   return changed;

@@ -1,5 +1,5 @@
 // 앱 시작, 화면 이동, 버튼 동작. 모든 판정은 서버가 하고 화면은 서버가 보낸 상태를 그린다.
-import { EVENT, RULES, ITEMS, PRIZE_AWARDS, SERVER_READY, spriteOf, eggOf } from './config.js';
+import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, SERVER_READY, spriteOf, eggOf } from './config.js';
 import * as G from './game.js';
 import * as API from './api.js';
 import * as V from './views.js';
@@ -31,6 +31,7 @@ const ALIASES = { rank: 'crew', tournament: 'final' }; // 예전 주소
 
 const $ = (id) => document.getElementById(id);
 const me = () => (state?.me ? state.users[state.me] : null);
+const pace = () => G.paceOf(state); // 고른 진행 속도의 말: 주차/이번 주/다음 주 …
 
 // ---------------------------------------------------------------- 기기에 남기는 "봤음" 표시
 function seen(key) {
@@ -162,7 +163,7 @@ async function autoCheckIn() {
   const res = await act('checkin');
   if (!res?.ok) return;
   render();
-  toast(`${icon('food', 22)}<span><b>${state.week}주차 첫 방문 보너스!</b> 먹이 ${res.food}개를 받았어요</span>`, 'good');
+  toast(`${icon('food', 22)}<span><b>${state.week}${pace().round} 첫 방문 보너스!</b> 먹이 ${res.food}개를 받았어요</span>`, 'good');
 }
 
 // ---------------------------------------------------------------- 모두에게 알릴 일 (보스 격파, 새 라운드, 상자 공개)
@@ -202,7 +203,7 @@ function showBossDefeated(w) {
     img: `<div class="defeat-img">${V.bossImg(b.id, 64, 'is-ko')}${icon('seal', 56)}</div>`,
     eyebrow: 'BOSS CLEAR!',
     title: `원정대가 ${G.josa(b.name, '을/를')} 물리쳤어요!`,
-    text: `${EVENT.slogan} 봉인 조각 1개를 얻었어요.${got ? ` 이번 주 참여한 나에게도 <b>고급 먹이 ${r.premium}개 + ${r.points}P</b>!` : ' 이번 주 첫 방문을 하면 보상을 받아요.'}`,
+    text: `${EVENT.slogan} 봉인 조각 1개를 얻었어요.${got ? ` ${pace().now} 참여한 나에게도 <b>고급 먹이 ${r.premium}개 + ${r.points}P</b>!` : ` ${pace().now} 첫 방문을 하면 보상을 받아요.`}`,
     actions: '<button class="btn btn--primary" data-action="modal-close">좋아요!</button>',
   });
 }
@@ -278,7 +279,7 @@ async function playRound(round) {
       const b = G.bossOf(ev.week);
       bump(boss(), 'is-hit', 420);
       floatText(boss(), `-${num(ev.dmg)}`, 'is-crit');
-      add(`${ev.week}주차 봉인 조각이 빛나요! ${b.name}의 봉인이 글리치를 묶어요 -${num(ev.dmg)}`, 'is-seal');
+      add(`${ev.week}${pace().round} 봉인 조각이 빛나요! ${b.name}의 봉인이 글리치를 묶어요 -${num(ev.dmg)}`, 'is-seal');
       setHp(ev.hp);
       await wait(750);
     } else if (ev.type === 'hit') {
@@ -469,13 +470,13 @@ const actions = {
     history.replaceState(null, '', '#/home');
     render();
     window.scrollTo(0, 0);
-    if (checkin?.ok) toast(`${icon('food', 22)}<span><b>${state.week}주차 첫 방문 보너스!</b> 먹이 ${checkin.food}개를 받았어요</span>`, 'good');
+    if (checkin?.ok) toast(`${icon('food', 22)}<span><b>${state.week}${pace().round} 첫 방문 보너스!</b> 먹이 ${checkin.food}개를 받았어요</span>`, 'good');
     const egg = G.levelInfo(state.teams[t.id].exp).stage.key === 'egg';
     revealModal({
       img: `<div class="welcome-img">${V.avatarImg(ui.pickAvatar, 96)}<img class="px pop" src="${egg ? eggOf(t.id) : spriteOf(t.id)}" width="128" height="128" alt="" onerror="this.onerror=null;this.src='${spriteOf(t.id)}'"></div>`,
       eyebrow: `${t.community} 원정대`,
       title: egg ? `${t.monster}의 알과 함께 출발!` : `${G.josa(t.monster, '과/와')} 함께 출발!`,
-      text: `${EVENT.slogan} 1주일에 한 번씩 들러 퀴즈와 미션으로 먹이를 모아 주세요. 먹이를 줄수록 몬스터가 자라고, 그 주 보스에게 피해가 들어가요.`,
+      text: `${EVENT.slogan} ${pace().once}씩 들러 퀴즈와 미션으로 먹이를 모아 주세요. 먹이를 줄수록 몬스터가 자라고, ${pace().now} 보스에게 피해가 들어가요.`,
       actions: '<button class="btn btn--primary" data-action="modal-close">원정 시작!</button>',
     });
   },
@@ -563,7 +564,7 @@ const actions = {
       img: icon(ic, 96),
       eyebrow: r.jackpot ? 'JACKPOT!' : '럭키박스',
       title: esc(r.label),
-      text: r.jackpot ? '축하해요! 먹이를 주면 몬스터도 자라고 보스에게도 큰 피해가 들어가요.' : res.left ? `이번 주에 ${res.left}번 더 열 수 있어요.` : '이번 주 럭키박스를 모두 열었어요. 다음 주에 또 만나요!',
+      text: r.jackpot ? '축하해요! 먹이를 주면 몬스터도 자라고 보스에게도 큰 피해가 들어가요.' : res.left ? `${pace().now} ${res.left}번 더 열 수 있어요.` : `${pace().now} 럭키박스를 모두 열었어요. ${pace().next} 또 만나요!`,
       actions: r.reward.points
         ? '<button class="btn btn--primary" data-action="modal-close">받기</button>'
         : '<button class="btn btn--soft" data-action="modal-close">받기</button><button class="btn btn--primary" data-action="go" data-href="#/home">바로 먹이 주기</button>',
@@ -603,7 +604,7 @@ const actions = {
       text: `먹이 ${res.before}개 → <b>${res.after}개</b>${res.dmg ? ` · 보스에게 <b>${res.dmg}</b> 피해` : ''}`,
       actions: win
         ? '<button class="btn btn--soft" data-action="modal-close">확인</button><button class="btn btn--primary" data-action="go" data-href="#/home">먹이 주러 가기</button>'
-        : `<button class="btn btn--primary" data-action="modal-close">${res.left ? '다시 도전하기' : '다음 주에 다시 도전'}</button>`,
+        : `<button class="btn btn--primary" data-action="modal-close">${res.left ? '다시 도전하기' : `${pace().next} 다시 도전`}</button>`,
     });
   },
   gacha: async (el) => {
@@ -754,10 +755,21 @@ const actions = {
   },
   'admin-next-week': async () => {
     const next = ui.adminOverview.week + 1;
-    if (!confirm(`${next > ui.adminOverview.weeks ? '결전의 날(현장)' : `${next}주차`}로 넘길까요? 지난주 시상과 팀 몫 보상이 지급되고, 못 잡은 보스는 도망가요. 되돌릴 수 없어요.`)) return;
+    if (!confirm(`${next > ui.adminOverview.weeks ? '결전의 날(현장)' : `${next}${pace().round}`}로 넘길까요? ${pace().prev} 시상과 팀 몫 보상이 지급되고, 못 잡은 보스는 도망가요. 되돌릴 수 없어요.`)) return;
     const res = await adminCall('nextWeek');
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
-    else if (res) toast(`<span><b>${res.week > ui.adminOverview.weeks ? '결전의 날' : `${res.week}주차`}</b>가 시작됐어요</span>`, 'good');
+    else if (res) toast(`<span><b>${res.week > ui.adminOverview.weeks ? '결전의 날' : `${res.week}${pace().round}`}</b>가 시작됐어요</span>`, 'good');
+  },
+  'admin-pace': async (el) => {
+    const key = el.dataset.pace;
+    const P = PACES[key];
+    const msg = key === 'real'
+      ? '실제 일정(1주일, 11월 21일 시작)으로 되돌릴까요?'
+      : `미리 해 보기: 지금부터 ${P.label}마다 새 ${P.round}가 열리게 할까요? 지금 ${state.week < 1 ? `1${P.round}가 바로 시작돼요` : `${pace().round}는 이 순간 새로 시작돼요`}.`;
+    if (!confirm(msg)) return;
+    const res = await adminCall('pace', { pace: key });
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) toast(`<span><b>${key === 'real' ? '실제 일정' : `${P.label}마다`}</b> 진행으로 바꿨어요</span>`, 'good');
   },
   'admin-golden': async (el) => {
     const minutes = Number(el.dataset.minutes) || 30;
@@ -893,6 +905,18 @@ setInterval(() => {
     t.textContent = timeLeft(until);
   });
   if (expired && ui.cheerQueue) flushCheers({ final: true });
+  const roundOver = [...document.querySelectorAll('time[data-refresh]')].some((t) => Number(t.dataset.until) <= now());
+  if (roundOver) {
+    // 다음 회차가 열리는 순간: 서버가 주차를 넘기도록 곧바로 새로 받아 온다
+    document.querySelectorAll('time[data-refresh]').forEach((t) => t.removeAttribute('data-refresh'));
+    setTimeout(() => refresh().then((changed) => {
+      if (changed && !modalOpen() && !ui.busy) render();
+      if (changed) {
+        autoCheckIn();
+        checkEvents();
+      }
+    }), 1200);
+  }
   if (expired && !modalOpen() && !ui.busy) render();
 }, 1000);
 
