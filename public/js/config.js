@@ -19,6 +19,17 @@ export const EVENT = {
   weeks: 4,                // 사전 참여 주 수
 };
 
+// 진행 속도: 운영자 화면에서 고른다. 실제 일정은 1주일(11/21 시작, 매주 토요일 0시).
+// 나머지는 미리 해 보기용 — 고른 시간마다 새 회차(퀴즈·보스·횟수 제한)가 열린다.
+const HOUR = 3600 * 1000;
+export const PACES = {
+  week:  { label: '1주일', ms: 7 * 24 * HOUR, round: '주차', now: '이번 주', next: '다음 주', prev: '지난주', per: '한 주에', once: '1주일에 한 번', series: '주간' },
+  day:   { label: '1일',   ms: 24 * HOUR, round: '일차', now: '오늘', next: '내일', prev: '어제', per: '하루에', once: '하루에 한 번', series: '편' },
+  hour:  { label: '1시간', ms: HOUR, round: '회차', now: '이번 회차', next: '다음 회차', prev: '지난 회차', per: '한 회차에', once: '1시간에 한 번', series: '편' },
+  min30: { label: '30분',  ms: HOUR / 2, round: '회차', now: '이번 회차', next: '다음 회차', prev: '지난 회차', per: '한 회차에', once: '30분에 한 번', series: '편' },
+  min10: { label: '10분',  ms: HOUR / 6, round: '회차', now: '이번 회차', next: '다음 회차', prev: '지난 회차', per: '한 회차에', once: '10분에 한 번', series: '편' },
+};
+
 // 9개 커뮤니티는 경쟁 상대가 아니라 한 원정대다.
 export const TEAMS = [
   { id: 'koalbot',   community: '코알교',          monster: '코알봇',   color: '#3fb6dc', desc: '코딩과 AI 데이터를 먹고 자라는 로봇 코알라' },
@@ -77,6 +88,7 @@ export const RULES = {
   // 한 사람이 한 주에 보통 300~450 피해를 주므로, 팀원 40% 정도가 참여하면 쓰러지는 수준이다.
   boss: {
     perMember: 150, minHp: 1000,
+    minHpTest: 200,               // 미리 해 보기 속도에서는 혼자서도 쓰러뜨려 볼 수 있게 낮춘다
     quizDamage: 30,               // 퀴즈 정답 1개 = 지식 공격
     rpsWinDamage: 50,             // 보스 가위바위보 승리
     defeatReward: { premium: 1, points: 30 },   // 격파하면 그 주 참여자 모두
@@ -135,7 +147,17 @@ export const PRIZE_AWARDS = {
   cheerKing: { label: '현장 응원왕',      kind: 'user', desc: '12/19 결전에서 응원을 가장 많이 한 사람' },
   lucky:     { label: '행운 추첨',        kind: 'user', desc: '참여한 모든 대원 중 운영자가 추첨' },
 };
-export const DEFAULT_PRIZES = ['finalMvp', 'seasonMvp', 'friend', 'king', 'ace'];
+// 처음(초기화 뒤)에 들어 있는 샘플 상품 — 미리 해 보기용. 행사 전에 운영자 화면에서 실제 상품으로 바꾼다.
+export const SAMPLE_MARK = '[샘플]';
+export const DEFAULT_PRIZES = [
+  { award: 'finalMvp',  name: '[샘플] 팀 간식 파티 세트' },
+  { award: 'seasonMvp', name: '[샘플] 팀 단체 기념품' },
+  { award: 'friend',    name: '[샘플] 우정 머그컵 세트' },
+  { award: 'king',      name: '[샘플] 무선 이어폰' },
+  { award: 'ace',       name: '[샘플] 보조 배터리' },
+  { award: 'cheerKing', name: '[샘플] 응원왕 트로피' },
+  { award: 'lucky',     name: '[샘플] 커피 쿠폰' },
+];
 
 // 몬스터 성장 단계 (레벨 기준)
 export const STAGES = [
