@@ -12,9 +12,13 @@ export function icon(name, size = 24, alt = '') {
 }
 
 export function monsterImg(teamId, exp, size, { forceSprite = false } = {}) {
-  const egg = !forceSprite && levelInfo(exp).stage.key === 'egg';
+  const info = levelInfo(exp);
+  const egg = !forceSprite && info.stage.key === 'egg';
   const fallback = egg ? ` onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src='${spriteOf(teamId)}'}"` : '';
-  return `<img class="px monster-img" src="${egg ? eggOf(teamId) : spriteOf(teamId)}" width="${size}" height="${size}" alt=""${fallback}>`;
+  // 레벨이 오를수록 조금씩 커지고(최대 1.35배), 마지막 단계는 은은하게 빛난다
+  const grow = egg ? 1 : Math.min(1.35, 0.92 + info.level * 0.035).toFixed(2);
+  const cls = `px monster-img stage-${info.stage.key}`;
+  return `<img class="${cls}" style="--grow:${grow}" src="${egg ? eggOf(teamId) : spriteOf(teamId)}" width="${size}" height="${size}" alt="" title="Lv.${info.level} ${info.stage.name}"${fallback}>`;
 }
 
 // 서버 시계 기준 현재 시각 (기기 시계가 틀려도 남은 시간이 맞게 보이도록)
