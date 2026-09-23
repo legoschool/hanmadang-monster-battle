@@ -47,6 +47,12 @@ export const STORY = {
   ],
 };
 
+// 진행 모드 — 정규 시즌(날짜대로 회차가 흐름) / 프리 모드(날짜 없이 혼자서도 쭉쭉)
+export const MODE_INFO = {
+  season: { label: '정규 시즌', desc: '정한 간격마다 회차가 넘어가고, 마지막 날 현장 결전까지 함께 가요' },
+  free:   { label: '프리 모드', desc: '날짜와 상관없이 문제·카드가 다 열리고, 보스를 잡으면 바로 다음 보스가 나와요' },
+};
+
 // 운영자가 한 번에 고르는 진행 방식
 export const MODES = [
   { key: 'demo5',   label: '아주 짧게',   sub: '20분 · 회차 5분',  pace: 'min5' },

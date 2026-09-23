@@ -1,6 +1,6 @@
 // 페이지 화면 (HTML 문자열을 만든다)
 import {
-  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, PACES, MODES, LEVELS, STORY, SKILL_LEVEL, SAMPLE_MARK,
+  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, PACES, MODES, MODE_INFO, LEVELS, STORY, SKILL_LEVEL, SAMPLE_MARK,
   eggOf,
   spriteOf, bossImgOf, avatarOf,
 } from './config.js';
@@ -8,7 +8,7 @@ import {
   teamById, bossOf, levelInfo, weekly, daily, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
-  scheduleOf, paceOf, roundLength, paceKeyFor, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor, teamSkill,
+  scheduleOf, paceOf, roundLength, paceKeyFor, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor, teamSkill, isFree,
 } from './game.js';
 import { cardsForWeek, CARD_SETS, CARDS_TOTAL, cardAt } from './cards.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
@@ -76,6 +76,7 @@ export function renderShellParts(state) {
   let day;
   if (state.week < 1) day = `<b>원정대 모집 중</b><span class="day-chip__mid"> · ${weekDates(S, 1).start} 출발</span>`;
   else if (state.week >= FINAL_WEEK) day = `<b>결전의 날</b><span class="day-chip__mid"> · 대마왕 글리치</span>`;
+  else if (isFree(state)) day = `<b>프리 모드</b><span class="day-chip__mid"> · ${bossOf(state.week).name}</span> · ${state.lap || 1}바퀴`;
   else day = `<b>${state.week}${P.round}</b><span class="day-chip__mid"> · ${bossOf(state.week).name}</span> · <span class="day-chip__mid">결전 </span>${eventCountdown(S)}`;
   return {
     day,
@@ -230,7 +231,10 @@ export function renderOnboarding(state, ui) {
 
     <section class="how">
       ${[
-        ['premium', '날마다 새 AI 한 조각', `${byDay(S) ? '날마다' : '조금씩'} AI·디지털 지식 카드와 퀴즈가 새로 열려요. 못 본 건 사라지지 않으니 웹툰처럼 몰아서 봐도 돼요.`],
+        ['premium', isFree(state) ? 'AI 한 조각 48장, 지금 다 열려 있어요' : '날마다 새 AI 한 조각',
+          isFree(state)
+            ? '프리 모드예요. 카드와 퀴즈가 처음부터 모두 열려 있어서 마음껏 몰아서 볼 수 있어요.'
+            : `${byDay(S) ? '날마다' : '조금씩'} AI·디지털 지식 카드와 퀴즈가 새로 열려요. 못 본 건 사라지지 않으니 웹툰처럼 몰아서 봐도 돼요.`],
         ['seal', '다 함께 보스 물리치기', '먹이·퀴즈·가위바위보가 모두 보스 공격이 돼요. 보스는 회복하며 버티니 여럿이 꾸준히 모여야 쓰러져요.'],
         ['mystery', `${eventDateLabel(S)} 최종 결전`, '모두 힘을 모아 마지막 보스 대마왕 글리치를 물리치면 보상이 있어요!'],
       ].map(([ic, title, text], i) => `
@@ -355,7 +359,9 @@ function arena(state, u, ui) {
       <div class="boss-hp" role="progressbar" aria-label="보스 체력" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct(boss.hp, boss.maxHp))}">
         <span style="width:${pct(boss.hp, boss.maxHp)}%"></span>
       </div>
-      ${play && info && !info.defeated ? `
+      ${play && info && !info.defeated && isFree(state) ? `
+      <p class="arena__rule">${icon('seal', 18)}<b>프리 모드</b> — 체력을 다 깎으면 바로 쓰러져요. 잡으면 다음 보스가 곧장 나와요! (지금 ${state.lap || 1}바퀴째)</p>` : ''}
+      ${play && info && !info.defeated && !isFree(state) ? `
       <p class="arena__rule ${info.holding ? 'is-holding' : ''}">${info.holding
         ? `${icon('seal', 18)}<b>마지막 힘으로 버티는 중!</b> ${info.killOpen
           ? '지금 공격하면 쓰러뜨릴 수 있어요. 어서!'
@@ -1402,6 +1408,17 @@ export function renderAdmin(state, ui) {
         <button class="btn btn--soft btn--sm ${ov.bossAdaptOn ? 'is-active' : ''}" data-action="admin-adapt" data-on="1">자동 조절 켜기</button>
         <button class="btn btn--soft btn--sm ${ov.bossAdaptOn ? '' : 'is-active'}" data-action="admin-adapt" data-on="">끄기</button>
       </div>
+    </section>
+
+    <section class="card">
+      ${secHead('진행 모드', `<span class="sec-note">지금 ${esc(MODE_INFO[ov.mode || 'free'].label)}${(ov.mode === 'free') ? ` · ${ov.lap || 1}바퀴` : ''}</span>`)}
+      <div class="mode-pick">
+        ${Object.entries(MODE_INFO).map(([k, v]) => `
+          <button class="mode-pick__item ${(ov.mode || 'free') === k ? 'is-active' : ''}" data-action="admin-run-mode" data-mode="${k}">
+            <b>${esc(v.label)}</b><span>${esc(v.desc)}</span>
+          </button>`).join('')}
+      </div>
+      <p class="sec-desc admin-pace__note">프리 모드에서는 날짜·회차가 멈추고 문제와 카드가 모두 열려요. 보스도 혼자 잡을 수 있게 약해지고, 마지막 보스까지 잡으면 한 바퀴를 돌아 처음부터 다시 시작해요(레벨·포인트·도감은 그대로).</p>
     </section>
 
     <section class="card">

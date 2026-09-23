@@ -197,10 +197,11 @@ export function newGameState() {
   const state = {
     schema: SCHEMA, version: 1, seq: 0, week: 0,
     users: {}, teams: {}, feed: [], awards: {}, bosses: {}, hits: [],
-    coffeeStock: RULES.coffeeStock, goldenUntil: 0, final: null, schedule: defaultSchedule(),
+    coffeeStock: RULES.coffeeStock, goldenUntil: 0, final: null, schedule: defaultSchedule(), mode: 'free', lap: 1,
     prizes: DEFAULT_PRIZES.map(({ award, name }) => ({ name, award, winner: null, openedAt: 0 })),
   };
   for (const t of TEAMS) state.teams[t.id] = newTeam(t.id, 0);
+  state.week = 1;                       // 프리 모드는 바로 1회차부터 (정규 시즌으로 바꾸면 날짜에 맞춰진다)
   pushFeed(state, 'crown', `${EVENT.name} ${EVENT.title}에 오신 걸 환영해요! ${EVENT.slogan}`);
   return state;
 }
@@ -250,6 +251,38 @@ export function setAvatar(state, userId, avatar) {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------- 진행 모드
+// 프리 모드: 날짜를 보지 않고, 문제·카드가 모두 열리고, 보스를 잡으면 바로 다음 보스가 나온다
+export const isFree = (state) => (state?.mode || 'free') !== 'season';   // 기본값은 프리 모드
+export function setMode(state, mode) {
+  const v = mode === 'season' ? 'season' : 'free';
+  if ((state.mode || 'free') === v) return { ok: false, reason: '이미 그 모드예요' };
+  state.mode = v;
+  if (v === 'free') {
+    if (!isPlayWeek(state.week)) state.week = 1;              // 모집 기간·결전이면 1회차부터
+    pushFeed(state, 'booster', '프리 모드! 이제 날짜와 상관없이 문제와 카드가 모두 열리고, 보스를 잡으면 바로 다음 보스가 나와요.');
+  } else {
+    syncWeek(state);                                          // 정규 시즌으로 돌아오면 날짜에 맞춘다
+    pushFeed(state, 'booster', `정규 시즌으로 돌아왔어요. ${paceOf(state).label}마다 새 ${paceOf(state).round}가 열려요.`);
+  }
+  return { ok: true, mode: v, week: state.week };
+}
+
+// 프리 모드에서 보스를 잡았을 때 다음 단계로 (마지막 보스까지 잡으면 한 바퀴 완주)
+function nextStageFree(state) {
+  if (state.week < EVENT.weeks) {
+    state.week += 1;
+    pushFeed(state, 'seal', `다음 보스 ${bossOf(state.week).name} 등장! 바로 이어서 도전해요.`, { boss: bossOf(state.week).id });
+    return;
+  }
+  state.lap = (state.lap || 1) + 1;
+  state.week = 1;
+  state.bosses = {};
+  for (const t of TEAMS) state.teams[t.id].dmgByWeek = {};
+  for (const u of Object.values(state.users)) { u.visitedWeeks = []; u.bossRewards = []; }
+  pushFeed(state, 'premium', `원정 ${state.lap - 1}바퀴 완주! 보스들이 다시 모였어요. ${state.lap}바퀴째 출발!`);
+}
+
 // ---------------------------------------------------------------- 날마다 열리는 문제와 카드
 // 회차가 얼마나 지났나 (0~1)
 export function roundProgress(state, now = Date.now()) {
@@ -264,6 +297,7 @@ export function roundProgress(state, now = Date.now()) {
 export const byDay = (sch) => roundLength(sch) >= 2 * DAY;
 export function openSlots(state, total, now = Date.now()) {
   if (total <= 0) return 0;
+  if (isFree(state)) return total;                       // 프리 모드는 처음부터 다 열려 있다
   if (state.week >= FINAL_WEEK) return total;            // 결전의 날은 한꺼번에 연다
   const sch = scheduleOf(state);
   let open;
@@ -279,7 +313,7 @@ export function openSlots(state, total, now = Date.now()) {
 // 다음 것이 열리는 시각 (다 열렸으면 0)
 export function nextOpenAt(state, total, now = Date.now()) {
   const open = openSlots(state, total, now);
-  if (open >= total || state.week >= FINAL_WEEK) return 0;
+  if (open >= total || isFree(state) || state.week >= FINAL_WEEK) return 0;
   const sch = scheduleOf(state);
   if (byDay(sch)) {                                     // 다음 한국 날짜 0시에 또 열린다
     const d = kstDay(now) - kstDay(roundStart(sch, state.week)) + 1;
@@ -429,7 +463,7 @@ export const teamShare = (state, teamId) => Math.round(bossPower(state) * teamMe
 
 // 보스 최대 체력 (인원 기준, 최소 체력 보장)
 export function liveMaxHp(state) {
-  const minHp = scheduleOf(state).quick ? RULES.boss.minHpTest : RULES.boss.minHp;
+  const minHp = (scheduleOf(state).quick || isFree(state)) ? RULES.boss.minHpTest : RULES.boss.minHp;
   return Math.max(minHp, TEAMS.reduce((s, t) => s + teamShare(state, t.id), 0));
 }
 // 막판(격파 가능) 시각 — 이때까지는 보스가 버틴다
@@ -442,9 +476,9 @@ export const killLabel = (state, w = state.week) => whenLabel(scheduleOf(state),
 // 버티는 동안 남겨 두는 체력
 const holdFloor = (maxHp) => Math.max(1, Math.round(maxHp * RULES.boss.holdHp));
 // 회복을 반영한 지금의 누적 피해 (상태를 바꾸지 않는다)
-function dmgNow(rec, maxHp, now) {
-  if (!rec || rec.defeatedAt || rec.escaped || !rec.regenAt) return rec?.dmg || 0;
-  const heal = Math.floor(((now - rec.regenAt) / DAY) * RULES.boss.regenPerDay * maxHp);
+function dmgNow(rec, maxHp, now, perDay = RULES.boss.regenPerDay) {
+  if (!rec || rec.defeatedAt || rec.escaped || !rec.regenAt || !perDay) return rec?.dmg || 0;
+  const heal = Math.floor(((now - rec.regenAt) / DAY) * perDay * maxHp);
   return Math.max(0, rec.dmg - Math.max(0, heal));
 }
 
@@ -459,15 +493,16 @@ export function bossInfo(state, w = state.week, now = Date.now()) {
   });
   const live = liveMaxHp(state);
   const maxHp = rec.defeatedAt ? rec.maxHpAtDefeat : rec.escaped ? rec.maxHpAtEnd || live : live;
+  const free = isFree(state);
   const killAt = killTime(state, w);
-  const open = now >= killAt;                                  // 막판이면 격파 가능
+  const open = free || now >= killAt;                          // 프리 모드는 언제든, 정규 시즌은 막판부터
   const cap = open ? maxHp : maxHp - holdFloor(maxHp);
-  const dmg = rec.defeatedAt ? rec.dmg : Math.min(dmgNow(rec, maxHp, now), cap);
+  const dmg = rec.defeatedAt ? rec.dmg : Math.min(dmgNow(rec, maxHp, now, free ? 0 : RULES.boss.regenPerDay), cap);
   return {
     ...meta, week: w, maxHp, dmg, hp: Math.max(0, maxHp - dmg),
     defeated: !!rec.defeatedAt, defeatedAt: rec.defeatedAt, escaped: !!rec.escaped,
     holding: !rec.defeatedAt && !rec.escaped && dmg >= cap,    // 마지막 힘으로 버티는 중
-    killAt, killOpen: open, regenPerDay: RULES.boss.regenPerDay,
+    killAt, killOpen: open, regenPerDay: free ? 0 : RULES.boss.regenPerDay, free,
     teams, active: teams.reduce((s, t) => s + t.active, 0),
   };
 }
@@ -504,9 +539,9 @@ function dealDamage(state, u, amount, kind, now = Date.now()) {
   // 지나간 시간만큼 보스가 회복한 뒤에 이번 피해를 얹는다
   const maxHp = rec.defeatedAt ? rec.maxHpAtDefeat : liveMaxHp(state);
   if (!rec.defeatedAt) {
-    rec.dmg = dmgNow(rec, maxHp, now);
+    rec.dmg = dmgNow(rec, maxHp, now, isFree(state) ? 0 : RULES.boss.regenPerDay);
     rec.regenAt = now;
-    const open = now >= killTime(state, w);
+    const open = isFree(state) || now >= killTime(state, w);
     const cap = open ? maxHp : maxHp - holdFloor(maxHp);
     const before = rec.dmg;
     rec.dmg = Math.min(rec.dmg + amount, cap);
@@ -528,7 +563,10 @@ function dealDamage(state, u, amount, kind, now = Date.now()) {
   let defeated = false;
   if (!rec.defeatedAt) {
     const info = bossInfo(state, w, now);
-    if (info.killOpen && rec.dmg >= info.maxHp) defeated = markDefeat(state, w, info, u, now);
+    if (info.killOpen && rec.dmg >= info.maxHp) {
+      defeated = markDefeat(state, w, info, u, now);
+      if (defeated && isFree(state)) nextStageFree(state);     // 프리 모드: 쉬지 않고 다음 보스로
+    }
   }
   return { dmg: amount, applied, held: amount - applied, defeated };
 }
@@ -999,6 +1037,7 @@ export function rebaseSchedule(state, now = Date.now()) {
 
 // 시간이 되면 자동으로 주차를 넘긴다 (앞으로만 간다. 운영자가 미리 넘긴 주차는 그대로 둔다)
 export function syncWeek(state, now = Date.now()) {
+  if (isFree(state)) return false;                       // 프리 모드는 날짜로 넘어가지 않는다
   const target = weekForTime(scheduleOf(state), now);
   let changed = false;
   while (state.week < target && advanceWeek(state).ok) changed = true;
