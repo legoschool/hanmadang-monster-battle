@@ -5,7 +5,7 @@
 // 협력형: 9개 커뮤니티가 한 원정대다. 원래 하던 활동(먹이·퀴즈·가위바위보)이 그대로 그 주 보스 공격이 되고,
 // 모두 함께 보스를 쓰러뜨리면 참여자 전원이 보상을 받는다. 현장 모임 날에는 다 함께 대마왕 글리치와 싸운다.
 import {
-  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, expForLevel,
+  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, LEVELS, expForLevel,
 } from './config.js';
 import { cardsForWeek, CARDS_PER_ROUND } from './cards.js';
 import { kidCardsForWeek } from './cards-kid.js';
@@ -292,16 +292,32 @@ export function cardFor(week, i, level) {
 export const cardThemeFor = (week, level) =>
   (level === 'student' ? kidCardsForWeek(week)?.theme : null) || cardsForWeek(week)?.theme || '';
 
-// 참가자 수준 바꾸기 (이번 회차 문제는 수준마다 달라서 답을 지우고 다시 연다)
-export function setLevel(state, userId, level) {
-  const u = state.users[userId];
-  const v = level === 'student' ? 'student' : 'adult';
-  if (u.level === v) return { ok: false, reason: '이미 그 수준이에요' };
-  u.level = v;
-  const d = weekly(state, u);
-  d.quiz = [];
-  d.quizDoneAt = 0;
-  return { ok: true, level: v };
+// 행사 전체의 문제 수준 (운영자만 정한다)
+export const levelOf = (state) => (LEVELS[state?.quizLevel] ? state.quizLevel : 'adult');
+export function setQuizLevel(state, level) {
+  if (!LEVELS[level]) return { ok: false, reason: '알 수 없는 수준이에요' };
+  if (levelOf(state) === level) return { ok: false, reason: '이미 그 수준이에요' };
+  state.quizLevel = level;
+  // 수준이 바뀌면 문제 묶음이 달라지므로, 이번 회차 답을 비우고 다시 연다 (받은 포인트는 그대로)
+  for (const u of Object.values(state.users)) {
+    if (u.weekly.week === state.week) { u.weekly.quiz = []; u.weekly.quizDoneAt = 0; }
+  }
+  pushFeed(state, 'booster', `운영진이 문제 수준을 「${LEVELS[level].label}」로 맞췄어요. 이번 ${paceOf(state).round} 문제가 새로 열렸어요!`);
+  return { ok: true, level };
+}
+
+// 사람마다 문제 순서를 섞는다 (같은 회차에서는 늘 같은 순서라 기록이 어긋나지 않는다)
+export function quizOrder(userId, week, total) {
+  const idx = Array.from({ length: total }, (_, i) => i);
+  let seed = 7;
+  const key = `${userId}:${week}`;
+  for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) % 2147483647;
+  for (let i = total - 1; i > 0; i--) {                    // 섞기 (같은 씨앗이면 늘 같은 결과)
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    const j = seed % (i + 1);
+    [idx[i], idx[j]] = [idx[j], idx[i]];
+  }
+  return idx;
 }
 export function cardState(state, user, now = Date.now()) {
   const set = cardsForWeek(state.week);

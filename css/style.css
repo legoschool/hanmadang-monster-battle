@@ -141,6 +141,8 @@ img { max-width: 100%; }
 }
 .day-chip {
   margin-right: auto;
+  min-width: 0;                 /* 좁은 화면에서 이 칸이 먼저 줄어든다 */
+  overflow: hidden; text-overflow: ellipsis;
   padding: 6px 14px;
   border-radius: var(--pill);
   background: #fff;
@@ -150,9 +152,9 @@ img { max-width: 100%; }
   white-space: nowrap;
 }
 .day-chip b { color: var(--green-700); font-weight: 700; }
-.wallet-chips { display: flex; gap: 6px; }
+.wallet-chips { display: flex; gap: 6px; flex: none; }   /* 숫자가 잘리지 않게 */
 .mini-chip {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
   white-space: nowrap;
   padding: 4px 10px 4px 6px;
   border-radius: var(--pill);
@@ -1317,7 +1319,7 @@ img { max-width: 100%; }
 .boss-arena__crew .avatar-img { padding: 2px; border-radius: 10px; background: #fff; box-shadow: inset 0 0 0 2px var(--team), 0 3px 8px rgba(0, 0, 0, 0.08); }
 .boss-arena__crew li:nth-child(even) .avatar-img { transform: scaleX(-1); } /* 오른쪽 대원은 보스(왼쪽)를 보게 */
 .boss-arena__crew b { margin-top: -6px; padding: 0 5px; border-radius: 6px; background: #d8455a; color: #fff; font-family: var(--pixel); font-size: 11px; font-weight: 400; }
-.boss-arena__crew small { max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--ink-3); }
+.boss-arena__crew small { max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--ink-3); }
 .boss-arena__crew li.is-me .avatar-img { box-shadow: inset 0 0 0 2px var(--team), 0 0 0 3px var(--gold); }
 .boss-arena__crew li.is-new { animation: popIn 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.4); }
 .boss-arena__crew li.is-new b { animation: dmgPop 0.8s steps(4); }
@@ -1403,7 +1405,7 @@ img { max-width: 100%; }
 .seals { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .seal { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 64px; padding: 6px 4px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); }
 .seal .boss-img { filter: brightness(0) invert(1) opacity(0.35); }
-.seal small { font-size: 10.5px; color: rgba(255, 255, 255, 0.75); }
+.seal small { font-size: 11.5px; color: rgba(255, 255, 255, 0.8); }
 .seal.is-got { background: rgba(255, 213, 90, 0.2); box-shadow: inset 0 0 0 2px rgba(255, 213, 90, 0.7); }
 .seal.is-got small { color: #ffe08a; font-weight: 700; }
 .seal.is-lost { opacity: 0.55; }
@@ -1547,8 +1549,8 @@ img { max-width: 100%; }
   .journey__img .boss-img { width: 44px; height: 44px; }
   .journey__img .icon { width: 18px; height: 18px; right: -4px; bottom: -4px; }
   .journey__node--final .journey__img { width: 58px; height: 58px; }
-  .journey__node b { font-size: 10.5px; }
-  .journey__node small { font-size: 10px; }
+  .journey__node b { font-size: 11.5px; }
+  .journey__node small { font-size: 11px; }
   .boss-card__head h2 { font-size: 22px; }
   .boss-card__hp b { font-size: 20px; }
   .boss-arena { height: 220px; }
@@ -1671,7 +1673,7 @@ img { max-width: 100%; }
   .quiz__q { font-size: 18px; }
   .stamp__circle { width: 40px; height: 40px; font-size: 13px; }
   .stamp__circle .icon { width: 22px; height: 22px; }
-  .stamp small { font-size: 10.5px; }
+  .stamp small { font-size: 11.5px; }
   .team-pick__item img { width: 56px; height: 56px; }
   .team-pick__item strong { font-size: 12.5px; }
   .team-pick__item span { font-size: 11px; }
@@ -1697,6 +1699,14 @@ img { max-width: 100%; }
   .modal { padding: 24px 18px 18px; }
   .champion { flex-direction: column; text-align: center; }
   .champion__crown { left: 50%; margin-left: -24px; }
+}
+
+@media (max-width: 420px) {
+  .day-chip__mid { display: none; }      /* 좁은 화면에서는 보스 이름을 접는다 */
+  .topbar { gap: 6px; padding: 10px 12px; }
+  .day-chip { padding: 5px 9px; font-size: 11.5px; }
+  .wallet-chips { gap: 4px; }
+  .mini-chip { padding: 3px 7px 3px 4px; }
 }
 
 @media (max-width: 380px) {
@@ -1755,12 +1765,12 @@ img { max-width: 100%; }
   max-width: 100%;
   padding: 0 5px;
   border-radius: var(--pill);
-  font-size: 10.5px; font-weight: 700; color: var(--ink-2);
+  font-size: 11.5px; font-weight: 700; color: var(--ink-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .arena__bar { display: block; width: 52px; height: 5px; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1px var(--line-2); overflow: hidden; }
 .arena__bar i { display: block; height: 100%; border-radius: 4px; transition: width 0.4s; }
-.arena__team small { font-family: var(--pixel); font-size: 10px; color: var(--ink-3); }
+.arena__team small { font-family: var(--pixel); font-size: 11px; color: var(--ink-3); }
 /* 오른쪽에 선 몬스터는 보스를 바라보게 돌린다 */
 .arena__team:nth-child(n+2):nth-child(-n+5) .arena__mon .avatar-img { transform: scaleX(-1); }
 .arena__recent { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-2); }
@@ -1774,7 +1784,7 @@ img { max-width: 100%; }
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--team) 40%, #fff);
 }
 .arena__recent li b { font-family: var(--pixel); font-size: 11px; color: color-mix(in srgb, var(--team) 70%, #000); }
-.arena__recent li small { max-width: 56px; font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arena__recent li small { max-width: 62px; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arena__recent li.is-me { box-shadow: inset 0 0 0 2px var(--green); }
 .arena__recent li.is-new { animation: pop 0.35s ease-out; }
 .arena .share { margin-top: 12px; }
@@ -1788,7 +1798,7 @@ img { max-width: 100%; }
   padding: 0 7px;
   border-radius: var(--pill);
   background: var(--gold-50); color: var(--gold-700);
-  font-family: var(--pixel); font-size: 10.5px; font-style: normal; vertical-align: 1px;
+  font-family: var(--pixel); font-size: 11.5px; font-style: normal; vertical-align: 1px;
 }
 
 /* 이름 찾기 힌트 */
@@ -1819,10 +1829,11 @@ img { max-width: 100%; }
 @media (max-width: 720px) {
   .arena__ring { max-width: 100%; aspect-ratio: 1 / 1.02; }
   .arena__boss .boss-img { width: 78px; height: 78px; }
-  .arena__team { width: 64px; }
+  .arena__team { width: 70px; }
   .arena__team .avatar-img { width: 38px; height: 38px; }
-  .arena__bar { width: 42px; }
-  .arena__name { font-size: 9.5px; }
+  .arena__bar { width: 46px; }
+  .arena__name { font-size: 11px; padding: 0 3px; }
+  .arena__team small { font-size: 11px; }
 }
 
 /* 운영자: 보스 세기 */
@@ -1941,3 +1952,16 @@ img { max-width: 100%; }
 /* 아래 띠의 운영자 입구 */
 .foot__admin { display: inline-block; margin-left: 10px; color: var(--ink-4); text-decoration: none; border-bottom: 1px dotted var(--line-2); }
 .foot__admin:hover { color: var(--green-700); border-bottom-color: var(--green); }
+
+/* ---------------------------------------------------------------- 프롤로그 이야기 */
+.story { background: linear-gradient(180deg, #f6f3ff 0%, #fff 60%); }
+.story h2 { margin: 2px 0 12px; font-size: 22px; }
+.story p { margin: 0 0 10px; font-size: 15px; line-height: 1.7; color: var(--ink-2); }
+.story p b { color: var(--green-900); }
+.story__foes { list-style: none; margin: 16px 0 12px; padding: 0; display: grid; gap: 10px; }
+.story__foes li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 1px var(--line-2); }
+.story__foes .boss-img { flex: none; image-rendering: pixelated; }
+.story__foes b { display: block; font-size: 14.5px; }
+.story__foes span { font-size: 13px; color: var(--ink-3); line-height: 1.55; }
+.story__end { margin: 0; padding-top: 10px; border-top: 1px dashed var(--line-2); font-weight: 700; color: var(--green-700) !important; }
+.mode-pick__item.is-active { border-color: var(--green); background: var(--green-50); }
