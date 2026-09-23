@@ -869,6 +869,17 @@ const actions = {
       toast('<span><b>일정을 저장했어요</b></span>', 'good');
     }
   },
+  'admin-run-mode': async (el) => {
+    const mode = el.dataset.mode;
+    const info = { season: '정규 시즌', free: '프리 모드' }[mode] || mode;
+    if (!confirm(`「${info}」로 바꿀까요?
+
+프리 모드: 날짜가 멈추고 문제·카드가 모두 열려요. 보스를 잡으면 바로 다음 보스가 나와요.
+정규 시즌: 정한 일정대로 회차가 흘러가요.`)) return;
+    const res = await adminCall('mode', { mode });
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) toast(`<span><b>${info}</b>로 바꿨어요 · ${res.week}회차부터</span>`, 'good');
+  },
   'admin-mode': async (el) => {
     const mode = MODES.find((m) => m.key === el.dataset.mode);
     if (!mode) return;
