@@ -1710,3 +1710,170 @@ img { max-width: 100%; }
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ---------------------------------------------------------------- 원정 무대 (홈 가운데 보스 + 커뮤니티 몬스터) */
+.home .arena { grid-column: 1 / -1; background: linear-gradient(180deg, color-mix(in srgb, var(--boss) 12%, #fff) 0%, #fff 60%); }
+.arena__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.arena__head .eyebrow { color: color-mix(in srgb, var(--boss) 70%, #000); }
+.arena__head h2 { margin: 2px 0 0; font-size: 20px; }
+.arena__ring {
+  position: relative;
+  margin: 14px auto 6px;
+  width: 100%; max-width: 520px;
+  aspect-ratio: 1 / 0.92;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--boss) 22%, transparent) 0 18%, transparent 52%),
+    var(--green-50);
+  box-shadow: inset 0 0 0 2px var(--green-100);
+}
+.arena__boss {
+  position: absolute; left: 50%; top: 46%;
+  transform: translate(-50%, -50%);
+  display: grid; place-items: center;
+  animation: idle 1.2s steps(1) infinite;
+}
+.arena__boss .boss-img { width: 104px; height: 104px; filter: drop-shadow(0 8px 12px rgba(17, 24, 39, 0.22)); }
+.arena__seal { position: absolute; right: -10px; bottom: -6px; }
+.arena.is-defeated .arena__boss { animation: none; }
+.arena.is-defeated .arena__boss .boss-img { filter: grayscale(0.8) opacity(0.55); }
+.arena__teams { list-style: none; margin: 0; padding: 0; }
+.arena__team {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  width: 84px;
+  text-align: center;
+}
+.arena__mon { position: relative; display: grid; place-items: center; }
+.arena__mon .avatar-img { filter: drop-shadow(0 3px 5px rgba(17, 24, 39, 0.18)); }
+.arena__crown { position: absolute; right: 6px; top: -6px; }
+.arena__team.is-quiet .arena__mon { filter: grayscale(0.85); opacity: 0.45; }
+.arena__team.is-mine .arena__name { color: var(--green-900); background: #fff; box-shadow: 0 2px 8px rgba(20, 83, 45, 0.18); }
+.arena__team.is-mine .arena__mon .avatar-img { animation: idle 0.7s steps(1) infinite; }
+.arena__name {
+  max-width: 100%;
+  padding: 0 5px;
+  border-radius: var(--pill);
+  font-size: 10.5px; font-weight: 700; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.arena__bar { display: block; width: 52px; height: 5px; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1px var(--line-2); overflow: hidden; }
+.arena__bar i { display: block; height: 100%; border-radius: 4px; transition: width 0.4s; }
+.arena__team small { font-family: var(--pixel); font-size: 10px; color: var(--ink-3); }
+/* 오른쪽에 선 몬스터는 보스를 바라보게 돌린다 */
+.arena__team:nth-child(n+2):nth-child(-n+5) .arena__mon .avatar-img { transform: scaleX(-1); }
+.arena__recent { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-2); }
+.arena__recent-label { font-size: 12px; font-weight: 700; color: var(--ink-3); }
+.arena__recent ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; padding: 0; }
+.arena__recent li {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 4px 6px 2px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--team) 12%, #fff);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--team) 40%, #fff);
+}
+.arena__recent li b { font-family: var(--pixel); font-size: 11px; color: color-mix(in srgb, var(--team) 70%, #000); }
+.arena__recent li small { max-width: 56px; font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arena__recent li.is-me { box-shadow: inset 0 0 0 2px var(--green); }
+.arena__recent li.is-new { animation: pop 0.35s ease-out; }
+.arena .share { margin-top: 12px; }
+
+/* 로고 · 오늘 할 일 표시 */
+.brand__logo { height: 20px; width: auto; }
+.brand__logo--sm { height: 15px; }
+.onboard__logo { display: block; margin: 0 auto 10px; height: 34px; width: auto; }
+.todo__tag {
+  display: inline-block; margin-right: 6px;
+  padding: 0 7px;
+  border-radius: var(--pill);
+  background: var(--gold-50); color: var(--gold-700);
+  font-family: var(--pixel); font-size: 10.5px; font-style: normal; vertical-align: 1px;
+}
+
+/* 이름 찾기 힌트 */
+.hint-fields { display: grid; gap: 8px; margin-bottom: 10px; }
+.hint-fields .field { margin: 0; }
+.hint-now { display: flex; align-items: center; gap: 6px; margin: 8px 0 10px; font-size: 14px; color: var(--ink-2); }
+.found-hint { padding: 12px; border-radius: 14px; background: var(--green-50); }
+.found-hint__who { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.found-hint__who b { display: block; font-size: 15px; }
+.found-hint__who small { font-size: 12.5px; color: var(--ink-3); }
+.found-hint__q { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 15px; font-weight: 700; color: var(--green-900); }
+.found-hint .btn--soft { margin-top: 8px; }
+.resume-code { margin-top: 10px; }
+.resume-code summary { cursor: pointer; font-size: 13px; color: var(--ink-3); }
+.resume-code p { margin: 8px 0; font-size: 13px; color: var(--ink-3); }
+
+/* 결전: 모아 둔 지혜 */
+.final-wisdom {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 0 0 8px;
+  padding: 6px 14px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 13.5px; color: var(--green-900);
+}
+.final-wisdom b { font-family: var(--pixel); font-size: 16px; }
+
+@media (max-width: 720px) {
+  .arena__ring { max-width: 100%; aspect-ratio: 1 / 1.02; }
+  .arena__boss .boss-img { width: 78px; height: 78px; }
+  .arena__team { width: 64px; }
+  .arena__team .avatar-img { width: 38px; height: 38px; }
+  .arena__bar { width: 42px; }
+  .arena__name { font-size: 9.5px; }
+}
+
+/* 운영자: 보스 세기 */
+.admin-boss { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: 13.5px; color: var(--ink-2); }
+.admin-golden .btn.is-active { background: var(--green); border-color: var(--green); color: #fff; }
+.arena__rule {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 13px; color: var(--ink-2);
+}
+.arena__rule.is-holding { background: var(--gold-50); color: var(--gold-700); font-weight: 600; }
+
+/* ---------------------------------------------------------------- 오늘의 AI 한 조각 (카드 도감) */
+.ai-cards__bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.ai-cards__count { flex: none; font-size: 13px; color: var(--ink-3); }
+.ai-cards__count b { font-family: var(--pixel); font-size: 15px; color: var(--green-700); }
+.ai-cards__bar .goal__bar { flex: 1; }
+.ai-cards__new { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 13.5px; color: var(--gold-700); }
+.ai-cards__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ai-card { border: 1px solid var(--line-2); border-radius: 14px; background: #fff; overflow: hidden; }
+.ai-card.is-read { border-color: var(--green-100); background: var(--green-50); }
+.ai-card.is-open { border-color: var(--green); box-shadow: 0 4px 14px rgba(102, 174, 125, 0.18); }
+.ai-card__head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px;
+  border: 0; background: none; cursor: pointer; text-align: left; font: inherit;
+}
+.ai-card__no {
+  flex: none; display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--green-100); color: var(--green-700);
+  font-family: var(--pixel); font-size: 13px;
+}
+.ai-card.is-read .ai-card__no { background: var(--green); color: #fff; }
+.ai-card__title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ai-card__title b { font-size: 14.5px; line-height: 1.35; }
+.ai-card__title small { font-size: 11.5px; color: var(--ink-4); }
+.ai-card__flag { flex: none; font-size: 11.5px; color: var(--ink-3); font-family: var(--pixel); }
+.ai-card:not(.is-read) .ai-card__flag { color: var(--gold-700); }
+.ai-card__body { padding: 0 12px 12px 48px; }
+.ai-card__body p { margin: 0 0 8px; font-size: 14px; line-height: 1.6; color: var(--ink-2); }
+.ai-card__try { padding: 8px 10px; border-radius: 10px; background: #fff; box-shadow: inset 0 0 0 1px var(--line-2); }
+.ai-card__try b { display: block; font-size: 12px; color: var(--green-700); }
+.ai-card__term { display: flex; align-items: center; gap: 6px; font-size: 12.5px !important; color: var(--ink-3) !important; }
+.ai-cards__next { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.quiz-open { margin: -4px 0 12px; font-size: 13px; color: var(--ink-3); }
+
+@media (max-width: 720px) {
+  .ai-card__body { padding-left: 12px; }
+}

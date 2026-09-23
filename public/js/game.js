@@ -7,8 +7,9 @@
 import {
   EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, expForLevel,
 } from './config.js';
+import { cardsForWeek, CARDS_PER_ROUND } from './cards.js';
 
-export const SCHEMA = 4; // 저장 데이터 모양이 바뀌면 올린다 (예전 모양은 새로 시작). 4: 일정을 시작~끝 날짜로
+export const SCHEMA = 6; // 저장 데이터 모양이 바뀌면 올린다 (예전 모양은 새로 시작). 6: 날마다 열리는 문제·AI 카드 도감
 export const FINAL_WEEK = EVENT.weeks + 1;
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -200,16 +201,24 @@ export function newUser({ id, name, teamId, avatar }) {
     id, name, teamId, avatar,
     food: 0, premium: 0, points: 0, totalPoints: 0, totalDmg: 0, totalCorrect: 0,
     items: { booster: 0, cheer: 0, coffee: 0 },
-    coupons: [], visitedWeeks: [], bossRewards: [],
-    weekly: freshWeekly(-1),
+    coupons: [], visitedWeeks: [], bossRewards: [], cards: [],
+    weekly: freshWeekly(-1), daily: { key: '', visit: false, lucky: 0, rps: 0 },
   };
 }
 
 function freshWeekly(week) {
   return {
     week, quiz: [], quizDoneAt: 0, luckyCount: 0, luckyLog: [], rpsCount: 0, rpsLog: [],
-    points: 0, dmg: 0, friend: 0, friendGifts: 0,
+    points: 0, dmg: 0, friend: 0, friendGifts: 0, days: [], dayBonus: 0,
   };
+}
+
+// 날마다(한국 날짜) 새로 채워지는 기록. 회차가 바뀌어도 새로 채워진다.
+export const kstDay = (ms = Date.now()) => Math.floor((ms + 9 * HOUR) / DAY);
+export function daily(state, user, now = Date.now()) {
+  const key = `${state.week}:${kstDay(now)}`;
+  if (!user.daily || user.daily.key !== key) user.daily = { key, visit: false, lucky: 0, rps: 0 };
+  return user.daily;
 }
 
 export function weekly(state, user) {
@@ -232,15 +241,95 @@ export function setAvatar(state, userId, avatar) {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------- 날마다 열리는 문제와 카드
+// 회차가 얼마나 지났나 (0~1)
+export function roundProgress(state, now = Date.now()) {
+  const sch = scheduleOf(state);
+  const len = roundLength(sch);
+  if (len <= 0) return 1;
+  return Math.min(1, Math.max(0, (now - roundStart(sch, state.week)) / len));
+}
+// 시간이 지날수록 하나씩 열린다. 놓친 것은 사라지지 않고 그대로 남는다.
+export function openSlots(state, total, now = Date.now()) {
+  if (total <= 0) return 0;
+  if (state.week >= FINAL_WEEK) return total;            // 결전의 날은 한꺼번에 연다
+  return Math.max(1, Math.min(total, Math.ceil(roundProgress(state, now) * total)));
+}
+// 다음 것이 열리는 시각 (다 열렸으면 0)
+export function nextOpenAt(state, total, now = Date.now()) {
+  const open = openSlots(state, total, now);
+  if (open >= total || state.week >= FINAL_WEEK) return 0;
+  const sch = scheduleOf(state);
+  return Math.round(roundStart(sch, state.week) + roundLength(sch) * (open / total));
+}
+
+// 「오늘의 AI 한 조각」 — 회차마다 CARDS_PER_ROUND장, 시간이 지날수록 한 장씩 열린다
+export const cardKey = (week, i) => `${week}:${i}`;
+export function cardState(state, user, now = Date.now()) {
+  const set = cardsForWeek(state.week);
+  const total = set ? set.cards.length : 0;
+  const open = total ? openSlots(state, total, now) : 0;
+  const read = user ? user.cards || [] : [];
+  return { total, open, theme: set?.theme || '', nextAt: total ? nextOpenAt(state, total, now) : 0,
+    readCount: read.filter((k) => k.startsWith(`${state.week}:`)).length, allRead: read.length };
+}
+export function readCard(state, userId, index, now = Date.now()) {
+  const u = state.users[userId];
+  const set = cardsForWeek(state.week);
+  const i = Number(index);
+  if (!set || !Number.isInteger(i) || i < 0 || i >= set.cards.length) return { ok: false, reason: '없는 카드예요' };
+  if (i >= openSlots(state, set.cards.length, now)) return { ok: false, reason: '아직 열리지 않은 카드예요' };
+  u.cards ||= [];
+  const key = cardKey(state.week, i);
+  if (u.cards.includes(key)) return { ok: false, reason: '이미 읽은 카드예요' };
+  u.cards.push(key);
+  const R = RULES.card;
+  u.food += R.food;
+  addPoints(state, u, R.points);
+  const card = set.cards[i];
+  if (u.cards.length % CARDS_PER_ROUND === 0) {
+    pushFeed(state, 'premium', `${u.name}님이 AI 한 조각 ${u.cards.length}장을 모았어요! (도감 ${u.cards.length}장)`, who(u));
+  }
+  return { ok: true, food: R.food, points: R.points, title: card.title, count: u.cards.length };
+}
+
 // ---------------------------------------------------------------- 주간 보스
 // 그 주에 한 번이라도 들어온(첫 방문 보너스를 받은) 팀원 수
 export const activeCount = (state, teamId, w = state.week) =>
   Object.values(state.users).filter((u) => u.teamId === teamId && u.visitedWeeks.includes(w)).length;
 
+// 회차가 며칠짜리인지 (체력 계산에 쓴다 · 1~maxDays일, 하루보다 짧은 미리 해 보기는 1일로 본다)
+export const roundDays = (sch) => Math.max(1, Math.min(RULES.boss.maxDays, Math.round(roundLength(sch) / DAY) || 1));
+// 대원 1명이 한 회차에 맡는 몫 = 회차 몫 + 하루 몫 × 회차 일수, 여기에 운영자가 고른 보스 세기를 곱한다
+export const bossPower = (state) => {
+  const B = RULES.boss;
+  return Math.round((B.perMemberRound + B.perMemberDay * roundDays(scheduleOf(state))) * (state.bossScale || 1));
+};
 // 우리 팀 몫: 보스 체력을 팀마다 팀원 수만큼 나눠 맡는다. 팀원이 모두 조금씩 힘을 보태면 채워진다.
-export const teamShare = (state, teamId) => RULES.boss.perMember * teamMemberCount(state, teamId);
+export const teamShare = (state, teamId) => Math.round(bossPower(state) * teamMemberCount(state, teamId));
 
-export function bossInfo(state, w = state.week) {
+// 보스 최대 체력 (인원 기준, 최소 체력 보장)
+export function liveMaxHp(state) {
+  const minHp = scheduleOf(state).quick ? RULES.boss.minHpTest : RULES.boss.minHp;
+  return Math.max(minHp, TEAMS.reduce((s, t) => s + teamShare(state, t.id), 0));
+}
+// 막판(격파 가능) 시각 — 이때까지는 보스가 버틴다
+export const killTime = (state, w = state.week) => {
+  const sch = scheduleOf(state);
+  return roundStart(sch, w) + roundLength(sch) * RULES.boss.killAfter;
+};
+// 막판 시각을 사람이 읽는 말로 (예: '11월 27일(금) 16:48')
+export const killLabel = (state, w = state.week) => whenLabel(scheduleOf(state), killTime(state, w));
+// 버티는 동안 남겨 두는 체력
+const holdFloor = (maxHp) => Math.max(1, Math.round(maxHp * RULES.boss.holdHp));
+// 회복을 반영한 지금의 누적 피해 (상태를 바꾸지 않는다)
+function dmgNow(rec, maxHp, now) {
+  if (!rec || rec.defeatedAt || rec.escaped || !rec.regenAt) return rec?.dmg || 0;
+  const heal = Math.floor(((now - rec.regenAt) / DAY) * RULES.boss.regenPerDay * maxHp);
+  return Math.max(0, rec.dmg - Math.max(0, heal));
+}
+
+export function bossInfo(state, w = state.week, now = Date.now()) {
   const meta = bossOf(w);
   if (!meta) return null;
   const rec = state.bosses[w] || { dmg: 0, defeatedAt: 0, maxHpAtDefeat: 0, escaped: false };
@@ -249,14 +338,33 @@ export function bossInfo(state, w = state.week) {
     const dmg = state.teams[t.id].dmgByWeek[w] || 0;
     return { id: t.id, share, dmg, rate: share ? dmg / share : 0, active: activeCount(state, t.id, w) };
   });
-  const minHp = scheduleOf(state).quick ? RULES.boss.minHpTest : RULES.boss.minHp;
-  const live = Math.max(minHp, teams.reduce((s, t) => s + t.share, 0));
+  const live = liveMaxHp(state);
   const maxHp = rec.defeatedAt ? rec.maxHpAtDefeat : rec.escaped ? rec.maxHpAtEnd || live : live;
+  const killAt = killTime(state, w);
+  const open = now >= killAt;                                  // 막판이면 격파 가능
+  const cap = open ? maxHp : maxHp - holdFloor(maxHp);
+  const dmg = rec.defeatedAt ? rec.dmg : Math.min(dmgNow(rec, maxHp, now), cap);
   return {
-    ...meta, week: w, maxHp, dmg: rec.dmg, hp: Math.max(0, maxHp - rec.dmg),
+    ...meta, week: w, maxHp, dmg, hp: Math.max(0, maxHp - dmg),
     defeated: !!rec.defeatedAt, defeatedAt: rec.defeatedAt, escaped: !!rec.escaped,
+    holding: !rec.defeatedAt && !rec.escaped && dmg >= cap,    // 마지막 힘으로 버티는 중
+    killAt, killOpen: open, regenPerDay: RULES.boss.regenPerDay,
     teams, active: teams.reduce((s, t) => s + t.active, 0),
   };
+}
+
+// 격파! 그 회차에 한 번이라도 온 모두에게 보상을 주고 봉인 조각을 얻는다
+function markDefeat(state, w, info, byUser = null, now = Date.now()) {
+  const rec = state.bosses[w];
+  rec.defeatedAt = now;
+  rec.maxHpAtDefeat = info.maxHp;
+  rec.dmg = Math.max(rec.dmg, info.maxHp);
+  const rewarded = Object.values(state.users).filter((x) => x.visitedWeeks.includes(w) && giveBossReward(state, x, w)).length;
+  const r = RULES.boss.defeatReward;
+  const last = byUser ? `마지막 일격은 ${teamById(byUser.teamId).community} ${byUser.name}님. ` : '끝까지 버티던 보스가 마지막 순간에 쓰러졌어요! ';
+  pushFeed(state, 'seal', `원정대가 ${josa(info.name, '을/를')} 물리쳤어요! ${last}`
+    + `참여한 ${rewarded}명 모두 고급 먹이 ${r.premium}개 + ${r.points}P, 봉인 조각 1개 획득!`, { ...(byUser ? who(byUser) : {}), boss: info.id });
+  return true;
 }
 
 function giveBossReward(state, u, w) {
@@ -267,12 +375,30 @@ function giveBossReward(state, u, w) {
 }
 
 // 원래 활동이 곧 보스 공격이다. 피해를 쌓고, 체력이 바닥나면 그 자리에서 격파 처리를 한다.
-function dealDamage(state, u, amount, kind) {
+function dealDamage(state, u, amount, kind, now = Date.now()) {
   const w = state.week;
   if (!isPlayWeek(w) || amount <= 0) return null;
   const rec = (state.bosses[w] ||= { dmg: 0, defeatedAt: 0, maxHpAtDefeat: 0, escaped: false });
   const team = state.teams[u.teamId];
-  rec.dmg += amount;
+  let applied = amount;          // 버티는 중이면 일부만 체력에 들어간다 (나머지는 팀 몫·시상에 그대로 쌓인다)
+  // 지나간 시간만큼 보스가 회복한 뒤에 이번 피해를 얹는다
+  const maxHp = rec.defeatedAt ? rec.maxHpAtDefeat : liveMaxHp(state);
+  if (!rec.defeatedAt) {
+    rec.dmg = dmgNow(rec, maxHp, now);
+    rec.regenAt = now;
+    const open = now >= killTime(state, w);
+    const cap = open ? maxHp : maxHp - holdFloor(maxHp);
+    const before = rec.dmg;
+    rec.dmg = Math.min(rec.dmg + amount, cap);
+    applied = rec.dmg - before;
+    // 버티기 한도에 닿으면 하루 한 번 소식으로 알린다 (넘친 힘은 커뮤니티 성장·시상에 그대로 쌓인다)
+    if (!open && rec.dmg >= cap && before < cap) {
+      rec.heldAt = now;
+      pushFeed(state, 'glitch', `${josa(bossOf(w).name, '이/가')} 마지막 힘으로 버티고 있어요! ${killLabel(state, w)}부터 마지막 일격을 넣을 수 있어요.`, { boss: bossOf(w).id });
+    }
+  } else {
+    rec.dmg += amount;
+  }
   team.dmgByWeek[w] = (team.dmgByWeek[w] || 0) + amount;
   weekly(state, u).dmg += amount;
   u.totalDmg += amount;
@@ -281,30 +407,40 @@ function dealDamage(state, u, amount, kind) {
 
   let defeated = false;
   if (!rec.defeatedAt) {
-    const info = bossInfo(state, w);
-    if (rec.dmg >= info.maxHp) {
-      defeated = true;
-      rec.defeatedAt = Date.now();
-      rec.maxHpAtDefeat = info.maxHp;
-      const rewarded = Object.values(state.users).filter((x) => x.visitedWeeks.includes(w) && giveBossReward(state, x, w)).length;
-      const r = RULES.boss.defeatReward;
-      pushFeed(state, 'seal', `원정대가 ${josa(info.name, '을/를')} 물리쳤어요! 마지막 일격은 ${teamById(u.teamId).community} ${u.name}님. `
-        + `참여한 ${rewarded}명 모두 고급 먹이 ${r.premium}개 + ${r.points}P, 봉인 조각 1개 획득!`, { ...who(u), boss: info.id });
-    }
+    const info = bossInfo(state, w, now);
+    if (info.killOpen && rec.dmg >= info.maxHp) defeated = markDefeat(state, w, info, u, now);
   }
-  return { dmg: amount, defeated };
+  return { dmg: amount, applied, held: amount - applied, defeated };
 }
 
 // ---------------------------------------------------------------- 주간 첫 방문
-export function checkIn(state, userId) {
+export function checkIn(state, userId, now = Date.now()) {
   const u = state.users[userId];
   weekly(state, u);
-  if (!isPlayWeek(state.week) || u.visitedWeeks.includes(state.week)) return { ok: false };
-  u.visitedWeeks.push(state.week);
-  u.food += RULES.weeklyVisitFood;
-  // 보스를 이미 물리친 주에 처음 온 사람도 격파 보상을 받는다
+  const dy = daily(state, u, now);
+  if (!isPlayWeek(state.week) || dy.visit) return { ok: false };
+  dy.visit = true;
+  const first = !u.visitedWeeks.includes(state.week);
+  if (first) u.visitedWeeks.push(state.week);
+  const food = first ? RULES.weeklyVisitFood : RULES.dailyVisitFood;
+  u.food += food;
+  // 이번 회차에 며칠 왔는지 (연속이 아니라 누적)
+  const d = weekly(state, u);
+  d.days ||= [];
+  const today = kstDay(now);
+  if (!d.days.includes(today)) d.days.push(today);
+  let bonus = null;
+  for (const b of RULES.visitBonus) {
+    if (d.days.length >= b.days && (d.dayBonus || 0) < b.days) {
+      d.dayBonus = b.days;
+      grant(u, { premium: b.premium, points: b.points });
+      bonus = b;
+      pushFeed(state, 'premium', `${u.name}님이 ${state.week}${paceOf(state).round}에 ${b.days}일 참여했어요! 고급 먹이 ${b.premium}개 + ${b.points}P`, who(u));
+    }
+  }
+  // 보스를 이미 물리친 회차에 처음 온 사람도 격파 보상을 받는다
   const bossReward = state.bosses[state.week]?.defeatedAt ? giveBossReward(state, u, state.week) : false;
-  return { ok: true, food: RULES.weeklyVisitFood, bossReward };
+  return { ok: true, food, first, bossReward, bonus, days: d.days.length };
 }
 
 // ---------------------------------------------------------------- 먹이 = 보스 공격
@@ -339,37 +475,53 @@ export function feedMonster(state, userId, kind, amount) {
   } else if (kind === 'premium' || n >= 5) {
     pushFeed(state, kind, `${u.name}님이 ${t.monster}에게 ${kind === 'premium' ? '고급 먹이' : '먹이'} ${n}개! (+${gained} EXP${hit ? ` · 보스에게 ${gained} 피해` : ''})`, who(u));
   }
-  return { ok: true, n, gained, dmg: hit?.dmg || 0, defeated: !!hit?.defeated, levelUp: after.level > before.level, evolved, after };
+  return { ok: true, n, gained, dmg: hit?.dmg || 0, held: hit?.held || 0, defeated: !!hit?.defeated, levelUp: after.level > before.level, evolved, after };
 }
 
 // ---------------------------------------------------------------- 퀴즈 = 지식 공격
 // questions: 그 주의 문제들 (정답이 들어 있어서 서버에서만 넘겨준다)
-export function answerQuiz(state, userId, qi, choice, questions) {
-  if (!isPlayWeek(state.week)) return notOpen(state);
+export function answerQuiz(state, userId, qi, choice, questions, now = Date.now()) {
+  if (!isPlayWeek(state.week) && state.week !== FINAL_WEEK) return notOpen(state);
   const u = state.users[userId];
   const d = weekly(state, u);
   const q = questions[qi];
   if (!q || !Number.isInteger(choice) || choice < 0 || choice >= q.options.length) return { ok: false, reason: '잘못된 답이에요' };
+  if (qi >= openSlots(state, questions.length, now)) return { ok: false, reason: '아직 열리지 않은 문제예요' };
   if (d.quiz[qi]) return { ok: false, reason: '이미 푼 문제예요' };
+  const bonus = qi >= RULES.quizMain;                    // 본 문제 6개 뒤의 보너스 문제
   const correct = choice === q.answer;
   d.quiz[qi] = { choice, correct };
   let hit = null;
+  let wisdom = 0;
   if (correct) {
-    addPoints(state, u, RULES.quizPoints);
+    addPoints(state, u, bonus ? RULES.quizBonusPoints : RULES.quizPoints);
     u.totalCorrect++;
-    hit = dealDamage(state, u, RULES.boss.quizDamage, 'quiz');
+    if (state.week === FINAL_WEEK) wisdom = addWisdom(state, u, RULES.final.wisdomPerCorrect);
+    else hit = dealDamage(state, u, bonus ? RULES.boss.quizBonusDamage : RULES.boss.quizDamage, 'quiz');
   }
 
-  const done = questions.every((_, i) => d.quiz[i]);
-  const perfect = done && questions.every((_, i) => d.quiz[i].correct);
-  if (done) {
+  const main = questions.slice(0, RULES.quizMain);
+  const done = main.every((_, i) => d.quiz[i]);
+  const perfect = done && main.every((_, i) => d.quiz[i].correct);
+  if (done && !d.quizDoneAt) {
     d.quizDoneAt = Date.now();
     if (perfect) {
       u.premium += RULES.quizPerfectPremium;
-      pushFeed(state, 'premium', `${u.name}님이 ${state.week}${paceOf(state).round} AI 퀴즈를 모두 맞혔어요!`, who(u));
+      pushFeed(state, 'premium', `${u.name}님이 ${state.week === FINAL_WEEK ? '최종 미션' : `${state.week}${paceOf(state).round}`} 퀴즈를 모두 맞혔어요!`, who(u));
     }
   }
-  return { ok: true, correct, done, perfect, dmg: hit?.dmg || 0, defeated: !!hit?.defeated };
+  return { ok: true, correct, done, perfect, bonus, wisdom, dmg: hit?.dmg || 0, held: hit?.held || 0, defeated: !!hit?.defeated };
+}
+
+// 최종 미션 퀴즈(결전의 날): 맞힌 만큼 원정대의 '지혜'가 쌓여 글리치를 더 세게 공격한다
+function addWisdom(state, u, amount) {
+  const f = state.final;
+  if (!f) return 0;
+  f.wisdom = (f.wisdom || 0) + amount;
+  f.wisdomBy = f.wisdomBy || {};
+  f.wisdomBy[u.id] = (f.wisdomBy[u.id] || 0) + amount;
+  u.totalCorrect += 0;
+  return amount;
 }
 
 // ---------------------------------------------------------------- 럭키박스
@@ -377,15 +529,17 @@ export function openLuckyBox(state, userId, rand = Math.random) {
   if (!isPlayWeek(state.week)) return notOpen(state);
   const u = state.users[userId];
   const d = weekly(state, u);
-  if (d.luckyCount >= RULES.luckyPerWeek) return { ok: false, reason: `${paceOf(state).now} 럭키박스를 모두 열었어요. ${paceOf(state).next} 또 만나요!` };
+  const dy = daily(state, u);
+  if (dy.lucky >= RULES.luckyPerDay) return { ok: false, reason: '오늘 럭키박스를 모두 열었어요. 내일 또 만나요!' };
   const row = pickWeighted(LUCKY_BOX, rand);
   if (row.reward.food) u.food += row.reward.food;
   if (row.reward.premium) u.premium += row.reward.premium;
   if (row.reward.points) addPoints(state, u, row.reward.points);
   d.luckyCount++;
+  dy.lucky++;
   d.luckyLog.push(row.label);
   if (row.jackpot) pushFeed(state, 'luckybox', `${u.name}님이 럭키박스 잭팟을 터뜨렸어요! 먹이 100개!`, who(u));
-  return { ok: true, row, left: RULES.luckyPerWeek - d.luckyCount };
+  return { ok: true, row, left: RULES.luckyPerDay - dy.lucky };
 }
 
 // ---------------------------------------------------------------- 이번 주 보스와 가위바위보
@@ -394,7 +548,8 @@ export function playRps(state, userId, hand, rand = Math.random) {
   const u = state.users[userId];
   const d = weekly(state, u);
   if (!HANDS[hand]) return { ok: false, reason: '가위, 바위, 보 중에 골라 주세요' };
-  if (d.rpsCount >= RULES.rpsPerWeek) return { ok: false, reason: `${paceOf(state).now} 도전을 모두 했어요. ${paceOf(state).next} 다시 도전해요!` };
+  const dy = daily(state, u);
+  if (dy.rps >= RULES.rpsPerDay) return { ok: false, reason: '오늘 도전을 모두 했어요. 내일 다시 도전해요!' };
   const keys = Object.keys(HANDS);
   const boss = keys[Math.floor(rand() * keys.length)];
   if (boss === hand) return { ok: true, outcome: 'draw', boss };
@@ -403,10 +558,11 @@ export function playRps(state, userId, hand, rand = Math.random) {
   const before = u.food;
   u.food = Math.floor(before * (win ? RULES.rps.winMultiplier : RULES.rps.loseRatio));
   d.rpsCount++;
+  dy.rps++;
   d.rpsLog.push(win ? 'win' : 'lose');
   const hit = win ? dealDamage(state, u, RULES.boss.rpsWinDamage, 'rps') : null;
   if (win) pushFeed(state, 'food', `${u.name}님이 ${josa(bossOf(state.week).name, '과/와')}의 가위바위보에서 이겼어요! 먹이 ${u.food}개`, who(u));
-  return { ok: true, outcome: win ? 'win' : 'lose', boss, before, after: u.food, left: RULES.rpsPerWeek - d.rpsCount, dmg: hit?.dmg || 0, defeated: !!hit?.defeated };
+  return { ok: true, outcome: win ? 'win' : 'lose', boss, before, after: u.food, left: RULES.rpsPerDay - dy.rps, dmg: hit?.dmg || 0, held: hit?.held || 0, defeated: !!hit?.defeated };
 }
 
 // ---------------------------------------------------------------- 쿠폰 뽑기와 아이템
@@ -500,6 +656,42 @@ export function gift(state, fromId, toId, kind) {
   return { ok: true, friend };
 }
 
+// ---------------------------------------------------------------- G-DEAL 관리인의 지원 (운영자)
+// 아직 힘이 부족한 커뮤니티에 먹이를 보내 준다
+// 운영자가 보스 세기를 바꾼다 (참여가 적으면 약하게, 너무 쉬우면 세게)
+export function setBossScale(state, scale) {
+  const list = RULES.boss.scales;
+  const v = Number(scale);
+  if (!list.includes(v)) return { ok: false, reason: `세기는 ${list.join(', ')} 중에서 골라 주세요` };
+  if ((state.bossScale || 1) === v) return { ok: false, reason: '이미 그 세기예요' };
+  state.bossScale = v;
+  const word = v < 1 ? '약하게' : v > 1 ? '세게' : '보통으로';
+  pushFeed(state, 'booster', `운영진이 보스 세기를 ${word} 맞췄어요. 지금 보스 체력은 ${liveMaxHp(state).toLocaleString('ko-KR')}이에요.`);
+  return { ok: true, scale: v, maxHp: liveMaxHp(state) };
+}
+
+export function supportTeam(state, teamId, food = RULES.support.food) {
+  const t = teamById(teamId);
+  if (!t) return { ok: false, reason: '커뮤니티를 골라 주세요' };
+  const n = Math.max(1, Math.min(100, Math.round(Number(food) || RULES.support.food)));
+  const members = teamMembers(state, teamId);
+  if (!members.length) return { ok: false, reason: `${t.community}에는 아직 대원이 없어요` };
+  members.forEach((u) => { u.food += n; });
+  pushFeed(state, 'food', `G-DEAL 관리인이 ${t.community} 대원 ${members.length}명에게 먹이 ${n}개씩 보냈어요! 힘내요!`, { teamId });
+  return { ok: true, count: members.length, food: n };
+}
+
+// 몫 달성률이 가장 높은 팀의 절반에 못 미치는 팀들을 한꺼번에 돕는다
+export function supportBehind(state, food = RULES.support.food) {
+  const list = allianceList(state).filter((t) => t.members > 0);
+  if (!list.length) return { ok: false, reason: '아직 대원이 없어요' };
+  const best = Math.max(...list.map((t) => t.rate));
+  const behind = list.filter((t) => t.rate <= best / 2);
+  if (!behind.length) return { ok: false, reason: '지금은 뒤처진 커뮤니티가 없어요' };
+  const teams = behind.map((t) => supportTeam(state, t.id, food)).filter((r) => r.ok);
+  return { ok: true, teams: behind.map((t) => t.id), count: teams.length, food };
+}
+
 // ---------------------------------------------------------------- 골든타임 (운영자)
 export function startGolden(state, minutes = RULES.golden.minutes) {
   const m = Math.max(5, Math.min(180, Number(minutes) || RULES.golden.minutes));
@@ -571,8 +763,11 @@ export function advanceWeek(state) {
     const rec = (state.bosses[w] ||= { dmg: 0, defeatedAt: 0, maxHpAtDefeat: 0, escaped: false });
     const info = bossInfo(state, w);
     if (!rec.defeatedAt) {
-      rec.escaped = true;
-      rec.maxHpAtEnd = info.maxHp;
+      if (info.holding) markDefeat(state, w, info);   // 마지막까지 버티던 보스는 회차가 끝나는 순간 쓰러진다
+      else {
+        rec.escaped = true;
+        rec.maxHpAtEnd = info.maxHp;
+      }
     }
     const list = allianceList(state, w);
     const activeOf = (teamId) => Object.values(state.users).filter((u) => u.teamId === teamId && u.visitedWeeks.includes(w));
@@ -685,22 +880,31 @@ export function syncWeek(state, now = Date.now()) {
 
 // ---------------------------------------------------------------- 최종 결전 (12/19 현장)
 // 결전 전에도 지금까지 모은 봉인과 예상 체력을 보여 준다
-export function finalPreview(state) {
-  if (state.final) return state.final;
+// 결전의 날에 실제로 움직인 사람 수 (퀴즈·먹이든 응원이든 한 번이라도 한 사람)
+export const presentCount = (state) => Object.values(state.users)
+  .filter((u) => u.weekly.week >= FINAL_WEEK || (state.final?.cheerTotal?.[u.id] || 0) > 0).length;
+
+// 최종 보스 체력 = (몬스터 공격 + 예상 응원) ÷ 한 라운드 몫 + 모아 둔 지혜, 도망친 보스마다 조금 더
+export function finalMaxHp(state, wisdom = 0, present = Object.keys(state.users).length) {
   const F = RULES.final;
-  const seals = BOSSES.filter((b) => state.bosses[b.week]?.defeatedAt).map((b) => b.week);
   const escaped = BOSSES.filter((b) => b.week < state.week && !state.bosses[b.week]?.defeatedAt).map((b) => b.week);
   const monsterRound = F.hitsPerRound * TEAMS.reduce((s, t) => s + F.atk + F.atkPerLevel * levelInfo(state.teams[t.id].exp).level, 0);
-  const cheerRound = F.cheerExpectPerUser * Object.keys(state.users).length * F.cheerDamage;
-  const maxHp = Math.round(((monsterRound + cheerRound) / F.roundShare) * (1 + F.escapeAdd * escaped.length));
-  return { maxHp, dmg: 0, seals, escaped, rounds: [], preview: true };
+  const cheerRound = F.cheerExpectPerUser * Math.max(1, present) * F.cheerDamage;
+  return Math.round((((monsterRound + cheerRound) / F.roundShare) + wisdom) * (1 + F.escapeAdd * escaped.length));
+}
+
+export function finalPreview(state) {
+  if (state.final) return state.final;
+  const seals = BOSSES.filter((b) => state.bosses[b.week]?.defeatedAt).map((b) => b.week);
+  const escaped = BOSSES.filter((b) => b.week < state.week && !state.bosses[b.week]?.defeatedAt).map((b) => b.week);
+  return { maxHp: finalMaxHp(state, 0, Object.keys(state.users).length), dmg: 0, seals, escaped, rounds: [], preview: true };
 }
 
 function createFinal(state) {
   const f = finalPreview({ ...state, final: null, week: FINAL_WEEK });
   return {
     maxHp: f.maxHp, dmg: 0, seals: f.seals, escaped: f.escaped,
-    cheers: {}, cheerBy: {}, cheerTotal: {}, cheerUntil: 0, cheerRound: 0, recentCheer: [],
+    cheers: {}, cheerBy: {}, cheerTotal: {}, cheerUntil: 0, cheerRound: 0, recentCheer: [], wisdom: 0, wisdomBy: {},
     rounds: [], dmgByTeam: {}, wonAt: 0, awards: null,
   };
 }
@@ -757,6 +961,11 @@ export function finalAttack(state, rand = Math.random) {
   if (f.wonAt) return { ok: false, reason: '이미 글리치를 물리쳤어요' };
   if (f.cheerUntil > Date.now()) return { ok: false, reason: '응원 타임이 끝난 뒤에 공격할 수 있어요' };
   const F = RULES.final;
+  // 첫 공격 직전에 실제로 온 인원으로 체력을 다시 잡는다 (그전 숫자는 '예상')
+  if (!f.rounds.length) {
+    const floor = Math.ceil(Object.keys(state.users).length * F.presentFloor);
+    f.maxHp = finalMaxHp(state, 0, Math.max(presentCount(state), floor, 1));
+  }
   let hp = f.maxHp - f.dmg;
   const hpBefore = hp;
   const events = [];
@@ -782,6 +991,10 @@ export function finalAttack(state, rand = Math.random) {
       hit({ type: 'hit', teamId: t.id, lv, crit, dmg: Math.round((F.atk + F.atkPerLevel * lv) * (0.85 + rand() * 0.3) * (crit ? F.critMul : 1)) });
     }
     if (!won) events.push({ type: 'boss', teamId: TEAMS[Math.floor(rand() * TEAMS.length)].id, move: Math.floor(rand() * 4), hp });
+  }
+  if (f.wisdom > 0 && !won) {
+    hit({ type: 'wisdom', count: Math.round(f.wisdom / F.wisdomPerCorrect), dmg: Math.min(f.wisdom, Math.round(f.maxHp * F.wisdomCut)) });
+    f.wisdom = 0;
   }
   for (const t of TEAMS) {
     const c = f.cheers[t.id] || 0;

@@ -1,4 +1,4 @@
-// 제2회 한마당 지딜 몬스터 원정대 — 설정
+// 제2회 한마당 G-DEAL 몬스터 원정대 — 설정
 // 운영하면서 바꿀 값(일정, 팀, 보상 수치, 확률)은 모두 이 파일에서 고친다.
 
 // 게임 서버(수파베이스) 주소. 수파베이스 프로젝트를 만든 뒤 Project URL을 넣는다.
@@ -12,8 +12,8 @@ export const SERVER_READY = isLocal || !!SUPABASE_URL;
 // 회차는 시간이 되면 자동으로 넘어가고, 운영자 화면에서 앞당겨 넘길 수도 있다.
 export const EVENT = {
   name: '제2회 한마당',
-  title: '지딜 몬스터 원정대',
-  slogan: '우리는 모두 지딜!',
+  title: 'G-DEAL 몬스터 원정대',
+  slogan: '우리는 모두 G-DEAL!',
   eventDate: '2026-12-19', // 현장 모임 · 최종 결전 (끝 날짜 기본값, 운영자 화면에서 바꿀 수 있음)
   weeks: 4,                // 사전 참여 주 수
 };
@@ -70,11 +70,14 @@ export const AVATARS = [
 ];
 
 export const RULES = {
-  weeklyVisitFood: 5,             // 그 주에 처음 들어오면 먹이
+  weeklyVisitFood: 5,             // 그 회차에 처음 들어오면 먹이
+  dailyVisitFood: 3,              // 그 뒤로는 날마다 다시 들러도 먹이 (한 사람이 꾸준히 참여할 수 있게)
   quizPoints: 10,                 // 퀴즈 1문제 맞힐 때마다 포인트
-  quizPerfectPremium: 2,          // 그 주 문제를 모두 맞히면 고급 먹이
-  luckyPerWeek: 3,                // 럭키박스: 한 주에 몇 번
-  rpsPerWeek: 2,                  // 보스 가위바위보: 한 주에 몇 번 (비기면 안 셈)
+  quizMain: 6,                    // 회차마다 본 문제 수 (그 뒤는 보너스 문제)
+  quizBonusPoints: 5,             // 보너스 문제 포인트
+  quizPerfectPremium: 2,          // 본 문제를 모두 맞히면 고급 먹이
+  luckyPerDay: 2,                 // 럭키박스: 하루에 몇 번 (날마다 새로 채워짐)
+  rpsPerDay: 1,                   // 보스 가위바위보: 하루에 몇 번 (비기면 안 셈)
   golden: { multiplier: 2, minutes: 30 },  // 운영자가 켜는 골든타임: 먹이 경험치(=보스 피해) 2배
   exp: { food: 10, premium: 60 }, // 먹이 1개당 팀 경험치 (얻은 경험치만큼 보스에게 피해)
   booster: { multiplier: 1.5, minutes: 60 },  // 우리 팀에 쓰는 부스터
@@ -85,14 +88,30 @@ export const RULES = {
 
   // 주간 보스: 체력 = 팀 몫의 합. 팀 몫 = perMember × 팀원 수 (원정대 전체 인원에 맞춰 커진다)
   // 한 사람이 한 주에 보통 300~450 피해를 주므로, 팀원 40% 정도가 참여하면 쓰러지는 수준이다.
+  // 보스는 인원 × 회차 일수만큼 세지고, 시간이 지나면 스스로 회복한다.
+  // 체력이 다 깎여도 회차 막판(killAfter)이 되기 전에는 쓰러지지 않고 버틴다 → 끝까지 박진감.
   boss: {
-    perMember: 150, minHp: 1000,
+    perMemberRound: 90,           // 대원 1명이 한 회차에 한 번 내는 힘 (퀴즈처럼 회차마다 한 번)
+    perMemberDay: 23,             // 대원 1명이 날마다 내는 힘 (출석·행운상자·가위바위보)
+    maxDays: 7,                   // 체력 계산에 쓰는 회차 일수 상한
+    regenPerDay: 0.1,             // 하루에 최대 체력의 10%를 회복한다 (매일 와야 앞으로 나간다)
+    scales: [0.7, 1, 1.3],        // 운영자가 고를 수 있는 보스 세기 (약하게·보통·세게)
+    killAfter: 0.7,               // 회차의 앞 70% 동안은 버티기만 한다 (막판에만 격파)
+    holdHp: 0.02,                 // 버틸 때 남겨 두는 체력 (최대 체력의 2%)
+    minHp: 1000,
     minHpTest: 200,               // 미리 해 보기 속도에서는 혼자서도 쓰러뜨려 볼 수 있게 낮춘다
     quizDamage: 30,               // 퀴즈 정답 1개 = 지식 공격
+    quizBonusDamage: 15,          // 보너스 문제 정답
     rpsWinDamage: 50,             // 보스 가위바위보 승리
     defeatReward: { premium: 1, points: 30 },   // 격파하면 그 주 참여자 모두
   },
   teamShare: { rewardPremium: 1, rewardPoints: 20 }, // 우리 팀 몫을 채우면 그 주 참여 팀원 모두 (주가 끝날 때)
+  card: { food: 2, points: 10 },          // 「오늘의 AI 한 조각」 한 장 읽기
+  visitBonus: [                           // 한 회차에 며칠 참여했는지 (연속이 아니라 누적 — 하루 빠져도 괜찮게)
+    { days: 3, premium: 1, points: 20 },
+    { days: 5, premium: 1, points: 40 },
+  ],
+  support: { food: 10 },          // G-DEAL 관리인이 부족한 커뮤니티 대원에게 보내는 먹이 (1명당)
   friend: { giftCapPerWeek: 5 },  // 다른 팀에게 준 선물을 우정 점수로 세는 한도 (한 사람, 한 주)
   awards: { mvpPremium: 1, friendPoints: 20, joinPoints: 20, joinMinMembers: 3 },
 
@@ -100,19 +119,22 @@ export const RULES = {
   // 글리치 최대 체력은 결전 날 0시에 정한다: (9마리 한 라운드 공격 + 예상 응원) ÷ roundShare
   // 한 라운드에 체력의 40%쯤 깎이도록 해서, 봉인 4개면 2라운드, 봉인이 적으면 3라운드쯤 걸린다.
   final: {
-    roundShare: 0.4,
-    cheerExpectPerUser: 30,       // 참가자 1명당 예상 응원 수 (절반쯤 현장에 와서 60번씩)
-    sealCut: 0.1,                 // 봉인 조각 1개 = 첫 라운드에 최대 체력의 10% 피해
+    roundShare: 0.33,             // 한 라운드에 깎이는 몫 (3라운드쯤 걸리게)
+    cheerExpectPerUser: 150,      // 현장에 온 1명당 예상 응원 수 (30초에 초당 5번쯤)
+    sealCut: 0.07,                // 봉인 조각 1개 = 첫 라운드에 최대 체력의 7% 피해
     escapeAdd: 0.1,               // 놓친 보스 1마리 = 글리치 체력 10% 증가
     atk: 30, atkPerLevel: 10, hitsPerRound: 3, critRate: 0.12, critMul: 1.5,
     cheerDamage: 0.5,             // 응원 1번 = 피해 0.5
     cheerSendMax: 60,             // 한 번에 보낼 수 있는 응원 수 (폰은 6초마다 모아서 보낸다)
     cheerUserMax: 300,            // 한 사람이 응원 타임 한 번에 낼 수 있는 응원 수
     cheerSeconds: 30,
+    wisdomPerCorrect: 80,         // 결전의 날 최종 미션 퀴즈 정답 1개 = 원정대의 지혜(글리치 피해)
+    wisdomCut: 0.22,              // 모은 지혜로 한 번에 깎을 수 있는 몫 (최대 체력의 22%)
+    presentFloor: 0.3,            // 현장 참석이 적어도 이 비율은 된다고 보고 체력을 다시 계산한다
   },
 };
 
-// 럭키박스: 한 주에 3번, w는 가중치(합계 100 = 퍼센트)
+// 럭키박스: 하루에 몇 번, w는 가중치(합계 100 = 퍼센트)
 export const LUCKY_BOX = [
   { w: 40, label: '먹이 1개',    reward: { food: 1 } },
   { w: 25, label: '먹이 3개',    reward: { food: 3 } },

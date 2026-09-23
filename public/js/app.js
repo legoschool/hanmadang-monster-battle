@@ -13,6 +13,7 @@ let state = null;
 const ui = {
   pickTeam: null, pickAvatar: null, quizReveal: null, crewTab: 'alliance', crewMode: 'week',
   giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {},
+  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null,
   adminOverview: null, adminError: '', adminPrizes: null, schedDraft: null,
   seenHit: 0, seenRounds: null, seenPrizes: null,
   cheerQueue: 0, cheerInflight: 0, cheerPending: 0,
@@ -166,7 +167,8 @@ async function autoCheckIn() {
   const res = await act('checkin');
   if (!res?.ok) return;
   render();
-  toast(`${icon('food', 22)}<span><b>${state.week}${pace().round} 첫 방문 보너스!</b> 먹이 ${res.food}개를 받았어요</span>`, 'good');
+  toast(`${icon('food', 22)}<span><b>${res.first ? `${state.week}${pace().round} 첫 방문` : '오늘 출석'} 보너스!</b> 먹이 ${res.food}개를 받았어요${res.days > 1 ? ` · ${pace().now} ${res.days}일 참여` : ''}</span>`, 'good');
+  if (res.bonus) setTimeout(() => toast(`${icon('premium', 22)}<span><b>${res.bonus.days}일 참여 보너스!</b> 고급 먹이 ${res.bonus.premium}개 + ${res.bonus.points}P</span>`, 'good'), 900);
 }
 
 // ---------------------------------------------------------------- 모두에게 알릴 일 (보스 격파, 새 라운드, 상자 공개)
@@ -298,6 +300,12 @@ async function playRound(round) {
       bump(boss(), 'is-attacking', 420);
       bump($(`raid-${ev.teamId}`), 'is-hit', 420);
       add(`글리치의 ${V.BOSS_MOVES[ev.move] || '반격'}! ${G.josa(t.monster, '이/가')} 휘청했지만 버텨요!`, 'is-boss');
+      await wait(700);
+    } else if (ev.type === 'wisdom') {
+      bump(boss(), 'is-hit', 500);
+      floatText(boss(), `-${num(ev.dmg)}`, 'is-crit');
+      add(`최종 미션에서 모은 지혜가 터졌어요! 정답 ${num(ev.count)}개 -${num(ev.dmg)}`, 'is-seal');
+      setHp(ev.hp);
       await wait(700);
     } else if (ev.type === 'cheer') {
       bump($(`raid-${ev.teamId}`), 'is-cheer', 420);
@@ -455,12 +463,18 @@ const actions = {
     if (!ui.pickTeam) return (err.textContent = '커뮤니티를 먼저 골라 주세요.');
     if (!ui.pickAvatar) return (err.textContent = '내 아바타를 골라 주세요.');
     if (name.length < 2) return (err.textContent = '활동 이름을 2글자 이상 적어 주세요.');
+    const hintQ = $('hintQ').value.trim();
+    const hintA = $('hintA').value.trim();
+    ui.hintQ = hintQ;
+    ui.hintA = hintA;
+    if (hintQ.length < 2) return (err.textContent = '이름을 잊었을 때 쓸 힌트 질문을 적어 주세요.');
+    if (hintA.length < 1) return (err.textContent = '힌트 질문의 답을 적어 주세요.');
 
     el.disabled = true;
     const seq = ++sentSeq;
     let checkin;
     try {
-      const data = await API.join({ name, teamId: ui.pickTeam, avatar: ui.pickAvatar, code: $('joinCode')?.value });
+      const data = await API.join({ name, teamId: ui.pickTeam, avatar: ui.pickAvatar, hintQ, hintA, code: $('joinCode')?.value });
       API.setToken(data.token);
       apply(data.state, seq, data.token);
       checkin = data.checkin;
@@ -482,6 +496,68 @@ const actions = {
       text: `${EVENT.slogan} ${pace().once}씩 들러 퀴즈와 미션으로 먹이를 모아 주세요. 먹이를 줄수록 몬스터가 자라고, ${pace().now} 보스에게 피해가 들어가요.`,
       actions: '<button class="btn btn--primary" data-action="modal-close">원정 시작!</button>',
     });
+  },
+  'card-open': async (el) => {
+    const i = Number(el.dataset.index);
+    const key = `${state.week}:${i}`;
+    if (ui.cardOpen === i) { ui.cardOpen = null; return render(); }
+    ui.cardOpen = i;
+    if ((state.cards?.read || []).includes(key)) return render();
+    const res = await act('card', { index: i });
+    render();
+    if (res?.ok) toast(`${icon('food', 22)}<span>AI 한 조각 <b>${res.count}장</b> 모았어요! 먹이 ${res.food}개 + ${res.points}P</span>`, 'good');
+    else if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+  },
+  find: async (el) => {
+    const name = $('findName').value.trim();
+    const err = $('resumeError');
+    if (name.length < 2) return (err.textContent = '활동 이름을 적어 주세요.');
+    el.disabled = true;
+    try {
+      ui.foundHint = await API.find(name);
+      ui.findName = name;
+      err.textContent = '';
+      render();
+      $('hintAnswer')?.focus();
+    } catch (e) {
+      err.textContent = e.message;
+      el.disabled = false;
+    }
+  },
+  'find-reset': () => {
+    ui.foundHint = null;
+    render();
+  },
+  recover: async (el) => {
+    const answer = $('hintAnswer').value.trim();
+    const err = $('resumeError');
+    if (!answer) return (err.textContent = '힌트의 답을 적어 주세요.');
+    el.disabled = true;
+    const seq = ++sentSeq;
+    try {
+      const data = await API.recover(ui.foundHint.name, answer);
+      API.setToken(data.token);
+      apply(data.state, seq, data.token);
+    } catch (e) {
+      err.textContent = e.message;
+      el.disabled = false;
+      return;
+    }
+    ui.foundHint = null;
+    history.replaceState(null, '', '#/home');
+    render();
+    toast(`<span><b>${esc(me().name)}</b>님, 다시 만나서 반가워요!</span>`, 'good');
+    autoCheckIn();
+  },
+  'hint-save': async (el) => {
+    const q = $('myHintQ').value.trim();
+    const a = $('myHintA').value.trim();
+    if (q.length < 2 || !a) return toast('<span>새 질문과 답을 모두 적어 주세요</span>', 'warn');
+    el.disabled = true;
+    const res = await act('hint', { q, a });
+    if (!res?.ok) return toast(`<span>${esc(res?.reason || '바꾸지 못했어요')}</span>`, 'warn');
+    updateModal(V.renderSettings(state, API.getToken(), ui.codeRevealed));
+    toast('<span>이름 찾기 힌트를 바꿨어요</span>', 'good');
   },
   resume: async (el) => {
     const code = $('resumeCode').value.trim().toUpperCase();
@@ -532,8 +608,10 @@ const actions = {
     if (res?.perfect) {
       confetti();
       toast(`${icon('premium', 22)}<span><b>${state.quiz.length}문제 모두 정답!</b> 고급 먹이 +${RULES.quizPerfectPremium}</span>`, 'good');
+    } else if (res?.wisdom) {
+      toast(`${icon('premium', 22)}<span><b>지혜 +${res.wisdom}</b> 원정대의 힘이 쌓였어요</span>`, 'good');
     } else if (res?.dmg) {
-      toast(`${icon('seal', 22)}<span><b>지식 공격!</b> ${esc(G.bossOf(state.week).name)}에게 ${res.dmg} 피해</span>`, 'good');
+      toast(`${icon('seal', 22)}<span><b>${res.bonus ? '보너스 지식 공격!' : '지식 공격!'}</b> ${esc(G.bossOf(state.week)?.name || '보스')}에게 ${res.dmg} 피해</span>`, 'good');
     }
     if (res?.defeated) setTimeout(checkEvents, 600);
   },
@@ -801,6 +879,22 @@ const actions = {
       toast('<span><b>일정을 저장했어요</b></span>', 'good');
     }
   },
+  'admin-power': async (el) => {
+    const res = await adminCall('power', { scale: Number(el.dataset.scale) });
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) toast(`<span>보스 세기를 바꿨어요 · 체력 <b>${num(res.maxHp)}</b></span>`, 'good');
+  },
+  'admin-support': async (el) => {
+    const res = await adminCall('support', { teamId: el.dataset.team });
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) toast(`${icon('food', 22)}<span>대원 <b>${res.count}</b>명에게 먹이 ${res.food}개씩 보냈어요</span>`, 'good');
+  },
+  'admin-support-behind': async () => {
+    if (!confirm('몫 달성률이 뒤처진 커뮤니티에 먹이를 보낼까요?')) return;
+    const res = await adminCall('supportBehind');
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) toast(`${icon('food', 22)}<span><b>${res.count}개 커뮤니티</b>에 먹이를 보냈어요</span>`, 'good');
+  },
   'admin-golden': async (el) => {
     const minutes = Number(el.dataset.minutes) || 30;
     if (!confirm(`지금부터 ${minutes}분 동안 골든타임(먹이 경험치·보스 피해 ${RULES.golden.multiplier}배)을 켤까요?`)) return;
@@ -907,6 +1001,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   if (e.target.id === 'nickname' || e.target.id === 'joinCode') actions.join(document.querySelector('[data-action="join"]'));
   if (e.target.id === 'resumeCode') actions.resume(document.querySelector('[data-action="resume"]'));
+  if (e.target.id === 'findName') actions.find(document.querySelector('[data-action="find"]'));
+  if (e.target.id === 'hintAnswer') actions.recover(document.querySelector('[data-action="recover"]'));
   if (e.target.id === 'adminKey') actions['admin-login']();
 });
 
@@ -920,6 +1016,10 @@ document.addEventListener('input', (e) => {
   }
   if (t.dataset.prizeName !== undefined) editablePrizes()[Number(t.dataset.prizeName)].name = t.value;
   if (t.id === 'schedStart' || t.id === 'schedEnd') ui.schedDraft = { start: $('schedStart').value, end: $('schedEnd').value };
+  if (t.id === 'nickname') ui.nickname = t.value;
+  if (t.id === 'hintQ') ui.hintQ = t.value;
+  if (t.id === 'hintA') ui.hintA = t.value;
+  if (t.id === 'findName') ui.findName = t.value;
 });
 document.addEventListener('change', (e) => {
   const t = e.target;
