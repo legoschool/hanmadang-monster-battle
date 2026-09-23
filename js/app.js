@@ -441,12 +441,9 @@ const actions = {
   // 시작 화면
   'pick-team': (el) => {
     ui.pickTeam = el.dataset.team;
-    document.querySelectorAll('.team-pick__item').forEach((b) => {
-      const on = b.dataset.team === ui.pickTeam;
-      b.classList.toggle('is-selected', on);
-      b.setAttribute('aria-checked', String(on));
-    });
+    render();                       // 고른 커뮤니티 소개·스킬을 보여 주려고 다시 그린다
     $('joinError').textContent = '';
+    document.querySelector('.team-about')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   },
   'pick-avatar': (el) => {
     ui.pickAvatar = el.dataset.avatar;
@@ -1042,6 +1039,7 @@ document.addEventListener('input', (e) => {
   if (t.id === 'hintA') ui.hintA = t.value;
   if (t.id === 'findName') ui.findName = t.value;
   if (t.id === 'adminKey') ui.keyDraft = t.value;
+  if (t.id === 'joinCode') ui.joinCode = t.value;
 });
 document.addEventListener('change', (e) => {
   const t = e.target;

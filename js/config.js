@@ -68,16 +68,37 @@ export const PACES = {
 };
 
 // 9개 커뮤니티는 경쟁 상대가 아니라 한 원정대다.
+// 커뮤니티마다 시그니처 스킬이 하나 있다. 몬스터가 SKILL_LEVEL이 되면 깨어나고, 효과는 game.js가 처리한다.
+export const SKILL_LEVEL = 5;
+// about = 그 커뮤니티가 하는 일 (운영진이 실제 활동에 맞게 고쳐 주세요)
 export const TEAMS = [
-  { id: 'koalbot',   community: '코알교',          monster: '코알봇',   color: '#3fb6dc', desc: '코딩과 AI 데이터를 먹고 자라는 로봇 코알라' },
-  { id: 'antro',     community: 'A.N.D (앤드)',    monster: '앤트로',   color: '#f08a3c', desc: '무한한 연결을 상징하는 똑똑한 로봇 개미' },
-  { id: 'monggeul',  community: '꿈키움 특수교육', monster: '몽글이',   color: '#a58be6', desc: '다채로운 꿈을 먹고 매번 다른 모양으로 변하는 슬라임' },
-  { id: 'digibugi',  community: '디기수평',        monster: '디기부기', color: '#3a88cb', desc: '넓은 디지털 바다를 수평으로 꾸준히 헤엄치는 거북이' },
-  { id: 'pickling',  community: '피클',            monster: '피클링',   color: '#6cbf3f', desc: '톡톡 튀는 아이디어로 무장한 상큼한 요정 몬스터' },
-  { id: 'droni',     community: '드론스쿨',        monster: '드로니',   color: '#e8b21f', desc: '하늘을 날며 최신 지식을 수집하는 꼬마 비행체' },
-  { id: 'owllab',    community: '지딜연구소',      monster: '아울랩',   color: '#66ae7d', desc: '새로운 교육 실험을 멈추지 않는 부엉이 박사' },
-  { id: 'hongaengi', community: '홍보팀',          monster: '홍앵이',   color: '#f06b7a', desc: '좋은 소식을 누구보다 크게 외치는 앵무새' },
-  { id: 'maninyang', community: '운영사무국',      monster: '매니냥',   color: '#d9a55b', desc: '행사 구석구석을 척척 챙기는 고양이 매니저' },
+  { id: 'koalbot',   community: '코알교',          monster: '코알봇',   color: '#3fb6dc', desc: '코딩과 AI 데이터를 먹고 자라는 로봇 코알라',
+    about: '코딩과 AI를 배우고 수업에 옮기는 선생님들의 배움터',
+    skill: { key: 'exp',    name: '데이터 급식',   effect: '먹이 경험치 10% 더' } },
+  { id: 'antro',     community: 'A.N.D (앤드)',    monster: '앤트로',   color: '#f08a3c', desc: '무한한 연결을 상징하는 똑똑한 로봇 개미',
+    about: '사람과 사람, 수업과 기술을 잇는 연결의 커뮤니티',
+    skill: { key: 'friend', name: '연결망',       effect: '다른 커뮤니티에 선물하면 우정 점수 1 더' } },
+  { id: 'monggeul',  community: '꿈키움 특수교육', monster: '몽글이',   color: '#a58be6', desc: '다채로운 꿈을 먹고 매번 다른 모양으로 변하는 슬라임',
+    about: '모두를 위한 배움을 만드는 특수교육 현장의 모임',
+    skill: { key: 'lucky',  name: '꿈의 변신',     effect: '럭키박스에서 받는 먹이 1.5배' } },
+  { id: 'digibugi',  community: '디기수평',        monster: '디기부기', color: '#3a88cb', desc: '넓은 디지털 바다를 수평으로 꾸준히 헤엄치는 거북이',
+    about: '디지털 수업을 함께 나누며 나란히 성장하는 모임',
+    skill: { key: 'visit',  name: '꾸준한 헤엄',   effect: '출석할 때 먹이 2개 더' } },
+  { id: 'pickling',  community: '피클',            monster: '피클링',   color: '#6cbf3f', desc: '톡톡 튀는 아이디어로 무장한 상큼한 요정 몬스터',
+    about: '새로운 수업 아이디어를 톡톡 실험하는 모임',
+    skill: { key: 'quiz',   name: '톡톡 아이디어', effect: '퀴즈 정답마다 3P 더' } },
+  { id: 'droni',     community: '드론스쿨',        monster: '드로니',   color: '#e8b21f', desc: '하늘을 날며 최신 지식을 수집하는 꼬마 비행체',
+    about: '드론과 미래 기술을 수업으로 가져오는 모임',
+    skill: { key: 'rps',    name: '하늘 정찰',     effect: '가위바위보로 이기면 보스에게 20 더' } },
+  { id: 'owllab',    community: '지딜연구소',      monster: '아울랩',   color: '#66ae7d', desc: '새로운 교육 실험을 멈추지 않는 부엉이 박사',
+    about: '새로운 교육 실험을 설계하고 기록하는 연구 모임',
+    skill: { key: 'card',   name: '연구 노트',     effect: 'AI 한 조각을 읽으면 5P 더' } },
+  { id: 'hongaengi', community: '홍보팀',          monster: '홍앵이',   color: '#f06b7a', desc: '좋은 소식을 누구보다 크게 외치는 앵무새',
+    about: 'G-DEAL의 소식과 이야기를 바깥에 알리는 팀',
+    skill: { key: 'cheer',  name: '확성기',       effect: '현장 응원이 1.1배로 전해짐' } },
+  { id: 'maninyang', community: '운영사무국',      monster: '매니냥',   color: '#d9a55b', desc: '행사 구석구석을 척척 챙기는 고양이 매니저',
+    about: '한마당과 모임 살림을 구석구석 챙기는 팀',
+    skill: { key: 'dmg',    name: '운영 지원',     effect: '보스에게 주는 피해 5% 더' } },
 ];
 
 // 매주 나타나는 보스 (그 주 퀴즈 주제와 짝을 이룬다) — 물리치면 봉인 조각 1개

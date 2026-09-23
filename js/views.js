@@ -1,13 +1,14 @@
 // 페이지 화면 (HTML 문자열을 만든다)
 import {
-  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, PACES, MODES, LEVELS, STORY, SAMPLE_MARK,
+  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, PACES, MODES, LEVELS, STORY, SKILL_LEVEL, SAMPLE_MARK,
+  eggOf,
   spriteOf, bossImgOf, avatarOf,
 } from './config.js';
 import {
   teamById, bossOf, levelInfo, weekly, daily, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
-  scheduleOf, paceOf, roundLength, paceKeyFor, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor,
+  scheduleOf, paceOf, roundLength, paceKeyFor, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor, teamSkill,
 } from './game.js';
 import { cardsForWeek, CARD_SETS, CARDS_TOTAL, cardAt } from './cards.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
@@ -138,6 +139,29 @@ export function renderOnboarding(state, ui) {
             <span>${esc(t.monster)}</span>
           </button>`).join('')}
       </div>
+      ${(() => {
+        const t = teamById(ui.pickTeam);
+        if (!t) return '<p class="onboard__note team-hint">커뮤니티를 누르면 어떤 곳인지, 어떤 스킬을 쓰는지 볼 수 있어요.</p>';
+        return `
+        <section class="team-about" style="--team:${t.color}">
+          <div class="team-about__mons">
+            <figure><img class="px" src="${eggOf(t.id)}" width="56" height="56" alt=""><figcaption>알</figcaption></figure>
+            <span class="team-about__arrow">→</span>
+            <figure><img class="px" src="${spriteOf(t.id)}" width="72" height="72" alt=""><figcaption>${esc(t.monster)}</figcaption></figure>
+          </div>
+          <div class="team-about__body">
+            <b>${esc(t.community)}</b>
+            <p class="team-about__what">${esc(t.about || '')}</p>
+            <p class="team-about__desc">${esc(t.desc)}</p>
+            ${t.skill ? `
+            <div class="team-about__skill">
+              ${icon('seal', 22)}
+              <div><b>${esc(t.skill.name)}</b><span>${esc(t.skill.effect)}</span></div>
+              <i>Lv.${SKILL_LEVEL} 습득</i>
+            </div>` : ''}
+          </div>
+        </section>`;
+      })()}
       <h2><span class="step">2</span>내 아바타 고르기</h2>
       <p class="onboard__note">활동할 때마다 이 아바타가 보스 전투 장면과 소식에 나타나요.</p>
       ${renderAvatarGrid(ui.pickAvatar, 'pick-avatar')}
@@ -156,7 +180,7 @@ export function renderOnboarding(state, ui) {
       ${state.joinCodeRequired ? `
       <h2><span class="step">5</span>참가 코드</h2>
       <label class="field">
-        <input id="joinCode" type="text" maxlength="40" placeholder="커뮤니티 안내에 있는 참가 코드" autocomplete="off">
+        <input id="joinCode" type="text" maxlength="40" placeholder="커뮤니티 안내에 있는 참가 코드" autocomplete="off" value="${esc(ui.joinCode || '')}">
       </label>` : ''}
       <p class="form-error" id="joinError" role="alert"></p>
       <button class="btn btn--primary btn--lg btn--block" data-action="join">원정대 합류하기</button>
@@ -425,6 +449,7 @@ export function renderHome(state, ui) {
         <span class="rank-chip">${play ? `우리 팀 몫 <b>${Math.round(mine.rate * 100)}</b>%` : `팀원 <b>${mine.members}</b>명`}</span>
       </div>
       ${monsterStage(state, t.id)}
+      ${skillChip(state, t.id)}
       <div class="monster-card__meta">
         <div class="monster-name">
           <h1>${esc(t.monster)}</h1>
@@ -508,7 +533,7 @@ export function renderHome(state, ui) {
           <li class="${r.id === t.id ? 'is-mine' : ''}">
             <img class="px" src="${spriteOf(r.id)}" width="40" height="40" alt="">
             <div class="mini-crew__body">
-              <div><b>${esc(r.community)}</b>${hasCrown(state, r.id) ? icon('crown', 16, '왕관') : ''}<small>Lv.${r.info.level} · ${play ? `${r.active}/${r.members}명 참여` : `${r.members}명`}</small></div>
+              <div><b>${esc(r.community)}</b>${hasCrown(state, r.id) ? icon('crown', 16, '왕관') : ''}<small>Lv.${r.info.level} · ${play ? `${r.active}/${r.members}명 참여` : `${r.members}명`}${(() => { const sk = teamSkill(state, r.id); return sk ? ` · <b class="skill-tag ${sk.unlocked ? 'is-on' : ''}">${esc(sk.name)}${sk.unlocked ? '' : ` Lv.${sk.at}`}</b>` : ''; })()}</small></div>
               <div class="bar"><span style="width:${play ? Math.max(2, pct(r.dmg, r.share)) : Math.max(2, pct(r.info.level, 20))}%;background:${r.color}"></span></div>
             </div>
             <span class="mini-crew__num">${play ? `${Math.round(r.rate * 100)}%` : `Lv.${r.info.level}`}</span>
@@ -868,6 +893,18 @@ export function renderPlay(state, ui) {
 }
 
 // ================================================================ 가방
+// 커뮤니티 시그니처 스킬 한 줄 (습득했는지 보여 준다)
+function skillChip(state, teamId) {
+  const sk = teamSkill(state, teamId);
+  if (!sk) return '';
+  return `
+    <div class="skill-chip ${sk.unlocked ? 'is-on' : ''}">
+      ${icon('seal', 20)}
+      <div><b>${esc(sk.name)}</b><span>${esc(sk.effect)}</span></div>
+      <i>${sk.unlocked ? '습득!' : `Lv.${sk.at}에 습득 (지금 Lv.${sk.level})`}</i>
+    </div>`;
+}
+
 // ================================================================ 내가 알게 된 것 (아는 만큼 힘이 된다)
 function knowledge(state, u) {
   const read = new Set(state.cards?.read || []);

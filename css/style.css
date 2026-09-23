@@ -1969,3 +1969,39 @@ img { max-width: 100%; }
 /* 운영자 키 입력: 보기/숨기기 */
 .key-row { display: flex; gap: 8px; align-items: center; }
 .key-row input { flex: 1; min-width: 0; }
+
+/* ---------------------------------------------------------------- 커뮤니티 소개 · 시그니처 스킬 */
+.team-hint { margin-top: 10px; }
+.team-about {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin: 14px 0 20px;
+  padding: 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--team) 10%, #fff);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--team) 35%, #fff);
+}
+.team-about__mons { display: flex; align-items: center; gap: 10px; flex: none; }
+.team-about__mons figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.team-about__mons figcaption { font-family: var(--pixel); font-size: 11px; color: var(--ink-3); }
+.team-about__mons img { image-rendering: pixelated; }
+.team-about__arrow { color: var(--ink-4); font-size: 18px; }
+.team-about__body { flex: 1; min-width: 200px; }
+.team-about__body > b { font-size: 16px; }
+.team-about__what { margin: 4px 0 2px; font-size: 14px; color: var(--ink-2); }
+.team-about__desc { margin: 0 0 10px; font-size: 13px; color: var(--ink-3); }
+.team-about__skill, .skill-chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.team-about__skill div, .skill-chip div { flex: 1; min-width: 0; }
+.team-about__skill b, .skill-chip b { display: block; font-size: 14px; }
+.team-about__skill span, .skill-chip span { font-size: 12.5px; color: var(--ink-3); }
+.team-about__skill i, .skill-chip i { flex: none; font-style: normal; font-family: var(--pixel); font-size: 11px; color: var(--ink-4); }
+.skill-chip { margin-top: 12px; }
+.skill-chip.is-on { background: var(--green-50); box-shadow: inset 0 0 0 2px var(--green); }
+.skill-chip.is-on i { color: var(--green-700); }
+.skill-tag { font-weight: 700; color: var(--ink-4); }
+.skill-tag.is-on { color: var(--green-700); }

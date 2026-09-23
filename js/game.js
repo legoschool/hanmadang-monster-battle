@@ -5,7 +5,7 @@
 // 협력형: 9개 커뮤니티가 한 원정대다. 원래 하던 활동(먹이·퀴즈·가위바위보)이 그대로 그 주 보스 공격이 되고,
 // 모두 함께 보스를 쓰러뜨리면 참여자 전원이 보상을 받는다. 현장 모임 날에는 다 함께 대마왕 글리치와 싸운다.
 import {
-  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, LEVELS, expForLevel,
+  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, LEVELS, SKILL_LEVEL, expForLevel,
 } from './config.js';
 import { cardsForWeek, CARDS_PER_ROUND } from './cards.js';
 import { kidCardsForWeek } from './cards-kid.js';
@@ -364,13 +364,26 @@ export function readCard(state, userId, week, index, now = Date.now()) {
   // 그날 열린 카드를 그날 읽으면 꾸준 점수와 포인트를 더 준다 (몰아 보기도 그대로 인정)
   const onTime = w === state.week && i === open - 1;
   if (onTime) u.onTime = (u.onTime || 0) + 1;
-  addPoints(state, u, R.points + (onTime ? R.onTimePoints : 0));
+  addPoints(state, u, R.points + (onTime ? R.onTimePoints : 0) + (hasSkill(state, w === state.week ? u.teamId : u.teamId, 'card') ? 5 : 0));   // 연구 노트
   const card = cardFor(w, i, u.level) || set.cards[i];
   if (u.cards.length % CARDS_PER_ROUND === 0) {
     pushFeed(state, 'premium', `${u.name}님이 AI 한 조각 ${u.cards.length}장을 모았어요! (도감 ${u.cards.length}장)`, who(u));
   }
   return { ok: true, food: R.food, points: R.points + (onTime ? R.onTimePoints : 0), onTime, steady: u.onTime || 0, title: card.title, count: u.cards.length };
 }
+
+// ---------------------------------------------------------------- 커뮤니티 시그니처 스킬
+// 몬스터가 SKILL_LEVEL이 되면 그 커뮤니티의 스킬이 깨어난다
+export function teamSkill(state, teamId) {
+  const t = teamById(teamId);
+  if (!t?.skill) return null;
+  const level = levelInfo(state.teams[teamId]?.exp || 0).level;
+  return { ...t.skill, at: SKILL_LEVEL, level, unlocked: level >= SKILL_LEVEL };
+}
+export const hasSkill = (state, teamId, key) => {
+  const s = teamSkill(state, teamId);
+  return !!s && s.unlocked && s.key === key;
+};
 
 // ---------------------------------------------------------------- 주간 보스
 // 그 주에 한 번이라도 들어온(첫 방문 보너스를 받은) 팀원 수
@@ -486,6 +499,7 @@ function dealDamage(state, u, amount, kind, now = Date.now()) {
   if (!isPlayWeek(w) || amount <= 0) return null;
   const rec = (state.bosses[w] ||= { dmg: 0, defeatedAt: 0, maxHpAtDefeat: 0, escaped: false });
   const team = state.teams[u.teamId];
+  if (hasSkill(state, u.teamId, 'dmg')) amount = Math.round(amount * 1.05);   // 운영 지원
   let applied = amount;          // 버티는 중이면 일부만 체력에 들어간다 (나머지는 팀 몫·시상에 그대로 쌓인다)
   // 지나간 시간만큼 보스가 회복한 뒤에 이번 피해를 얹는다
   const maxHp = rec.defeatedAt ? rec.maxHpAtDefeat : liveMaxHp(state);
@@ -528,7 +542,7 @@ export function checkIn(state, userId, now = Date.now()) {
   dy.visit = true;
   const first = !u.visitedWeeks.includes(state.week);
   if (first) u.visitedWeeks.push(state.week);
-  const food = first ? RULES.weeklyVisitFood : RULES.dailyVisitFood;
+  const food = (first ? RULES.weeklyVisitFood : RULES.dailyVisitFood) + (hasSkill(state, u.teamId, 'visit') ? 2 : 0);   // 꾸준한 헤엄
   u.food += food;
   // 이번 회차에 며칠 왔는지 (연속이 아니라 누적)
   const d = weekly(state, u);
@@ -567,7 +581,8 @@ export function feedMonster(state, userId, kind, amount) {
   if (n <= 0) return { ok: false, reason: kind === 'premium' ? '고급 먹이가 없어요' : '먹이가 없어요' };
 
   const before = levelInfo(team.exp);
-  const gained = Math.max(1, Math.round(n * RULES.exp[kind] * expMultiplier(state, team)));
+  let gained = Math.max(1, Math.round(n * RULES.exp[kind] * expMultiplier(state, team)));
+  if (hasSkill(state, u.teamId, 'exp')) gained = Math.round(gained * 1.1);    // 데이터 급식
   team.exp += gained;
   if (kind === 'premium') u.premium -= n;
   else u.food -= n;
@@ -575,6 +590,9 @@ export function feedMonster(state, userId, kind, amount) {
   const evolved = after.stage.key !== before.stage.key;
   const hit = dealDamage(state, u, gained, kind);
 
+  if (after.level >= SKILL_LEVEL && before.level < SKILL_LEVEL && t.skill) {
+    pushFeed(state, 'premium', `${t.monster}이(가) 「${t.skill.name}」 스킬을 익혔어요! ${t.skill.effect}`, { teamId: u.teamId });
+  }
   if (after.level > before.level) {
     const what = evolved ? `${josa(after.stage.name, '으로/로')} 진화했어요!` : '로 성장했어요!';
     pushFeed(state, 'team', `${josa(t.monster, '이/가')} Lv.${after.level}${evolved ? ' ' + what : what}`, { teamId: u.teamId });
@@ -600,7 +618,7 @@ export function answerQuiz(state, userId, qi, choice, questions, now = Date.now(
   let hit = null;
   let wisdom = 0;
   if (correct) {
-    addPoints(state, u, bonus ? RULES.quizBonusPoints : RULES.quizPoints);
+    addPoints(state, u, (bonus ? RULES.quizBonusPoints : RULES.quizPoints) + (hasSkill(state, u.teamId, 'quiz') ? 3 : 0));   // 톡톡 아이디어
     u.totalCorrect++;
     if (state.week === FINAL_WEEK) wisdom = addWisdom(state, u, RULES.final.wisdomPerCorrect);
     else hit = dealDamage(state, u, bonus ? RULES.boss.quizBonusDamage : RULES.boss.quizDamage, 'quiz');
@@ -638,7 +656,7 @@ export function openLuckyBox(state, userId, rand = Math.random) {
   const dy = daily(state, u);
   if (dy.lucky >= RULES.luckyPerDay) return { ok: false, reason: '오늘 럭키박스를 모두 열었어요. 내일 또 만나요!' };
   const row = pickWeighted(LUCKY_BOX, rand);
-  if (row.reward.food) u.food += row.reward.food;
+  if (row.reward.food) u.food += hasSkill(state, u.teamId, 'lucky') ? Math.round(row.reward.food * 1.5) : row.reward.food;   // 꿈의 변신
   if (row.reward.premium) u.premium += row.reward.premium;
   if (row.reward.points) addPoints(state, u, row.reward.points);
   d.luckyCount++;
@@ -666,7 +684,7 @@ export function playRps(state, userId, hand, rand = Math.random) {
   d.rpsCount++;
   dy.rps++;
   d.rpsLog.push(win ? 'win' : 'lose');
-  const hit = win ? dealDamage(state, u, RULES.boss.rpsWinDamage, 'rps') : null;
+  const hit = win ? dealDamage(state, u, RULES.boss.rpsWinDamage + (hasSkill(state, u.teamId, 'rps') ? 20 : 0), 'rps') : null;   // 하늘 정찰
   if (win) pushFeed(state, 'food', `${u.name}님이 ${josa(bossOf(state.week).name, '과/와')}의 가위바위보에서 이겼어요! 먹이 ${u.food}개`, who(u));
   return { ok: true, outcome: win ? 'win' : 'lose', boss, before, after: u.food, left: RULES.rpsPerDay - dy.rps, dmg: hit?.dmg || 0, held: hit?.held || 0, defeated: !!hit?.defeated };
 }
@@ -750,9 +768,10 @@ export function gift(state, fromId, toId, kind) {
     const d = weekly(state, a);
     if (d.friendGifts < RULES.friend.giftCapPerWeek) {
       d.friendGifts++;
-      d.friend++;
+      const plus = hasSkill(state, a.teamId, 'friend') ? 2 : 1;   // 연결망
+      d.friend += plus;
       const mine = state.teams[a.teamId];
-      mine.friendByWeek[state.week] = (mine.friendByWeek[state.week] || 0) + 1;
+      mine.friendByWeek[state.week] = (mine.friendByWeek[state.week] || 0) + plus;
       friend = true;
     }
   }
@@ -1042,7 +1061,7 @@ export function addCheers(state, userId, n) {
   if (add <= 0) return { ok: false, reason: want ? '이번 응원 타임에 보낼 수 있는 응원을 모두 보냈어요' : '보낼 응원이 없어요' };
   f.cheerBy[userId] = used + add;
   f.cheerTotal[userId] = (f.cheerTotal[userId] || 0) + add;
-  f.cheers[u.teamId] = (f.cheers[u.teamId] || 0) + add;
+  f.cheers[u.teamId] = (f.cheers[u.teamId] || 0) + (hasSkill(state, u.teamId, 'cheer') ? Math.round(add * 1.1) : add);   // 확성기
   f.recentCheer = [{ uid: u.id, name: u.name, avatar: u.avatar, teamId: u.teamId, n: f.cheerBy[userId], ts: Date.now() },
     ...f.recentCheer.filter((c) => c.uid !== u.id)].slice(0, 30);
   return { ok: true, added: add, mine: f.cheerBy[userId] };
