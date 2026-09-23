@@ -1083,7 +1083,10 @@ export function rebaseSchedule(state, now = Date.now()) {
 
 // 시간이 되면 자동으로 주차를 넘긴다 (앞으로만 간다. 운영자가 미리 넘긴 주차는 그대로 둔다)
 export function syncWeek(state, now = Date.now()) {
-  if (isFree(state)) return false;                       // 프리 모드는 날짜로 넘어가지 않는다
+  if (isFree(state)) {                                   // 프리 모드는 날짜로 넘어가지 않는다
+    if (!isPlayWeek(state.week)) { state.week = 1; return true; }   // 모집 기간·결전에 멈춰 있으면 1회차로
+    return false;
+  }
   const target = weekForTime(scheduleOf(state), now);
   let changed = false;
   while (state.week < target && advanceWeek(state).ok) changed = true;
