@@ -13,7 +13,7 @@ let state = null;
 const ui = {
   pickTeam: null, pickAvatar: null, quizReveal: null, crewTab: 'alliance', crewMode: 'week',
   giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {},
-  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null, pickLevel: 'adult',
+  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null,
   adminOverview: null, adminError: '', adminPrizes: null, schedDraft: null,
   seenHit: 0, seenRounds: null, seenPrizes: null,
   cheerQueue: 0, cheerInflight: 0, cheerPending: 0,
@@ -448,17 +448,6 @@ const actions = {
     });
     $('joinError').textContent = '';
   },
-  'pick-level': (el) => {
-    ui.pickLevel = el.dataset.level === 'student' ? 'student' : 'adult';
-    render();
-  },
-  'level-set': async (el) => {
-    const res = await act('level', { level: el.dataset.level });
-    if (!res?.ok) return toast(`<span>${esc(res?.reason || '바꾸지 못했어요')}</span>`, 'warn');
-    updateModal(V.renderSettings(state, API.getToken(), ui.codeRevealed));
-    render();
-    toast(`<span>문제 수준을 <b>${res.level === 'student' ? '학생' : '선생님 · 일반'}</b>으로 바꿨어요</span>`, 'good');
-  },
   'pick-avatar': (el) => {
     ui.pickAvatar = el.dataset.avatar;
     document.querySelectorAll('.avatar-pick__item').forEach((b) => {
@@ -485,7 +474,7 @@ const actions = {
     const seq = ++sentSeq;
     let checkin;
     try {
-      const data = await API.join({ name, teamId: ui.pickTeam, avatar: ui.pickAvatar, level: ui.pickLevel, hintQ, hintA, code: $('joinCode')?.value });
+      const data = await API.join({ name, teamId: ui.pickTeam, avatar: ui.pickAvatar, hintQ, hintA, code: $('joinCode')?.value });
       API.setToken(data.token);
       apply(data.state, seq, data.token);
       checkin = data.checkin;
@@ -876,6 +865,11 @@ const actions = {
     const res = await adminCall('unlockUser', { userId: el.dataset.user });
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
     else if (res) toast(`<span><b>${esc(el.dataset.name)}</b>님의 로그인 잠금을 풀었어요</span>`, 'good');
+  },
+  'admin-quiz-level': async (el) => {
+    const res = await adminCall('quizLevel', { level: el.dataset.level });
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) toast('<span>문제 수준을 바꿨어요 · 이번 회차 문제가 새로 열렸어요</span>', 'good');
   },
   'admin-power': async (el) => {
     const res = await adminCall('power', { scale: Number(el.dataset.scale) });

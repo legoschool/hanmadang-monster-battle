@@ -1,6 +1,6 @@
 // 페이지 화면 (HTML 문자열을 만든다)
 import {
-  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, PACES, MODES, LEVELS, SAMPLE_MARK,
+  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, PACES, MODES, LEVELS, STORY, SAMPLE_MARK,
   spriteOf, bossImgOf, avatarOf,
 } from './config.js';
 import {
@@ -69,9 +69,9 @@ export function renderShellParts(state) {
   const S = scheduleOf(state);
   const P = paceOf(state);
   let day;
-  if (state.week < 1) day = `<b>원정대 모집 중</b> · ${weekDates(S, 1).start} 출발`;
-  else if (state.week >= FINAL_WEEK) day = `<b>결전의 날</b> · 대마왕 글리치`;
-  else day = `<b>${state.week}${P.round}</b> · ${bossOf(state.week).name} · 결전 ${eventCountdown(S)}`;
+  if (state.week < 1) day = `<b>원정대 모집 중</b><span class="day-chip__mid"> · ${weekDates(S, 1).start} 출발</span>`;
+  else if (state.week >= FINAL_WEEK) day = `<b>결전의 날</b><span class="day-chip__mid"> · 대마왕 글리치</span>`;
+  else day = `<b>${state.week}${P.round}</b><span class="day-chip__mid"> · ${bossOf(state.week).name}</span> · <span class="day-chip__mid">결전 </span>${eventCountdown(S)}`;
   return {
     day,
     wallet: `
@@ -112,7 +112,7 @@ export function renderOnboarding(state, ui) {
       <img class="onboard__logo" src="assets/brand/gdeal.svg" alt="G-DEAL" width="240" height="40">
       <h1>몬스터 <em>원정대</em></h1>
       <p class="onboard__slogan">${EVENT.slogan}</p>
-      <p>9개 커뮤니티 몬스터가 한 팀이 되어 ${P.every} 나타나는 보스를 함께 물리치고,<br class="br-desktop">
+      <p>9개 커뮤니티 몬스터가 한 팀이 되어 차례로 나타나는 보스를 함께 물리치고,<br class="br-desktop">
         ${eventDateLabel(S)} 한마당 현장에서 대마왕 글리치와 최종 결전을 벌여요.</p>
       <div class="parade parade--roll" aria-hidden="true">
         ${TEAMS.map((t, i) => `
@@ -124,16 +124,7 @@ export function renderOnboarding(state, ui) {
     </section>
 
     <section class="card onboard__form">
-      <h2><span class="step">1</span>누가 참여하나요?</h2>
-      <p class="onboard__note">고른 수준에 맞춰 문제와 카드 글이 달라져요. 나중에 「내 정보」에서 바꿀 수 있어요.</p>
-      <div class="level-pick" role="radiogroup" aria-label="수준">
-        ${Object.entries(LEVELS).map(([k, v]) => `
-          <button class="level-pick__item ${(ui.pickLevel || 'adult') === k ? 'is-selected' : ''}" role="radio" aria-checked="${(ui.pickLevel || 'adult') === k}"
-            data-action="pick-level" data-level="${k}">
-            <b>${esc(v.label)}</b><span>${esc(v.desc)}</span>
-          </button>`).join('')}
-      </div>
-      <h2><span class="step">2</span>내 커뮤니티 고르기</h2>
+      <h2><span class="step">1</span>내 커뮤니티 고르기</h2>
       <div class="team-pick" role="radiogroup" aria-label="커뮤니티">
         ${TEAMS.map((t) => `
           <button class="team-pick__item ${ui.pickTeam === t.id ? 'is-selected' : ''}" role="radio" aria-checked="${ui.pickTeam === t.id}"
@@ -143,15 +134,15 @@ export function renderOnboarding(state, ui) {
             <span>${esc(t.monster)}</span>
           </button>`).join('')}
       </div>
-      <h2><span class="step">3</span>내 아바타 고르기</h2>
+      <h2><span class="step">2</span>내 아바타 고르기</h2>
       <p class="onboard__note">활동할 때마다 이 아바타가 보스 전투 장면과 소식에 나타나요.</p>
       ${renderAvatarGrid(ui.pickAvatar, 'pick-avatar')}
-      <h2><span class="step">4</span>닉네임 정하기</h2>
+      <h2><span class="step">3</span>닉네임 정하기</h2>
       <label class="field">
         <input id="nickname" type="text" maxlength="12" placeholder="예: 반짝이" autocomplete="nickname" value="${esc(ui.nickname || '')}">
         <small>소식과 원정대 화면에 보이는 이름이에요. 실명 대신 별명을 추천해요. 다시 들어올 때 이 닉네임을 써요.</small>
       </label>
-      <h2><span class="step">5</span>나만 아는 힌트 만들기</h2>
+      <h2><span class="step">4</span>나만 아는 힌트 만들기</h2>
       <p class="onboard__note">비밀번호 대신이에요. 다른 기기에서 들어오거나 새로 시작할 때, <b>닉네임 + 이 질문의 답</b>으로 로그인해요. 남이 맞히기 어려운 것으로 적어 주세요.</p>
       <div class="hint-fields">
         <label class="field"><input id="hintQ" type="text" maxlength="40" placeholder="질문 (예: 우리 반 반려식물 이름은?)" value="${esc(ui.hintQ || '')}"></label>
@@ -159,7 +150,7 @@ export function renderOnboarding(state, ui) {
       </div>
       <p class="onboard__note">띄어쓰기와 대소문자는 신경 쓰지 않아도 돼요. 개인정보(주민번호·전화번호)는 적지 마세요.</p>
       ${state.joinCodeRequired ? `
-      <h2><span class="step">6</span>참가 코드</h2>
+      <h2><span class="step">5</span>참가 코드</h2>
       <label class="field">
         <input id="joinCode" type="text" maxlength="40" placeholder="커뮤니티 안내에 있는 참가 코드" autocomplete="off">
       </label>` : ''}
@@ -193,6 +184,20 @@ export function renderOnboarding(state, ui) {
         <button class="btn btn--primary" data-action="find">힌트 보기</button>
       </div>`}
       <p class="form-error" id="resumeError" role="alert"></p>
+    </section>
+
+    <section class="card story">
+      <span class="eyebrow">프롤로그</span>
+      <h2>${esc(STORY.title)}</h2>
+      ${STORY.lines.map((line) => `<p>${line}</p>`).join('')}
+      <ul class="story__foes">
+        ${STORY.foes.map((f) => `
+          <li>
+            ${bossImg(f.id, 48)}
+            <div><b>${esc(f.name)}</b><span>${esc(f.why)}</span></div>
+          </li>`).join('')}
+      </ul>
+      <p class="story__end">${EVENT.slogan} 배운 만큼 세지는 원정대에, 지금 합류하세요.</p>
     </section>
 
     <section class="how">
@@ -329,7 +334,7 @@ function arena(state, u, ui) {
           : `${killLabel(state, state.week)}부터 마지막 일격을 넣을 수 있어요.`}`
         : `${icon('food', 18)}이 보스는 <b>하루에 체력 ${Math.round(info.regenPerDay * 100)}%</b>를 회복해요. ${info.killOpen
           ? '지금은 막판! 체력을 다 깎으면 바로 쓰러져요.'
-          : `막판(${killLabel(state, state.week)})까지는 버티니 <b>${P.every} 조금씩</b> 힘을 보태 주세요.`}`}</p>` : ''}
+          : `막판(${killLabel(state, state.week)})까지는 버티니 <b>꾸준히 조금씩</b> 힘을 보태 주세요.`}`}</p>` : ''}
       <div class="arena__ring" id="bossArena">
         <div class="arena__boss">${bossImg(boss.id, 64)}${boss.defeated ? `<span class="arena__seal">${icon('seal', 40, '봉인 조각')}</span>` : ''}</div>
         <ul class="arena__teams">${nodes}</ul>
@@ -355,7 +360,7 @@ function arena(state, u, ui) {
       <p class="boss-card__note">${boss.defeated
         ? `원정대가 ${josa(boss.name, '을/를')} 물리쳤어요! 지금부터 주는 피해도 우리 팀 몫과 ${P.now} 시상에 그대로 쌓여요.`
         : play
-          ? `먹이 주기, 퀴즈 정답, 가위바위보 승리가 모두 보스 공격이 돼요. 체력을 다 깎아도 막판까지는 버티니 ${P.every} 와서 눌러 눌러! 쓰러뜨리면 ${P.now} 참여한 모두가 고급 먹이 ${RULES.boss.defeatReward.premium}개 + ${RULES.boss.defeatReward.points}P!`
+          ? `먹이 주기, 퀴즈 정답, 가위바위보 승리가 모두 보스 공격이 돼요. 체력을 다 깎아도 막판까지는 버티니 자주 와서 눌러 눌러! 쓰러뜨리면 ${P.now} 참여한 모두가 고급 먹이 ${RULES.boss.defeatReward.premium}개 + ${RULES.boss.defeatReward.points}P!`
           : '오늘은 결전의 날! 최종 미션 퀴즈로 지혜를 모으고, 응원 타임에 힘을 보태 주세요.'}</p>
     </section>`;
 }
@@ -391,7 +396,7 @@ export function renderHome(state, ui) {
     { day: true, done: dy.visit, icon: 'food', title: '오늘 출석 보너스', desc: nextBonus
       ? `먹이 ${visited ? RULES.dailyVisitFood : RULES.weeklyVisitFood}개 · ${nextBonus.days}일 모으면 고급 먹이 ${nextBonus.premium}개`
       : `먹이 ${visited ? RULES.dailyVisitFood : RULES.weeklyVisitFood}개 · ${P.now} ${d.days?.length || 0}일 참여!`, href: '#/mission', state: dy.visit ? '받음' : '받기' },
-    ...(cards.total ? [{ day: true, done: cards.readCount >= cards.open, icon: 'premium', title: '오늘의 AI 한 조각', desc: '3줄 읽고 하나 알아가기 · 내 지식에 쌓여요', href: '#/mission', state: `${cards.readCount}/${cards.open}` }] : []),
+    ...(cards.total ? [{ day: true, done: cards.readCount >= cards.open, icon: 'premium', title: '오늘의 AI 한 조각', desc: '3줄 읽고 하나 알아가기', href: '#/mission', state: `${cards.readCount}/${cards.open}` }] : []),
     { day: true, done: dy.lucky >= RULES.luckyPerDay, icon: 'luckybox', title: '럭키박스', desc: '잭팟 먹이 100개', href: '#/play', state: `${dy.lucky}/${RULES.luckyPerDay}` },
     { day: true, done: dy.rps >= RULES.rpsPerDay, icon: 'point', title: `${boss ? boss.name : '보스'} 가위바위보`, desc: `이기면 먹이 2배 + 보스에게 ${RULES.boss.rpsWinDamage} 피해`, href: '#/play', state: `${dy.rps}/${RULES.rpsPerDay}` },
     { done: qMain && qMainDone === qMain, icon: 'premium', title: `${P.now} AI 퀴즈`, desc: `정답마다 보스에게 ${RULES.boss.quizDamage} 피해`, href: '#/mission', state: `${qMainDone}/${qMain}` },
@@ -548,7 +553,7 @@ function weekBanner(state, t) {
       <div>
         <span class="eyebrow">원정대 모집 중</span>${paceBadge}
         <h2>${weekDates(S, 1).start}, 1${P.round} 원정 출발!</h2>
-        <p>${P.every} 한 마리씩 보스 4마리를 함께 물리치고, ${eventDateLabel(S)} 현장에서 대마왕 글리치와 최종 결전을 해요.
+        <p>보스 4마리를 한 마리씩 차례로 물리치고, ${eventDateLabel(S)} 현장에서 대마왕 글리치와 최종 결전을 해요.
           지금 원정대 <b>${num(crew.length)}명</b>, ${esc(t.community)}에서 <b>${crew.filter((u) => u.teamId === t.id).length}명</b>이 모였어요.</p>
         <div class="crew-wall crew-wall--sm">${crew.slice(-24).reverse().map((u) => face(u, 28)).join('')}</div>
       </div>
@@ -598,7 +603,7 @@ export function renderMission(state, ui) {
     : `${P.now} 첫 방문 보너스를 받아요.`;
 
   return `
-  ${pageHead(`${P.now} 미션`, `${P.once}만 들러도 충분해요. 퀴즈를 맞힐 때마다 ${P.now} 보스에게 지식 공격이 들어가요.`)}
+  ${pageHead(`${P.now} 미션`, '틈날 때 들러서 카드 한 장, 문제 하나면 충분해요. 정답마다 보스에게 지식 공격이 들어가요.')}
   <div class="mission">
     ${journeyMap(state, u)}
     <section class="card attend">
@@ -1269,14 +1274,6 @@ export function renderSettings(state, token, revealed) {
       ${renderAvatarGrid(u.avatar, 'avatar-set')}
     </section>
     <section class="device-code">
-      <h3>문제 수준</h3>
-      <p>지금은 <b>${esc(LEVELS[state.level || 'adult'].label)}</b> 수준이에요. 바꾸면 이번 회차 문제가 새 수준으로 다시 열려요(이미 받은 포인트는 그대로예요).</p>
-      <div class="admin-golden">
-        ${Object.entries(LEVELS).map(([k, v]) => `
-          <button class="btn btn--soft btn--sm ${(state.level || 'adult') === k ? 'is-active' : ''}" data-action="level-set" data-level="${k}">${esc(v.label)}</button>`).join('')}
-      </div>
-    </section>
-    <section class="device-code">
       <h3>로그인 힌트 (비밀번호 대신)</h3>
       <p>다른 기기에서 들어올 때 시작 화면에서 <b>닉네임 + 이 질문의 답</b>을 넣으면 돼요.</p>
       <p class="hint-now">${u.hint?.q ? `${icon('mystery', 20)}<b>${esc(u.hint.q)}</b>` : '<span class="muted">아직 힌트가 없어요</span>'}</p>
@@ -1331,6 +1328,17 @@ export function renderAdmin(state, ui) {
       <p class="sec-desc">G-DEAL 관리인이 힘이 부족한 커뮤니티에 먹이를 보내 줄 수 있어요. 대원 한 명당 ${RULES.support.food}개씩 들어가요.</p>
       <div class="admin-golden">
         <button class="btn btn--primary" data-action="admin-support-behind">뒤처진 커뮤니티 모두 돕기</button>
+      </div>
+    </section>
+
+    <section class="card">
+      ${secHead('문제 수준', `<span class="sec-note">지금 ${esc(LEVELS[ov.quizLevel || 'adult'].label)}</span>`)}
+      <p class="sec-desc">행사 전체에 하나로 정해요. 참가자는 고르지 않고, 문제는 사람마다 순서가 섞여서 나가요. 바꾸면 이번 ${P.round} 문제가 모두에게 새로 열려요(받은 포인트는 그대로).</p>
+      <div class="mode-pick">
+        ${Object.entries(LEVELS).map(([k, v]) => `
+          <button class="mode-pick__item ${(ov.quizLevel || 'adult') === k ? 'is-active' : ''}" data-action="admin-quiz-level" data-level="${k}">
+            <b>${esc(v.label)}</b><span>${esc(v.desc)}</span>
+          </button>`).join('')}
       </div>
     </section>
 
