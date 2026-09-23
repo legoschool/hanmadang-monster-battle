@@ -49,17 +49,22 @@ export const STORY = {
 
 // 운영자가 한 번에 고르는 진행 방식
 export const MODES = [
+  { key: 'demo5',   label: '아주 짧게',   sub: '20분 · 회차 5분',  pace: 'min5' },
   { key: 'class40', label: '수업 한 차시', sub: '40분 · 회차 10분', pace: 'min10' },
   { key: 'half',    label: '반나절',      sub: '2시간 · 회차 30분', pace: 'min30' },
   { key: 'oneday',  label: '하루 만에',   sub: '4시간 · 회차 1시간', pace: 'hour' },
   { key: 'project', label: '4주 프로젝트', sub: '1주일씩 · 현장 결전까지', project: true },
 ];
 
+// 회차 간격 — 운영자가 고른다 (짧은 간격은 '미리 해 보기'라 보스 최소 체력이 낮아진다)
 export const PACES = {
-  day:   { label: '1일',   ms: 24 * HOUR },
-  hour:  { label: '1시간', ms: HOUR },
-  min30: { label: '30분',  ms: HOUR / 2 },
+  min1:  { label: '1분',   ms: HOUR / 60 },
+  min5:  { label: '5분',   ms: HOUR / 12 },
   min10: { label: '10분',  ms: HOUR / 6 },
+  min30: { label: '30분',  ms: HOUR / 2 },
+  hour:  { label: '1시간', ms: HOUR },
+  day:   { label: '1일',   ms: 24 * HOUR },
+  week:  { label: '1주일', ms: 7 * 24 * HOUR },
 };
 
 // 9개 커뮤니티는 경쟁 상대가 아니라 한 원정대다.
@@ -129,6 +134,14 @@ export const RULES = {
     maxDays: 7,                   // 체력 계산에 쓰는 회차 일수 상한
     regenPerDay: 0.1,             // 하루에 최대 체력의 10%를 회복한다 (매일 와야 앞으로 나간다)
     scales: [0.7, 1, 1.3],        // 운영자가 고를 수 있는 보스 세기 (약하게·보통·세게)
+    // 지난 회차에 얼마나 몰아쳤는지(준 피해 ÷ 체력)에 따라 다음 보스를 자동으로 조절한다
+    // 보스가 막판까지 버티는 구조라 '쏟은 힘 ÷ 체력'은 잘 풀린 회차에 1.5~1.7배가 나온다. 그 위아래로만 움직인다.
+    adapt: {
+      min: 0.6, max: 1.8,         // 자동 조절 한계
+      hard: 2.4, good: 1.9,       // 이 이상이면 더 세게
+      weak: 1.2, poor: 0.8,       // 이 아래면 더 약하게
+      up: 1.15, upSmall: 1.07, downSmall: 0.93, down: 0.85,
+    },
     killAfter: 0.7,               // 회차의 앞 70% 동안은 버티기만 한다 (막판에만 격파)
     holdHp: 0.02,                 // 버틸 때 남겨 두는 체력 (최대 체력의 2%)
     minHp: 1000,
