@@ -13,7 +13,7 @@ let state = null;
 const ui = {
   pickTeam: null, pickAvatar: null, quizReveal: null, crewTab: 'alliance', crewMode: 'week',
   giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {},
-  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null,
+  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null, keyShown: false, keyDraft: '',
   adminOverview: null, adminError: '', adminPrizes: null, schedDraft: null,
   seenHit: 0, seenRounds: null, seenPrizes: null,
   cheerQueue: 0, cheerInflight: 0, cheerPending: 0,
@@ -790,8 +790,20 @@ const actions = {
   },
 
   // 운영자
+  'key-show': () => {
+    ui.keyDraft = $('adminKey')?.value || '';
+    ui.keyShown = !ui.keyShown;
+    render();
+    const el = $('adminKey');
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  },
   'admin-login': async () => {
     const key = $('adminKey').value.trim();
+    ui.keyDraft = key;
+    if (/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(key)) {
+      ui.adminError = '한글이 섞여 있어요. 한/영 키를 눌러 영문으로 바꾼 뒤 다시 입력해 주세요.';
+      return render();
+    }
     if (!key) return;
     API.setAdminKey(key);
     await adminCall('overview');
@@ -1011,6 +1023,7 @@ document.addEventListener('input', (e) => {
   if (t.id === 'hintQ') ui.hintQ = t.value;
   if (t.id === 'hintA') ui.hintA = t.value;
   if (t.id === 'findName') ui.findName = t.value;
+  if (t.id === 'adminKey') ui.keyDraft = t.value;
 });
 document.addEventListener('change', (e) => {
   const t = e.target;

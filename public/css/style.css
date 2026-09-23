@@ -1965,3 +1965,7 @@ img { max-width: 100%; }
 .story__foes span { font-size: 13px; color: var(--ink-3); line-height: 1.55; }
 .story__end { margin: 0; padding-top: 10px; border-top: 1px dashed var(--line-2); font-weight: 700; color: var(--green-700) !important; }
 .mode-pick__item.is-active { border-color: var(--green); background: var(--green-50); }
+
+/* 운영자 키 입력: 보기/숨기기 */
+.key-row { display: flex; gap: 8px; align-items: center; }
+.key-row input { flex: 1; min-width: 0; }

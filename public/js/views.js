@@ -1295,8 +1295,11 @@ export function renderAdmin(state, ui) {
     ${pageHead('운영자 로그인', '운영진만 쓰는 화면이에요. 비밀 키를 넣으면 진행 방식, 일정, 보스 세기, 최종 결전 진행, 현장 상품을 관리할 수 있어요.')}
     <section class="card admin-login">
       <label class="field">
-        <input id="adminKey" type="password" autocomplete="off" placeholder="운영자 비밀 키">
-        <small>키는 이 기기에만 저장돼요. 참가자에게 알려 주지 마세요.</small>
+        <div class="key-row">
+          <input id="adminKey" type="${ui.keyShown ? 'text' : 'password'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="운영자 비밀 키" value="${esc(ui.keyDraft || '')}">
+          <button class="btn btn--soft btn--sm" data-action="key-show">${ui.keyShown ? '숨기기' : '보기'}</button>
+        </div>
+        <small>키는 이 기기에만 저장돼요. 참가자에게 알려 주지 마세요. <b>한/영 상태</b>를 확인하세요.</small>
       </label>
       <p class="form-error" id="adminError" role="alert">${esc(ui.adminError || '')}</p>
       <button class="btn btn--primary" data-action="admin-login">로그인</button>
