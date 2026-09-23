@@ -9,7 +9,7 @@ import {
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
   scheduleOf, paceOf, roundLength, eventDefaultMs, killLabel, bossPower, roundDays, byDay,
 } from './game.js';
-import { cardsForWeek, CARD_SETS } from './cards.js';
+import { cardsForWeek, CARD_SETS, CARDS_TOTAL, cardAt } from './cards.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
 
 const me = (state) => state.users[state.me];
@@ -196,8 +196,8 @@ export function renderOnboarding(state, ui) {
 
     <section class="how">
       ${[
-        ['food', `${P.once}이면 충분`, `${P.label}마다 새 AI 퀴즈와 보스가 열려요. 그 안에 언제든 몰아서 해도 돼요.`],
-        ['seal', '다 함께 보스 물리치기', '먹이·퀴즈·가위바위보가 모두 보스 공격이 돼요. 쓰러뜨리면 참여한 모두가 보상을 받아요.'],
+        ['premium', '날마다 새 AI 한 조각', `${byDay(S) ? '날마다' : '조금씩'} AI·디지털 지식 카드와 퀴즈가 새로 열려요. 못 본 건 사라지지 않으니 웹툰처럼 몰아서 봐도 돼요.`],
+        ['seal', '다 함께 보스 물리치기', '먹이·퀴즈·가위바위보가 모두 보스 공격이 돼요. 보스는 회복하며 버티니 여럿이 꾸준히 모여야 쓰러져요.'],
         ['mystery', `${eventDateLabel(S)} 최종 결전`, '모은 봉인 조각과 현장 응원으로 대마왕 글리치를 물리쳐요. 상품은 “?” 상자 속에!'],
       ].map(([ic, title, text], i) => `
         <div class="how__item">
@@ -390,7 +390,7 @@ export function renderHome(state, ui) {
     { day: true, done: dy.visit, icon: 'food', title: '오늘 출석 보너스', desc: nextBonus
       ? `먹이 ${visited ? RULES.dailyVisitFood : RULES.weeklyVisitFood}개 · ${nextBonus.days}일 모으면 고급 먹이 ${nextBonus.premium}개`
       : `먹이 ${visited ? RULES.dailyVisitFood : RULES.weeklyVisitFood}개 · ${P.now} ${d.days?.length || 0}일 참여!`, href: '#/mission', state: dy.visit ? '받음' : '받기' },
-    ...(cards.total ? [{ day: true, done: cards.readCount >= cards.open, icon: 'premium', title: '오늘의 AI 한 조각', desc: '3줄 읽고 교실에서 한 줄 · 도감에 모여요', href: '#/mission', state: `${cards.readCount}/${cards.open}` }] : []),
+    ...(cards.total ? [{ day: true, done: cards.readCount >= cards.open, icon: 'premium', title: '오늘의 AI 한 조각', desc: '3줄 읽고 하나 알아가기 · 내 지식에 쌓여요', href: '#/mission', state: `${cards.readCount}/${cards.open}` }] : []),
     { day: true, done: dy.lucky >= RULES.luckyPerDay, icon: 'luckybox', title: '럭키박스', desc: '잭팟 먹이 100개', href: '#/play', state: `${dy.lucky}/${RULES.luckyPerDay}` },
     { day: true, done: dy.rps >= RULES.rpsPerDay, icon: 'point', title: `${boss ? boss.name : '보스'} 가위바위보`, desc: `이기면 먹이 2배 + 보스에게 ${RULES.boss.rpsWinDamage} 피해`, href: '#/play', state: `${dy.rps}/${RULES.rpsPerDay}` },
     { done: qMain && qMainDone === qMain, icon: 'premium', title: `${P.now} AI 퀴즈`, desc: `정답마다 보스에게 ${RULES.boss.quizDamage} 피해`, href: '#/mission', state: `${qMainDone}/${qMain}` },
@@ -617,7 +617,7 @@ export function renderMission(state, ui) {
            ${!final && state.weekInfo.nextAt ? `<p class="quiz-open">지금까지 <b>${state.weekInfo.open}문제</b>가 열렸어요. 다음 문제는 <time data-refresh="${state.weekInfo.nextAt}">${timeLeft(state.weekInfo.nextAt)}</time> 뒤에 열려요.</p>` : ''}
            ${renderQuiz(state, ui, u, d, qs)}`
         : `<p class="todo__locked">${state.week < 1
-          ? `${weekDates(S, 1).start}에 1${P.round} 문제 ${RULES.quizMain}개가 열려요. 알파고부터 딥페이크까지, 선생님이 수업에서 바로 쓸 수 있는 AI 이야기가 기다리고 있어요.`
+          ? `${weekDates(S, 1).start}에 1${P.round} 문제가 열려요. 알파고부터 딥페이크까지, 누구나 한마디 거들 수 있는 AI 이야기가 기다리고 있어요.`
           : '사전 퀴즈는 모두 끝났어요. 수고 많으셨어요!'}</p>`}
     </section>
 
@@ -672,7 +672,7 @@ function aiCards(state, ui, u) {
         ${open ? `
         <div class="ai-card__body">
           <p>${esc(card.body)}</p>
-          <p class="ai-card__try"><b>교실에서 한 줄</b> ${esc(card.tryIt)}</p>
+          <p class="ai-card__try"><b>오늘 해 보기</b> ${esc(card.tryIt)}</p>
           <p class="ai-card__term">${icon('mystery', 18)}${esc(card.term)}</p>
         </div>` : ''}
       </li>`;
@@ -687,7 +687,7 @@ function aiCards(state, ui, u) {
   return `
     <section class="card ai-cards">
       ${secHead('오늘의 AI 한 조각', `<span class="sec-note">${every} 한 장씩 열려요 · 읽으면 먹이 ${RULES.card.food}개 + ${RULES.card.points}P</span>`)}
-      <p class="sec-desc">${esc(c.theme)} — 못 본 카드는 사라지지 않아요. <b>웹툰처럼 몰아서</b> 봐도 되고, 그날 열린 카드를 그날 보면 <b>+${RULES.card.onTimePoints}P</b>와 꾸준 점수를 더 받아요.</p>
+      <p class="sec-desc">${esc(c.theme)} — 컴퓨터 기초부터 AI까지, 알아 두면 힘이 되는 이야기예요. 못 본 카드는 사라지지 않으니 <b>웹툰처럼 몰아서</b> 봐도 되고, 그날 열린 카드를 그날 보면 <b>+${RULES.card.onTimePoints}P</b>와 꾸준 점수를 더 받아요.</p>
       <div class="ai-cards__bar">
         <span class="ai-cards__count">모은 카드 <b>${num(collected)}</b> / ${num(totalAll)}장</span>
         <span class="goal__bar"><span style="width:${pct(collected, totalAll)}%"></span></span>
@@ -761,7 +761,7 @@ function renderQuiz(state, ui, u, d, qs) {
         <div class="quiz__feedback ${answered.correct ? 'is-correct' : 'is-wrong'}" role="status">
           <b>${answered.correct ? `정답이에요! +${RULES.quizPoints}P · 지식 공격 ${RULES.boss.quizDamage}!` : '아쉬워요!'}</b>
           <p>${esc(q.explain)}</p>
-          ${q.classroom ? `<div class="quiz__classroom"><b>수업에서 이렇게</b><p>${esc(q.classroom)}</p></div>` : ''}
+          ${q.classroom ? `<div class="quiz__classroom"><b>이렇게 써 보기</b><p>${esc(q.classroom)}</p></div>` : ''}
           ${q.source ? `<small class="quiz__source">근거: ${esc(q.source)}</small>` : ''}
         </div>
         <button class="btn btn--primary" data-action="quiz-next">${isLast ? '결과 보기' : '다음 문제'}</button>` : ''}
@@ -856,6 +856,43 @@ export function renderPlay(state, ui) {
 }
 
 // ================================================================ 가방
+// ================================================================ 내가 알게 된 것 (아는 만큼 힘이 된다)
+function knowledge(state, u) {
+  const read = new Set(state.cards?.read || []);
+  const got = [];
+  for (const set of CARD_SETS) {
+    for (let i = 0; i < set.cards.length; i++) if (read.has(`${set.week}:${i}`)) got.push({ w: set.week, i, card: set.cards[i] });
+  }
+  const P = paceOf(state);
+  const rate = pct(got.length, CARDS_TOTAL);
+  const byWeek = CARD_SETS.map((set) => {
+    const n = set.cards.filter((_, i) => read.has(`${set.week}:${i}`)).length;
+    return `<li class="know__row ${n === set.cards.length ? 'is-full' : ''}">
+      <b>${set.week}${P.round}</b><span>${esc(set.theme.replace(/^.*· /, ''))}</span>
+      <i>${n}/${set.cards.length}</i>
+    </li>`;
+  }).join('');
+
+  return `
+    <section class="card know">
+      ${secHead('내가 알게 된 것', '<span class="sec-note">아는 만큼 힘이 된다</span>')}
+      <p class="sec-desc">읽은 「AI 한 조각」에서 알게 된 낱말이 여기 쌓여요. 컴퓨터가 일하는 법부터 AI·보안·알고리즘까지 ${num(CARDS_TOTAL)}장이 준비돼 있어요.</p>
+      <div class="know__top">
+        <div class="know__num"><b>${num(got.length)}</b><span>/ ${num(CARDS_TOTAL)}장</span></div>
+        <div class="know__bar"><span class="goal__bar"><span style="width:${rate}%"></span></span>
+          <small>맞힌 퀴즈 <b>${num(u.totalCorrect)}</b>개 · 제때 읽기 <b>${num(state.cards?.onTime || 0)}</b>회</small>
+        </div>
+      </div>
+      <ul class="know__rows">${byWeek}</ul>
+      ${got.length ? `
+      <h4 class="know__head">모은 낱말 ${num(got.length)}개</h4>
+      <ul class="know__terms">${got.slice().reverse().map(({ card }) => `
+        <li><b>${esc(card.term.split(' — ')[0])}</b><span>${esc(card.term.split(' — ')[1] || '')}</span></li>`).join('')}
+      </ul>` : `<p class="know__empty">아직 모은 낱말이 없어요. 미션 화면에서 오늘의 카드를 한 장 읽어 보세요.</p>`}
+      <a class="btn btn--soft btn--sm" href="#/mission">AI 한 조각 읽으러 가기</a>
+    </section>`;
+}
+
 export function renderBag(state, ui) {
   const u = me(state);
   const ts = state.teams[u.teamId];
@@ -888,6 +925,7 @@ export function renderBag(state, ui) {
   return `
   ${pageHead('가방', '모은 먹이와 아이템을 쓰거나, 원정대 누구에게나 선물해요.')}
   <div class="bag">
+    ${knowledge(state, u)}
     <section class="card wallet wallet--row">
       <div class="wallet__item">${icon('food', 36)}<b>${num(u.food)}</b><span>먹이</span></div>
       <div class="wallet__item">${icon('premium', 36)}<b>${num(u.premium)}</b><span>고급 먹이</span></div>

@@ -1887,3 +1887,25 @@ img { max-width: 100%; }
 .ai-cards__past summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
 .ai-cards__past summary b { color: var(--gold-700); }
 .ai-cards__past-head { margin: 12px 0 6px; font-size: 13px; color: var(--ink-3); }
+
+/* ---------------------------------------------------------------- 내가 알게 된 것 (아는 만큼 힘이 된다) */
+.know__top { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.know__num { flex: none; display: flex; align-items: baseline; gap: 4px; }
+.know__num b { font-family: var(--pixel); font-size: 26px; color: var(--green-700); }
+.know__num span { font-size: 12.5px; color: var(--ink-3); }
+.know__bar { flex: 1; min-width: 0; }
+.know__bar small { display: block; margin-top: 6px; font-size: 12px; color: var(--ink-3); }
+.know__bar small b { font-family: var(--pixel); color: var(--ink-2); }
+.know__rows { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.know__row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; background: var(--bg); font-size: 13px; }
+.know__row b { flex: none; font-family: var(--pixel); font-size: 12px; color: var(--green-700); }
+.know__row span { flex: 1; min-width: 0; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.know__row i { flex: none; font-style: normal; font-family: var(--pixel); font-size: 12px; color: var(--ink-3); }
+.know__row.is-full { background: var(--green-50); }
+.know__row.is-full i { color: var(--green-700); }
+.know__head { margin: 14px 0 8px; font-size: 14px; }
+.know__terms { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow-y: auto; }
+.know__terms li { padding: 8px 10px; border-radius: 10px; background: #fff; box-shadow: inset 0 0 0 1px var(--line-2); }
+.know__terms b { display: block; font-size: 13.5px; color: var(--green-900); }
+.know__terms span { font-size: 12.5px; color: var(--ink-3); }
+.know__empty { margin: 0 0 12px; font-size: 13.5px; color: var(--ink-3); }
