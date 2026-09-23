@@ -106,7 +106,10 @@ export const RULES = {
     defeatReward: { premium: 1, points: 30 },   // 격파하면 그 주 참여자 모두
   },
   teamShare: { rewardPremium: 1, rewardPoints: 20 }, // 우리 팀 몫을 채우면 그 주 참여 팀원 모두 (주가 끝날 때)
-  card: { food: 2, points: 10 },          // 「오늘의 AI 한 조각」 한 장 읽기
+  card: {
+    food: 2, points: 10,                  // 「오늘의 AI 한 조각」 한 장 읽기
+    onTimePoints: 10,                     // 그날 열린 카드를 그날 읽으면 더 주는 포인트 (꾸준 참여)
+  },
   visitBonus: [                           // 한 회차에 며칠 참여했는지 (연속이 아니라 누적 — 하루 빠져도 괜찮게)
     { days: 3, premium: 1, points: 20 },
     { days: 5, premium: 1, points: 40 },
@@ -166,6 +169,7 @@ export const PRIZE_AWARDS = {
   king:      { label: '시즌 지식왕',      kind: 'user', desc: '4주 동안 퀴즈를 가장 많이 맞힌 사람' },
   ace:       { label: '시즌 에이스 대원', kind: 'user', desc: '4주 동안 보스에게 가장 큰 피해를 준 사람' },
   cheerKing: { label: '현장 응원왕',      kind: 'user', desc: '12/19 결전에서 응원을 가장 많이 한 사람' },
+  steady:    { label: '꾸준상',           kind: 'user', desc: '열린 날에 바로 AI 한 조각을 가장 많이 읽은 사람' },
   lucky:     { label: '행운 추첨',        kind: 'user', desc: '참여한 모든 대원 중 운영자가 추첨' },
 };
 // 처음(초기화 뒤)에 들어 있는 샘플 상품 — 미리 해 보기용. 행사 전에 운영자 화면에서 실제 상품으로 바꾼다.
