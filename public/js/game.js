@@ -2,7 +2,7 @@
 // 판정은 서버(server/api.js)가 이 파일로 한다. 브라우저는 계산된 값을 화면에 보여 줄 때만 쓴다.
 //
 // 일정은 '주' 단위다. week 0 = 시즌 시작 전, 1~4 = 사전 원정 주, FINAL_WEEK = 현장 모임(최종 결전).
-// 협력형: 9개 커뮤니티가 한 원정대다. 원래 하던 활동(먹이·퀴즈·가위바위보)이 그대로 그 주 보스 공격이 되고,
+// 협력형: 모든 커뮤니티가 한 원정대다. 원래 하던 활동(먹이·퀴즈·가위바위보)이 그대로 그 주 보스 공격이 되고,
 // 모두 함께 보스를 쓰러뜨리면 참여자 전원이 보상을 받는다. 현장 모임 날에는 다 함께 대마왕 글리치와 싸운다.
 import {
   EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, LEVELS, SKILL_LEVEL, expForLevel,
@@ -723,7 +723,8 @@ export function throwCheer(state, userId, targetId) {
   u.items.cheer--;
   const target = state.teams[targetId];
   const now = Date.now();
-  target.cheerUntil = Math.max(now, target.cheerUntil) + RULES.cheer.minutes * MIN;
+  const waves = hasSkill(state, u.teamId, 'wave') ? 2 : 1;                       // 마음의 물결
+  target.cheerUntil = Math.max(now, target.cheerUntil) + RULES.cheer.minutes * MIN * waves;
   target.cheerFrom = u.teamId;
   if (isPlayWeek(state.week)) {
     const mine = state.teams[u.teamId];

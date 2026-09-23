@@ -2005,3 +2005,15 @@ img { max-width: 100%; }
 .skill-chip.is-on i { color: var(--green-700); }
 .skill-tag { font-weight: 700; color: var(--ink-4); }
 .skill-tag.is-on { color: var(--green-700); }
+
+/* ---------------------------------------------------------------- 몬스터가 자라 보이게 */
+.monster-img { transform: scale(var(--grow, 1)); transform-origin: bottom center; transition: transform 0.4s ease; }
+.monster-img.stage-teen { filter: drop-shadow(0 0 4px rgba(102, 174, 125, 0.45)); }
+.monster-img.stage-final {
+  filter: drop-shadow(0 0 6px rgba(245, 184, 46, 0.55)) drop-shadow(0 0 14px rgba(102, 174, 125, 0.35));
+  animation: monGlow 2.4s ease-in-out infinite;
+}
+@keyframes monGlow {
+  0%, 100% { filter: drop-shadow(0 0 5px rgba(245, 184, 46, 0.45)) drop-shadow(0 0 12px rgba(102, 174, 125, 0.28)); }
+  50%      { filter: drop-shadow(0 0 9px rgba(245, 184, 46, 0.7)) drop-shadow(0 0 18px rgba(102, 174, 125, 0.45)); }
+}

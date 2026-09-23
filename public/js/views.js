@@ -117,7 +117,7 @@ export function renderOnboarding(state, ui) {
       <img class="onboard__logo" src="assets/brand/gdeal.svg" alt="G-DEAL" width="240" height="40">
       <h1>몬스터 <em>원정대</em></h1>
       <p class="onboard__slogan">${EVENT.slogan}</p>
-      <p>9개 커뮤니티 몬스터가 한 팀이 되어 차례로 나타나는 보스를 함께 물리치고,<br class="br-desktop">
+      <p>${TEAMS.length}개 커뮤니티 몬스터가 한 팀이 되어 차례로 나타나는 보스를 함께 물리치고,<br class="br-desktop">
         ${eventDateLabel(S)} 한마당 현장에서 대마왕 글리치와 최종 결전을 벌여요.</p>
       <div class="parade parade--roll" aria-hidden="true">
         ${TEAMS.map((t, i) => `
@@ -313,7 +313,7 @@ export function journeyMap(state, u = null) {
     </section>`;
 }
 
-// 원형 무대: 가운데에 보스, 둘레에 9개 커뮤니티 몬스터. 각 팀이 얼마나 키웠는지 한눈에 보인다.
+// 원형 무대: 가운데에 보스, 둘레에 커뮤니티 몬스터들. 각 팀이 얼마나 키웠는지 한눈에 보인다.
 function arena(state, u, ui) {
   const P = paceOf(state);
   const play = isPlayWeek(state.week);
@@ -1138,7 +1138,7 @@ export function renderCrew(state, ui) {
   }
 
   return `
-  ${pageHead('원정대', `${EVENT.slogan} 9개 커뮤니티가 함께 가는 모습과 활약한 대원을 확인해요.`)}
+  ${pageHead('원정대', `${EVENT.slogan} ${TEAMS.length}개 커뮤니티가 함께 가는 모습과 활약한 대원을 확인해요.`)}
   <section class="card">
     <div class="tabs" role="tablist">
       ${tabs.map(([k, label]) => `<button role="tab" aria-selected="${k === tab}" class="${k === tab ? 'is-on' : ''}" data-action="crew-tab" data-tab="${k}">${label}</button>`).join('')}
