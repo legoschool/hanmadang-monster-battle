@@ -146,13 +146,13 @@ export function renderOnboarding(state, ui) {
       <h2><span class="step">3</span>내 아바타 고르기</h2>
       <p class="onboard__note">활동할 때마다 이 아바타가 보스 전투 장면과 소식에 나타나요.</p>
       ${renderAvatarGrid(ui.pickAvatar, 'pick-avatar')}
-      <h2><span class="step">4</span>활동 이름 정하기</h2>
+      <h2><span class="step">4</span>닉네임 정하기</h2>
       <label class="field">
-        <input id="nickname" type="text" maxlength="12" placeholder="예: 반짝쌤" autocomplete="nickname" value="${esc(ui.nickname || '')}">
-        <small>소식과 원정대 화면에 보이는 이름이에요. 실명 대신 별명을 추천해요.</small>
+        <input id="nickname" type="text" maxlength="12" placeholder="예: 반짝이" autocomplete="nickname" value="${esc(ui.nickname || '')}">
+        <small>소식과 원정대 화면에 보이는 이름이에요. 실명 대신 별명을 추천해요. 다시 들어올 때 이 닉네임을 써요.</small>
       </label>
       <h2><span class="step">5</span>나만 아는 힌트 만들기</h2>
-      <p class="onboard__note">나중에 이름이나 기기를 잊어버렸을 때, 이 질문의 답을 맞히면 다시 이어서 할 수 있어요. 남이 맞히기 어려운 것으로 적어 주세요.</p>
+      <p class="onboard__note">비밀번호 대신이에요. 다른 기기에서 들어오거나 새로 시작할 때, <b>닉네임 + 이 질문의 답</b>으로 로그인해요. 남이 맞히기 어려운 것으로 적어 주세요.</p>
       <div class="hint-fields">
         <label class="field"><input id="hintQ" type="text" maxlength="40" placeholder="질문 (예: 우리 반 반려식물 이름은?)" value="${esc(ui.hintQ || '')}"></label>
         <label class="field"><input id="hintA" type="text" maxlength="30" placeholder="답 (예: 방울이)" value="${esc(ui.hintA || '')}"></label>
@@ -174,8 +174,8 @@ export function renderOnboarding(state, ui) {
     </section>` : ''}
 
     <section class="card onboard__resume">
-      <h2>이미 참여했나요? 이어서 하기</h2>
-      <p>활동 이름을 넣고 <b>내가 만든 힌트</b>의 답을 맞히면 이어서 할 수 있어요.</p>
+      <h2>이미 참여했나요? 로그인</h2>
+      <p><b>닉네임</b>을 넣고 내가 만든 <b>힌트의 답</b>을 맞히면 이어서 할 수 있어요. 휴대폰을 바꿔도 똑같아요.</p>
       ${ui.foundHint ? `
       <div class="found-hint">
         <div class="found-hint__who">${face({ teamId: ui.foundHint.team, avatar: ui.foundHint.avatar }, 40)}
@@ -184,30 +184,22 @@ export function renderOnboarding(state, ui) {
         <p class="found-hint__q">${icon('mystery', 24)}${esc(ui.foundHint.hint)}</p>
         <div class="resume-row">
           <input id="hintAnswer" type="text" maxlength="30" placeholder="힌트의 답" autocomplete="off">
-          <button class="btn btn--primary" data-action="recover">이어하기</button>
+          <button class="btn btn--primary" data-action="recover">로그인</button>
         </div>
-        <button class="btn btn--soft btn--sm" data-action="find-reset">다른 이름으로 찾기</button>
+        <button class="btn btn--soft btn--sm" data-action="find-reset">다른 닉네임으로 찾기</button>
       </div>` : `
       <div class="resume-row">
-        <input id="findName" type="text" maxlength="12" placeholder="활동 이름" autocomplete="off" value="${esc(ui.findName || '')}">
+        <input id="findName" type="text" maxlength="12" placeholder="닉네임" autocomplete="username" value="${esc(ui.findName || '')}">
         <button class="btn btn--primary" data-action="find">힌트 보기</button>
       </div>`}
       <p class="form-error" id="resumeError" role="alert"></p>
-      <details class="resume-code">
-        <summary>연결 코드로 이어하기</summary>
-        <p>다른 기기에서 받은 연결 코드(XXXXX-XXXXX-XXXXX)가 있으면 이렇게도 돼요.</p>
-        <div class="resume-row">
-          <input id="resumeCode" type="text" maxlength="17" placeholder="XXXXX-XXXXX-XXXXX" autocomplete="off" autocapitalize="characters">
-          <button class="btn btn--soft" data-action="resume">이어하기</button>
-        </div>
-      </details>
     </section>
 
     <section class="how">
       ${[
         ['premium', '날마다 새 AI 한 조각', `${byDay(S) ? '날마다' : '조금씩'} AI·디지털 지식 카드와 퀴즈가 새로 열려요. 못 본 건 사라지지 않으니 웹툰처럼 몰아서 봐도 돼요.`],
         ['seal', '다 함께 보스 물리치기', '먹이·퀴즈·가위바위보가 모두 보스 공격이 돼요. 보스는 회복하며 버티니 여럿이 꾸준히 모여야 쓰러져요.'],
-        ['mystery', `${eventDateLabel(S)} 최종 결전`, '모은 봉인 조각과 현장 응원으로 대마왕 글리치를 물리쳐요. 상품은 “?” 상자 속에!'],
+        ['mystery', `${eventDateLabel(S)} 최종 결전`, '모두 힘을 모아 마지막 보스 대마왕 글리치를 물리치면 보상이 있어요!'],
       ].map(([ic, title, text], i) => `
         <div class="how__item">
           ${icon(ic, 48)}
@@ -1285,8 +1277,8 @@ export function renderSettings(state, token, revealed) {
       </div>
     </section>
     <section class="device-code">
-      <h3>이름 찾기 힌트</h3>
-      <p>이름이나 기기를 잊었을 때, 시작 화면에서 <b>활동 이름 + 이 질문의 답</b>으로 이어서 할 수 있어요.</p>
+      <h3>로그인 힌트 (비밀번호 대신)</h3>
+      <p>다른 기기에서 들어올 때 시작 화면에서 <b>닉네임 + 이 질문의 답</b>을 넣으면 돼요.</p>
       <p class="hint-now">${u.hint?.q ? `${icon('mystery', 20)}<b>${esc(u.hint.q)}</b>` : '<span class="muted">아직 힌트가 없어요</span>'}</p>
       <div class="hint-fields">
         <label class="field"><input id="myHintQ" type="text" maxlength="40" placeholder="새 질문" value=""></label>
@@ -1294,17 +1286,8 @@ export function renderSettings(state, token, revealed) {
       </div>
       <button class="btn btn--soft btn--sm" data-action="hint-save">힌트 바꾸기</button>
     </section>
-    <section class="device-code">
-      <h3>다른 기기에서 이어하기</h3>
-      <p>휴대폰을 바꾸거나 컴퓨터에서도 하고 싶다면, 그 기기의 시작 화면에서 <b>연결 코드</b>를 넣어 주세요. 코드는 나만 알고 있어야 해요.</p>
-      <div class="device-code__box">
-        <code>${revealed ? esc(token) : '•••••-•••••-•••••'}</code>
-        <button class="btn btn--soft btn--sm" data-action="reveal-code">${revealed ? '숨기기' : '보기'}</button>
-        ${revealed ? '<button class="btn btn--primary btn--sm" data-action="copy-code">복사</button>' : ''}
-      </div>
-    </section>
-    <button class="btn btn--danger btn--block" data-action="logout">이 기기에서 나가기</button>
-    <p class="modal__hint">나가도 기록은 서버에 남아 있어요. 연결 코드로 다시 들어올 수 있어요.</p>`;
+    <button class="btn btn--danger btn--block" data-action="logout">로그아웃</button>
+    <p class="modal__hint">로그아웃해도 내 기록은 그대로 남아요. 닉네임과 힌트의 답으로 다시 들어올 수 있어요.</p>`;
 }
 
 // ================================================================ 운영자 화면
@@ -1312,14 +1295,14 @@ export function renderAdmin(state, ui) {
   const ov = ui.adminOverview;
   if (!ov) {
     return `
-    ${pageHead('운영자', '운영자 키를 넣으면 진행 관리, 진행 속도(미리 해 보기), 골든타임, 최종 결전 진행, 현장 상품, 커피 교환 처리를 할 수 있어요.')}
+    ${pageHead('운영자 로그인', '운영진만 쓰는 화면이에요. 비밀 키를 넣으면 진행 방식, 일정, 보스 세기, 최종 결전 진행, 현장 상품을 관리할 수 있어요.')}
     <section class="card admin-login">
       <label class="field">
-        <input id="adminKey" type="password" autocomplete="off" placeholder="운영자 키">
-        <small>키는 이 기기에만 저장돼요.</small>
+        <input id="adminKey" type="password" autocomplete="off" placeholder="운영자 비밀 키">
+        <small>키는 이 기기에만 저장돼요. 참가자에게 알려 주지 마세요.</small>
       </label>
       <p class="form-error" id="adminError" role="alert">${esc(ui.adminError || '')}</p>
-      <button class="btn btn--primary" data-action="admin-login">들어가기</button>
+      <button class="btn btn--primary" data-action="admin-login">로그인</button>
     </section>`;
   }
 
@@ -1474,9 +1457,10 @@ export function renderAdmin(state, ui) {
     <section class="card">
       ${secHead('참가자 관리')}
       <label class="field"><input id="adminSearch" type="search" placeholder="이름으로 찾기" autocomplete="off"></label>
-      <p class="sec-desc">이름을 잊은 대원이 찾아오면, 힌트 질문을 보고 본인인지 확인해 주세요.</p>
+      <p class="sec-desc">닉네임을 잊은 대원이 찾아오면 힌트 질문을 보고 본인인지 확인해 주세요. 답을 10번 틀리면 잠기는데, “잠금 풀기”로 다시 열어 줄 수 있어요.</p>
       <ul class="admin-users">${ov.users.map((x) => `
         <li data-name="${esc(x.name)}">${avatarImg(x.avatar, 28)}<b>${esc(x.name)}</b><small>${esc(teamById(x.teamId).community)} · ${num(x.totalPoints)}P · 힌트: ${esc(x.hint || '없음')}${x.fails ? ` · 답 틀림 ${x.fails}번` : ''}</small>
+          ${x.fails ? `<button class="btn btn--soft btn--sm" data-action="admin-unlock" data-user="${x.id}" data-name="${esc(x.name)}">잠금 풀기</button>` : ''}
           <button class="btn btn--danger btn--sm" data-action="admin-remove" data-user="${x.id}" data-name="${esc(x.name)}">내보내기</button></li>`).join('')}
       </ul>
     </section>
