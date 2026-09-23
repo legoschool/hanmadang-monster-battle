@@ -1937,3 +1937,7 @@ img { max-width: 100%; }
 .mode-pick__item b { font-size: 14.5px; }
 .mode-pick__item span { font-size: 12px; color: var(--ink-3); }
 .mode-pick__item:hover { border-color: var(--green); background: var(--green-50); }
+
+/* 아래 띠의 운영자 입구 */
+.foot__admin { display: inline-block; margin-left: 10px; color: var(--ink-4); text-decoration: none; border-bottom: 1px dotted var(--line-2); }
+.foot__admin:hover { color: var(--green-700); border-bottom-color: var(--green); }

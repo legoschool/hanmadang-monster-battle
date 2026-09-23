@@ -473,12 +473,12 @@ const actions = {
     const err = $('joinError');
     if (!ui.pickTeam) return (err.textContent = '커뮤니티를 먼저 골라 주세요.');
     if (!ui.pickAvatar) return (err.textContent = '내 아바타를 골라 주세요.');
-    if (name.length < 2) return (err.textContent = '활동 이름을 2글자 이상 적어 주세요.');
+    if (name.length < 2) return (err.textContent = '닉네임을 2글자 이상 적어 주세요.');
     const hintQ = $('hintQ').value.trim();
     const hintA = $('hintA').value.trim();
     ui.hintQ = hintQ;
     ui.hintA = hintA;
-    if (hintQ.length < 2) return (err.textContent = '이름을 잊었을 때 쓸 힌트 질문을 적어 주세요.');
+    if (hintQ.length < 2) return (err.textContent = '로그인할 때 쓸 힌트 질문을 적어 주세요.');
     if (hintA.length < 1) return (err.textContent = '힌트 질문의 답을 적어 주세요.');
 
     el.disabled = true;
@@ -525,7 +525,7 @@ const actions = {
   find: async (el) => {
     const name = $('findName').value.trim();
     const err = $('resumeError');
-    if (name.length < 2) return (err.textContent = '활동 이름을 적어 주세요.');
+    if (name.length < 2) return (err.textContent = '닉네임을 적어 주세요.');
     el.disabled = true;
     try {
       ui.foundHint = await API.find(name);
@@ -573,29 +573,6 @@ const actions = {
     updateModal(V.renderSettings(state, API.getToken(), ui.codeRevealed));
     toast('<span>이름 찾기 힌트를 바꿨어요</span>', 'good');
   },
-  resume: async (el) => {
-    const code = $('resumeCode').value.trim().toUpperCase();
-    const err = $('resumeError');
-    if (!/^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(code)) return (err.textContent = '연결 코드는 XXXXX-XXXXX-XXXXX 모양이에요.');
-    el.disabled = true;
-    API.setToken(code);
-    try {
-      await refresh({ force: true });
-    } catch (e) {
-      err.textContent = e.message;
-    }
-    el.disabled = false;
-    if (!me()) {
-      API.setToken(null);
-      err.textContent = '연결 코드가 맞지 않아요. 다시 확인해 주세요.';
-      return;
-    }
-    history.replaceState(null, '', '#/home');
-    render();
-    toast(`<span><b>${esc(me().name)}</b>님, 다시 만나서 반가워요!</span>`, 'good');
-    autoCheckIn();
-  },
-
   // 홈
   feed: async (el) => {
     const kind = el.dataset.kind;
@@ -814,20 +791,8 @@ const actions = {
     render();
     toast('<span>아바타를 바꿨어요</span>', 'good');
   },
-  'reveal-code': () => {
-    ui.codeRevealed = !ui.codeRevealed;
-    updateModal(V.renderSettings(state, API.getToken(), ui.codeRevealed));
-  },
-  'copy-code': async () => {
-    try {
-      await navigator.clipboard.writeText(API.getToken());
-      toast('<span>연결 코드를 복사했어요</span>', 'good');
-    } catch {
-      toast('<span>복사하지 못했어요. 코드를 직접 적어 두세요.</span>', 'warn');
-    }
-  },
   logout: async () => {
-    if (!confirm('이 기기에서 나갈까요? 연결 코드가 있어야 다시 들어올 수 있어요.')) return;
+    if (!confirm('로그아웃할까요? 닉네임과 힌트의 답으로 다시 들어올 수 있어요.')) return;
     API.setToken(null);
     closeModal();
     await refresh({ force: true });
@@ -906,6 +871,11 @@ const actions = {
     }
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
     else if (res) toast(`<span><b>${mode.label}</b>로 바꿨어요 · ${mode.sub}</span>`, 'good');
+  },
+  'admin-unlock': async (el) => {
+    const res = await adminCall('unlockUser', { userId: el.dataset.user });
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) toast(`<span><b>${esc(el.dataset.name)}</b>님의 로그인 잠금을 풀었어요</span>`, 'good');
   },
   'admin-power': async (el) => {
     const res = await adminCall('power', { scale: Number(el.dataset.scale) });
@@ -1028,7 +998,6 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && modalOpen() && !ui.busy) closeModal();
   if (e.key !== 'Enter') return;
   if (e.target.id === 'nickname' || e.target.id === 'joinCode') actions.join(document.querySelector('[data-action="join"]'));
-  if (e.target.id === 'resumeCode') actions.resume(document.querySelector('[data-action="resume"]'));
   if (e.target.id === 'findName') actions.find(document.querySelector('[data-action="find"]'));
   if (e.target.id === 'hintAnswer') actions.recover(document.querySelector('[data-action="recover"]'));
   if (e.target.id === 'adminKey') actions['admin-login']();
