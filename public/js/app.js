@@ -499,14 +499,17 @@ const actions = {
   },
   'card-open': async (el) => {
     const i = Number(el.dataset.index);
-    const key = `${state.week}:${i}`;
-    if (ui.cardOpen === i) { ui.cardOpen = null; return render(); }
-    ui.cardOpen = i;
+    const w = Number(el.dataset.week) || state.week;
+    const key = `${w}:${i}`;
+    if (ui.cardOpen === key) { ui.cardOpen = null; return render(); }
+    ui.cardOpen = key;
     if ((state.cards?.read || []).includes(key)) return render();
-    const res = await act('card', { index: i });
+    const res = await act('card', { week: w, index: i });
     render();
-    if (res?.ok) toast(`${icon('food', 22)}<span>AI 한 조각 <b>${res.count}장</b> 모았어요! 먹이 ${res.food}개 + ${res.points}P</span>`, 'good');
-    else if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    if (res?.ok) {
+      toast(`${icon('food', 22)}<span>AI 한 조각 <b>${res.count}장</b> 모았어요! 먹이 ${res.food}개 + ${res.points}P${res.onTime ? ' · <b>제때 읽기</b>' : ''}</span>`, 'good');
+      if (res.onTime) setTimeout(() => toast(`${icon('seal', 22)}<span>제때 읽기 <b>${res.steady}회</b> — 꾸준상에 한 걸음!</span>`, 'good'), 900);
+    } else if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
   },
   find: async (el) => {
     const name = $('findName').value.trim();

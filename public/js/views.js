@@ -7,7 +7,7 @@ import {
   teamById, bossOf, levelInfo, weekly, daily, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
-  scheduleOf, paceOf, roundLength, eventDefaultMs, killLabel, bossPower, roundDays,
+  scheduleOf, paceOf, roundLength, eventDefaultMs, killLabel, bossPower, roundDays, byDay,
 } from './game.js';
 import { cardsForWeek, CARD_SETS } from './cards.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
@@ -652,20 +652,22 @@ function aiCards(state, ui, u) {
   const set = cardsForWeek(state.week);
   if (!set || !c || !c.total) return '';
   const P = paceOf(state);
+  const every = byDay(scheduleOf(state)) ? '매일' : P.every;   // 이틀 넘는 회차면 날마다 열린다
   const read = new Set(c.read || []);
   const left = c.open - c.readCount;
   const collected = (c.read || []).length;
   const totalAll = CARD_SETS.reduce((s, x) => s + x.cards.length, 0);
 
-  const list = set.cards.slice(0, c.open).map((card, i) => {
-    const isRead = read.has(`${state.week}:${i}`);
-    const open = ui.cardOpen === i;
+  const cardLine = (card, w, i, openCount) => {
+    const isRead = read.has(`${w}:${i}`);
+    const open = ui.cardOpen === `${w}:${i}`;
+    const fresh = w === state.week && i === openCount - 1 && !isRead;
     return `
-      <li class="ai-card ${isRead ? 'is-read' : ''} ${open ? 'is-open' : ''}">
-        <button class="ai-card__head" data-action="card-open" data-index="${i}" aria-expanded="${open}">
+      <li class="ai-card ${isRead ? 'is-read' : ''} ${open ? 'is-open' : ''} ${fresh ? 'is-fresh' : ''}">
+        <button class="ai-card__head" data-action="card-open" data-week="${w}" data-index="${i}" aria-expanded="${open}">
           <span class="ai-card__no">${i + 1}</span>
           <span class="ai-card__title"><b>${esc(card.title)}</b><small>${esc(card.tag)}</small></span>
-          <span class="ai-card__flag">${isRead ? '읽음' : `+먹이 ${RULES.card.food}`}</span>
+          <span class="ai-card__flag">${isRead ? '읽음' : fresh ? `오늘 +${RULES.card.points + RULES.card.onTimePoints}P` : `+먹이 ${RULES.card.food}`}</span>
         </button>
         ${open ? `
         <div class="ai-card__body">
@@ -674,19 +676,33 @@ function aiCards(state, ui, u) {
           <p class="ai-card__term">${icon('mystery', 18)}${esc(card.term)}</p>
         </div>` : ''}
       </li>`;
-  }).join('');
+  };
+  const list = set.cards.slice(0, c.open).map((card, i) => cardLine(card, state.week, i, c.open)).join('');
+
+  // 지난 회차 카드는 모두 열려 있어요 (웹툰 몰아 보기)
+  const past = CARD_SETS.filter((x) => x.week < state.week);
+  const pastLeft = past.reduce((s, x) => s + x.cards.filter((_, i) => !read.has(`${x.week}:${i}`)).length, 0);
+  const missedNow = c.open - c.readCount;
 
   return `
     <section class="card ai-cards">
-      ${secHead('오늘의 AI 한 조각', `<span class="sec-note">${P.every} 한 장씩 열려요 · 읽으면 먹이 ${RULES.card.food}개 + ${RULES.card.points}P</span>`)}
-      <p class="sec-desc">${esc(c.theme)} — 놓친 카드는 사라지지 않아요. 편할 때 몰아서 읽어도 괜찮아요.</p>
+      ${secHead('오늘의 AI 한 조각', `<span class="sec-note">${every} 한 장씩 열려요 · 읽으면 먹이 ${RULES.card.food}개 + ${RULES.card.points}P</span>`)}
+      <p class="sec-desc">${esc(c.theme)} — 못 본 카드는 사라지지 않아요. <b>웹툰처럼 몰아서</b> 봐도 되고, 그날 열린 카드를 그날 보면 <b>+${RULES.card.onTimePoints}P</b>와 꾸준 점수를 더 받아요.</p>
       <div class="ai-cards__bar">
         <span class="ai-cards__count">모은 카드 <b>${num(collected)}</b> / ${num(totalAll)}장</span>
         <span class="goal__bar"><span style="width:${pct(collected, totalAll)}%"></span></span>
       </div>
-      ${left > 0 ? `<p class="ai-cards__new">${icon('premium', 20)}아직 안 읽은 카드 <b>${left}장</b>이 있어요!</p>` : ''}
+      <p class="ai-cards__steady">${icon('seal', 18)}제때 읽기 <b>${num(c.onTime || 0)}</b>회 — 가장 많은 대원이 현장에서 <b>꾸준상</b>을 받아요</p>
+      ${missedNow + pastLeft > 0 ? `<p class="ai-cards__new">${icon('premium', 20)}안 읽은 카드 <b>${missedNow + pastLeft}장</b>${pastLeft ? ` (지난 회차 ${pastLeft}장 포함)` : ''} — 지금 몰아 보기 좋아요!</p>` : ''}
       <ul class="ai-cards__list">${list}</ul>
       ${c.nextAt ? `<p class="ai-cards__next">다음 카드는 <time data-refresh="${c.nextAt}">${timeLeft(c.nextAt)}</time> 뒤에 열려요.</p>` : '<p class="ai-cards__next">이번 회차 카드가 모두 열렸어요.</p>'}
+      ${past.length ? `
+      <details class="ai-cards__past" ${pastLeft ? 'open' : ''}>
+        <summary>지난 회차 몰아 보기 ${pastLeft ? `<b>(안 읽은 ${pastLeft}장)</b>` : '(다 읽었어요)'}</summary>
+        ${past.map((x) => `
+          <h4 class="ai-cards__past-head">${x.week}${P.round} · ${esc(x.theme)}</h4>
+          <ul class="ai-cards__list">${x.cards.map((card, i) => cardLine(card, x.week, i, x.cards.length)).join('')}</ul>`).join('')}
+      </details>` : ''}
     </section>`;
 }
 

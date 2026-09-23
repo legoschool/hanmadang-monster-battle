@@ -1877,3 +1877,13 @@ img { max-width: 100%; }
 @media (max-width: 720px) {
   .ai-card__body { padding-left: 12px; }
 }
+
+/* 카드 몰아 보기 · 제때 읽기 */
+.ai-cards__steady { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12.5px; color: var(--ink-3); }
+.ai-cards__steady b { font-family: var(--pixel); color: var(--green-700); }
+.ai-card.is-fresh { border-color: var(--gold); box-shadow: 0 4px 12px rgba(245, 184, 46, 0.25); }
+.ai-card.is-fresh .ai-card__no { background: var(--gold-50); color: var(--gold-700); }
+.ai-cards__past { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-2); }
+.ai-cards__past summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.ai-cards__past summary b { color: var(--gold-700); }
+.ai-cards__past-head { margin: 12px 0 6px; font-size: 13px; color: var(--ink-3); }

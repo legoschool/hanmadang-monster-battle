@@ -201,7 +201,7 @@ export function newUser({ id, name, teamId, avatar }) {
     id, name, teamId, avatar,
     food: 0, premium: 0, points: 0, totalPoints: 0, totalDmg: 0, totalCorrect: 0,
     items: { booster: 0, cheer: 0, coffee: 0 },
-    coupons: [], visitedWeeks: [], bossRewards: [], cards: [],
+    coupons: [], visitedWeeks: [], bossRewards: [], cards: [], onTime: 0,
     weekly: freshWeekly(-1), daily: { key: '', visit: false, lucky: 0, rps: 0 },
   };
 }
@@ -249,17 +249,33 @@ export function roundProgress(state, now = Date.now()) {
   if (len <= 0) return 1;
   return Math.min(1, Math.max(0, (now - roundStart(sch, state.week)) / len));
 }
-// 시간이 지날수록 하나씩 열린다. 놓친 것은 사라지지 않고 그대로 남는다.
+// 시간이 지날수록 하나씩 열린다. 놓친 것은 사라지지 않고 그대로 남는다(웹툰처럼 몰아 보기).
+// 회차가 이틀 이상이면 한국 날짜로 '날마다', 하루보다 짧은 미리 해 보기면 지난 비율만큼 연다.
+// 날마다 열 때도 회차가 끝나기 전에는 다 열리도록, 날짜가 적으면 하루에 여러 개를 연다.
+export const byDay = (sch) => roundLength(sch) >= 2 * DAY;
 export function openSlots(state, total, now = Date.now()) {
   if (total <= 0) return 0;
   if (state.week >= FINAL_WEEK) return total;            // 결전의 날은 한꺼번에 연다
-  return Math.max(1, Math.min(total, Math.ceil(roundProgress(state, now) * total)));
+  const sch = scheduleOf(state);
+  let open;
+  if (byDay(sch)) {
+    const days = Math.max(1, Math.round(roundLength(sch) / DAY));
+    const d = kstDay(now) - kstDay(roundStart(sch, state.week)) + 1;   // 이 회차의 며칠째인가
+    open = Math.max(d, Math.ceil((total * d) / days));                 // 날마다 하나 이상, 마지막 날엔 전부
+  } else {
+    open = Math.ceil(roundProgress(state, now) * total);
+  }
+  return Math.max(1, Math.min(total, open));
 }
 // 다음 것이 열리는 시각 (다 열렸으면 0)
 export function nextOpenAt(state, total, now = Date.now()) {
   const open = openSlots(state, total, now);
   if (open >= total || state.week >= FINAL_WEEK) return 0;
   const sch = scheduleOf(state);
+  if (byDay(sch)) {                                     // 다음 한국 날짜 0시에 또 열린다
+    const d = kstDay(now) - kstDay(roundStart(sch, state.week)) + 1;
+    return (kstDay(roundStart(sch, state.week)) + d) * DAY - 9 * HOUR;
+  }
   return Math.round(roundStart(sch, state.week) + roundLength(sch) * (open / total));
 }
 
@@ -270,27 +286,44 @@ export function cardState(state, user, now = Date.now()) {
   const total = set ? set.cards.length : 0;
   const open = total ? openSlots(state, total, now) : 0;
   const read = user ? user.cards || [] : [];
-  return { total, open, theme: set?.theme || '', nextAt: total ? nextOpenAt(state, total, now) : 0,
-    readCount: read.filter((k) => k.startsWith(`${state.week}:`)).length, allRead: read.length };
+  // 지난 회차 카드까지 통틀어 열린 장수 (몰아 보기용)
+  let openedAll = 0;
+  for (let w = 1; w <= state.week; w++) openedAll += cardOpenCount(state, w, now);
+  return { total, open, openedAll, theme: set?.theme || '', nextAt: total ? nextOpenAt(state, total, now) : 0,
+    readCount: read.filter((k) => k.startsWith(`${state.week}:`)).length, allRead: read.length,
+    onTime: user?.onTime || 0 };
 }
-export function readCard(state, userId, index, now = Date.now()) {
+// 지난 회차 카드는 모두 열려 있다 (웹툰처럼 못 본 것을 몰아 볼 수 있게)
+export function cardOpenCount(state, week, now = Date.now()) {
+  const set = cardsForWeek(week);
+  if (!set) return 0;
+  if (week < state.week) return set.cards.length;
+  if (week > state.week) return 0;
+  return openSlots(state, set.cards.length, now);
+}
+export function readCard(state, userId, week, index, now = Date.now()) {
   const u = state.users[userId];
-  const set = cardsForWeek(state.week);
+  const w = Number(week) || state.week;
+  const set = cardsForWeek(w);
   const i = Number(index);
   if (!set || !Number.isInteger(i) || i < 0 || i >= set.cards.length) return { ok: false, reason: '없는 카드예요' };
-  if (i >= openSlots(state, set.cards.length, now)) return { ok: false, reason: '아직 열리지 않은 카드예요' };
+  const open = cardOpenCount(state, w, now);
+  if (i >= open) return { ok: false, reason: '아직 열리지 않은 카드예요' };
   u.cards ||= [];
-  const key = cardKey(state.week, i);
+  const key = cardKey(w, i);
   if (u.cards.includes(key)) return { ok: false, reason: '이미 읽은 카드예요' };
   u.cards.push(key);
   const R = RULES.card;
   u.food += R.food;
-  addPoints(state, u, R.points);
+  // 그날 열린 카드를 그날 읽으면 꾸준 점수와 포인트를 더 준다 (몰아 보기도 그대로 인정)
+  const onTime = w === state.week && i === open - 1;
+  if (onTime) u.onTime = (u.onTime || 0) + 1;
+  addPoints(state, u, R.points + (onTime ? R.onTimePoints : 0));
   const card = set.cards[i];
   if (u.cards.length % CARDS_PER_ROUND === 0) {
     pushFeed(state, 'premium', `${u.name}님이 AI 한 조각 ${u.cards.length}장을 모았어요! (도감 ${u.cards.length}장)`, who(u));
   }
-  return { ok: true, food: R.food, points: R.points, title: card.title, count: u.cards.length };
+  return { ok: true, food: R.food, points: R.points + (onTime ? R.onTimePoints : 0), onTime, steady: u.onTime || 0, title: card.title, count: u.cards.length };
 }
 
 // ---------------------------------------------------------------- 주간 보스
@@ -1040,6 +1073,7 @@ function finishFinal(state) {
     king: bestUser((u) => u.totalCorrect * 1000 + u.totalPoints / 1000),
     ace: bestUser((u) => u.totalDmg),
     cheerKing: bestUser((u) => f.cheerTotal[u.id] || 0),
+    steady: bestUser((u) => (u.onTime || 0) * 1000 + (u.cards?.length || 0)),
   };
   for (const p of state.prizes) if (!p.winner && f.awards[p.award]) p.winner = { type: f.awards[p.award].type, id: f.awards[p.award].id };
 }
