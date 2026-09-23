@@ -197,7 +197,7 @@ export function newGameState() {
   const state = {
     schema: SCHEMA, version: 1, seq: 0, week: 0,
     users: {}, teams: {}, feed: [], awards: {}, bosses: {}, hits: [],
-    coffeeStock: RULES.coffeeStock, goldenUntil: 0, final: null, schedule: defaultSchedule(), mode: 'free', lap: 1,
+    coffeeStock: RULES.coffeeStock, goldenUntil: 0, final: null, schedule: defaultSchedule(), mode: 'free', lap: 1, seasons: [],
     prizes: DEFAULT_PRIZES.map(({ award, name }) => ({ name, award, winner: null, openedAt: 0 })),
   };
   for (const t of TEAMS) state.teams[t.id] = newTeam(t.id, 0);
@@ -211,7 +211,7 @@ export function newUser({ id, name, teamId, avatar, level }) {
     id, name, teamId, avatar, level: level === 'student' ? 'student' : 'adult',
     food: 0, premium: 0, points: 0, totalPoints: 0, totalDmg: 0, totalCorrect: 0,
     items: { booster: 0, cheer: 0, coffee: 0 },
-    coupons: [], visitedWeeks: [], bossRewards: [], cards: [], onTime: 0,
+    coupons: [], visitedWeeks: [], bossRewards: [], cards: [], onTime: 0, clears: 0, laps: 0,
     weekly: freshWeekly(-1), daily: { key: '', visit: false, lucky: 0, rps: 0 },
   };
 }
@@ -275,11 +275,17 @@ function nextStageFree(state) {
     pushFeed(state, 'seal', `다음 보스 ${bossOf(state.week).name} 등장! 바로 이어서 도전해요.`, { boss: bossOf(state.week).id });
     return;
   }
-  state.lap = (state.lap || 1) + 1;
+  const lapNo = state.lap || 1;
+  archiveSeason(state, 'free', lapNo);                                         // 이번 바퀴 기록을 남긴다
+  state.lap = lapNo + 1;
   state.week = 1;
   state.bosses = {};
   for (const t of TEAMS) state.teams[t.id].dmgByWeek = {};
-  for (const u of Object.values(state.users)) { u.visitedWeeks = []; u.bossRewards = []; }
+  for (const u of Object.values(state.users)) {
+    if (u.visitedWeeks.length) u.laps = (u.laps || 0) + 1;                     // 완주 참여 기록
+    u.visitedWeeks = [];
+    u.bossRewards = [];
+  }
   pushFeed(state, 'premium', `원정 ${state.lap - 1}바퀴 완주! 보스들이 다시 모였어요. ${state.lap}바퀴째 출발!`);
 }
 
@@ -513,7 +519,9 @@ function markDefeat(state, w, info, byUser = null, now = Date.now()) {
   rec.defeatedAt = now;
   rec.maxHpAtDefeat = info.maxHp;
   rec.dmg = Math.max(rec.dmg, info.maxHp);
-  const rewarded = Object.values(state.users).filter((x) => x.visitedWeeks.includes(w) && giveBossReward(state, x, w)).length;
+  const joined = Object.values(state.users).filter((x) => x.visitedWeeks.includes(w));
+  for (const x of joined) x.clears = (x.clears || 0) + 1;                      // 보스 격파 참여 기록
+  const rewarded = joined.filter((x) => giveBossReward(state, x, w)).length;
   const r = RULES.boss.defeatReward;
   const last = byUser ? `마지막 일격은 ${teamById(byUser.teamId).community} ${byUser.name}님. ` : '끝까지 버티던 보스가 마지막 순간에 쓰러졌어요! ';
   pushFeed(state, 'seal', `원정대가 ${josa(info.name, '을/를')} 물리쳤어요! ${last}`
@@ -892,6 +900,44 @@ export function crewRanking(state, mode) {
     .map((u) => ({ u, score: score(u) }))
     .sort((a, b) => b.score - a.score)
     .map((r, i) => ({ ...r, rank: i + 1 }));
+}
+
+// ---------------------------------------------------------------- 랭킹 보드
+// 개인 기록 랭킹 (프리 모드·정규 시즌 상관없이 계속 쌓인다)
+export const RANK_KEYS = {
+  dmg:    { label: '보스 피해', unit: '',   get: (u) => u.totalDmg || 0 },
+  correct:{ label: '맞힌 문제', unit: '개', get: (u) => u.totalCorrect || 0 },
+  cards:  { label: 'AI 한 조각', unit: '장', get: (u) => (u.cards || []).length },
+  points: { label: '모은 포인트', unit: 'P', get: (u) => u.totalPoints || 0 },
+  clears: { label: '보스 격파', unit: '회', get: (u) => u.clears || 0 },
+};
+export function personalRanking(state, key = 'dmg') {
+  const g = (RANK_KEYS[key] || RANK_KEYS.dmg).get;
+  return Object.values(state.users)
+    .map((u) => ({ u, score: g(u) }))
+    .sort((a, b) => b.score - a.score || (b.u.totalPoints || 0) - (a.u.totalPoints || 0))
+    .map((r, i) => ({ ...r, rank: i + 1 }));
+}
+
+// 시즌(또는 프리 모드 한 바퀴) 기록을 남긴다. 초기화해도 이 기록은 이어진다.
+export function archiveSeason(state, mode = 'season', no = null) {
+  const list = TEAMS.map((t) => {
+    const team = state.teams[t.id];
+    const dmg = Object.values(team.dmgByWeek || {}).reduce((s, n) => s + n, 0);
+    return { id: t.id, dmg, exp: team.exp, level: levelInfo(team.exp).level, members: teamMemberCount(state, t.id) };
+  }).sort((a, b) => b.dmg - a.dmg);
+  const top = personalRanking(state, 'dmg').slice(0, 3).map((r) => ({ name: r.u.name, teamId: r.u.teamId, score: r.score }));
+  const king = personalRanking(state, 'correct')[0];
+  const seals = BOSSES.filter((b) => state.bosses[b.week]?.defeatedAt).length;
+  const rec = {
+    no: no ?? (state.seasons || []).filter((x) => x.mode === mode).length + 1,
+    mode, at: Date.now(), weeks: state.week, seals,
+    teams: list.slice(0, 3).map((t) => ({ id: t.id, dmg: t.dmg, level: t.level })),
+    top, king: king && king.score ? { name: king.u.name, teamId: king.u.teamId, score: king.score } : null,
+    users: Object.keys(state.users).length,
+  };
+  state.seasons = [rec, ...(state.seasons || [])].slice(0, 12);
+  return rec;
 }
 
 // 주간 지식왕: 그 주 퀴즈를 모두 맞힌 사람 중 가장 빨리 끝낸 사람. 없으면 그 주 포인트 1위.
