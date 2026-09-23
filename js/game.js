@@ -5,7 +5,7 @@
 // 협력형: 9개 커뮤니티가 한 원정대다. 원래 하던 활동(먹이·퀴즈·가위바위보)이 그대로 그 주 보스 공격이 되고,
 // 모두 함께 보스를 쓰러뜨리면 참여자 전원이 보상을 받는다. 현장 모임 날에는 다 함께 대마왕 글리치와 싸운다.
 import {
-  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, LEVELS, expForLevel,
+  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, LEVELS, expForLevel,
 } from './config.js';
 import { cardsForWeek, CARDS_PER_ROUND } from './cards.js';
 import { kidCardsForWeek } from './cards-kid.js';
@@ -47,6 +47,14 @@ export function normalizeSchedule(sch) {
 }
 export const scheduleOf = (state) => normalizeSchedule(state?.schedule);
 export const roundLength = (sch) => (sch.end - sch.start) / EVENT.weeks;
+// 지금 회차 길이에 가장 가까운 간격 이름 (운영자 화면에서 고른 버튼을 표시할 때 쓴다)
+export function paceKeyFor(sch) {
+  const len = roundLength(sch);
+  let best = 'week';
+  let gap = Infinity;
+  for (const [k, q] of Object.entries(PACES)) { const d = Math.abs(q.ms - len); if (d < gap) { gap = d; best = k; } }
+  return best;
+}
 export const roundStart = (sch, week) => Math.round(sch.start + (week - 1) * roundLength(sch));
 export const eventStart = (sch) => sch.end;
 
@@ -372,10 +380,37 @@ export const activeCount = (state, teamId, w = state.week) =>
 // 회차가 며칠짜리인지 (체력 계산에 쓴다 · 1~maxDays일, 하루보다 짧은 미리 해 보기는 1일로 본다)
 export const roundDays = (sch) => Math.max(1, Math.min(RULES.boss.maxDays, Math.round(roundLength(sch) / DAY) || 1));
 // 대원 1명이 한 회차에 맡는 몫 = 회차 몫 + 하루 몫 × 회차 일수, 여기에 운영자가 고른 보스 세기를 곱한다
+export const bossAdjust = (state) => (state.bossAdaptOff ? 1 : (state.bossAdjust || 1));
 export const bossPower = (state) => {
   const B = RULES.boss;
-  return Math.round((B.perMemberRound + B.perMemberDay * roundDays(scheduleOf(state))) * (state.bossScale || 1));
+  return Math.round((B.perMemberRound + B.perMemberDay * roundDays(scheduleOf(state))) * (state.bossScale || 1) * bossAdjust(state));
 };
+
+// 회차가 끝날 때, 원정대가 얼마나 몰아쳤는지 보고 다음 보스 난이도를 정한다
+export function adaptBoss(state, week) {
+  const A = RULES.boss.adapt;
+  const info = bossInfo(state, week);
+  if (!info || !info.maxHp) return null;
+  const total = allianceList(state, week).reduce((s, t) => s + t.dmg, 0);   // 회차 동안 준 피해 전부(버틴 뒤 넘친 힘도 포함)
+  const rate = total / info.maxHp;
+  const f = rate >= A.hard ? A.up : rate >= A.good ? A.upSmall : rate >= A.weak ? 1 : rate >= A.poor ? A.downSmall : A.down;
+  const before = state.bossAdjust || 1;
+  const after = Math.min(A.max, Math.max(A.min, Math.round(before * f * 100) / 100));
+  state.bossAdjust = after;
+  if (state.bossAdaptOff || after === before) return { rate, from: before, to: after, changed: false };
+  const next = bossOf(week + 1) || FINAL_BOSS;
+  pushFeed(state, 'booster', after > before
+    ? `원정대가 ${Math.round(rate * 100)}%나 몰아쳤어요! 소문을 들은 ${josa(next.name, '이/가')} 더 단단히 준비했어요 (체력 ×${after}).`
+    : `이번 회차는 힘겨웠어요(${Math.round(rate * 100)}%). ${josa(next.name, '이/가')} 조금 방심했네요 (체력 ×${after}).`);
+  return { rate, from: before, to: after, changed: true };
+}
+
+// 운영자가 자동 조절을 켜고 끈다
+export function setBossAdapt(state, on) {
+  state.bossAdaptOff = !on;
+  if (on) pushFeed(state, 'booster', '운영진이 보스 자동 조절을 켰어요. 회차 성적에 따라 다음 보스의 세기가 달라져요.');
+  return { ok: true, on: !state.bossAdaptOff, adjust: bossAdjust(state) };
+}
 // 우리 팀 몫: 보스 체력을 팀마다 팀원 수만큼 나눠 맡는다. 팀원이 모두 조금씩 힘을 보태면 채워진다.
 export const teamShare = (state, teamId) => Math.round(bossPower(state) * teamMemberCount(state, teamId));
 
@@ -841,6 +876,7 @@ export function advanceWeek(state) {
       }
     }
     const list = allianceList(state, w);
+    adaptBoss(state, w);                     // 이번 회차 성적 → 다음 보스 난이도
     const activeOf = (teamId) => Object.values(state.users).filter((u) => u.teamId === teamId && u.visitedWeeks.includes(w));
 
     // 우리 팀 몫을 채운 팀은 그 주 참여 팀원 모두 보상
@@ -904,7 +940,7 @@ export function setSchedule(state, start, end, now = Date.now()) {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return { ok: false, reason: '시작과 끝 날짜를 넣어 주세요' };
   if (b <= a) return { ok: false, reason: '끝 날짜는 시작 날짜보다 뒤여야 해요' };
   if ((b - a) / EVENT.weeks < MIN) return { ok: false, reason: `시작과 끝 사이가 너무 짧아요 (적어도 ${EVENT.weeks}분)` };
-  const sch = { start: a, end: b, quick: false };
+  const sch = { start: a, end: b, quick: (b - a) / EVENT.weeks < DAY };   // 하루보다 짧은 회차는 미리 해 보기로 본다
   const target = weekForTime(sch, now);
   if (target < state.week) {
     // 아직 보스 공격·시상·결전 기록이 없으면 앞 회차(또는 모집 기간)로 미룰 수 있다
@@ -927,7 +963,7 @@ export function setPace(state, pace, now = Date.now()) {
   if (!Q) return { ok: false, reason: '속도를 골라 주세요' };
   const w = Math.max(1, Math.min(state.week, FINAL_WEEK));
   const start = now - (w - 1) * Q.ms;
-  state.schedule = { start, end: start + EVENT.weeks * Q.ms, quick: true };
+  state.schedule = { start, end: start + EVENT.weeks * Q.ms, quick: Q.ms < DAY };
   pushFeed(state, 'booster', `미리 해 보기! 지금부터 ${Q.label}마다 새 회차가 열려요. 퀴즈·보스·럭키박스 횟수도 그때마다 새로 바뀌어요.`);
   return { ok: true, pace };
 }

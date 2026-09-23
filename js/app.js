@@ -13,7 +13,7 @@ let state = null;
 const ui = {
   pickTeam: null, pickAvatar: null, quizReveal: null, crewTab: 'alliance', crewMode: 'week',
   giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {},
-  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null, keyShown: false, keyDraft: '',
+  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null, keyShown: false, keyDraft: '', schedGap: null,
   adminOverview: null, adminError: '', adminPrizes: null, schedDraft: null,
   seenHit: 0, seenRounds: null, seenPrizes: null,
   cheerQueue: 0, cheerInflight: 0, cheerPending: 0,
@@ -842,19 +842,32 @@ const actions = {
     $('schedEnd').value = v;
     ui.schedDraft = { start: $('schedStart').value, end: v };
   },
+  'admin-sched-nov': () => {
+    const s = new Date(G.eventDefaultMs() - EVENT.weeks * 7 * 24 * 3600 * 1000);
+    ui.schedDraft = { ...(ui.schedDraft || {}), start: kstInput(s.getTime()) };
+    ui.schedGap = 'week';
+    render();
+  },
+  'admin-sched-gap': (el) => {
+    ui.schedGap = el.dataset.gap;
+    ui.schedDraft = { ...(ui.schedDraft || {}), start: $('schedStart')?.value || ui.schedDraft?.start };
+    render();
+  },
   'admin-sched-save': async () => {
     const start = fromKstInput($('schedStart').value);
-    const end = fromKstInput($('schedEnd').value);
-    if (!Number.isFinite(start) || !Number.isFinite(end)) return toast('<span>시작과 끝 날짜를 모두 넣어 주세요</span>', 'warn');
-    const sch = { start, end, quick: false };
+    const gap = PACES[ui.schedGap || ''] || PACES[G.paceKeyFor(G.scheduleOf(state))];
+    if (!Number.isFinite(start) || !gap) return toast('<span>시작 시각과 간격을 정해 주세요</span>', 'warn');
+    const end = start + EVENT.weeks * gap.ms;
+    const sch = { start, end, quick: gap.ms < 24 * 3600 * 1000 };
     const P = G.paceFor(sch);
-    const msg = `이 일정으로 저장할까요?\n\n시작: ${G.weekDates(sch, 1).start}\n끝(현장 결전): ${G.eventDateLabel(sch)}\n회차마다 ${P.label}씩 ${EVENT.weeks}번`
+    const msg = `이 일정으로 저장할까요?\n\n시작: ${G.weekDates(sch, 1).start}\n간격: ${gap.label}마다 (${EVENT.weeks}회차)\n현장 결전: ${G.eventDateLabel(sch)}`
       + (start <= now() ? '\n\n시작 시각이 이미 지났으면 지금 바로 그 회차로 넘어가요.' : '');
     if (!confirm(msg)) return;
     const res = await adminCall('schedule', { start, end });
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
     else if (res) {
       ui.schedDraft = null;
+      ui.schedGap = null;
       render();
       toast('<span><b>일정을 저장했어요</b></span>', 'good');
     }
@@ -882,6 +895,11 @@ const actions = {
     const res = await adminCall('quizLevel', { level: el.dataset.level });
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
     else if (res) toast('<span>문제 수준을 바꿨어요 · 이번 회차 문제가 새로 열렸어요</span>', 'good');
+  },
+  'admin-adapt': async (el) => {
+    const res = await adminCall('adapt', { on: !!el.dataset.on });
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) toast(`<span>보스 자동 조절을 <b>${res.on ? '켰어요' : '껐어요'}</b> (지금 ×${res.adjust})</span>`, 'good');
   },
   'admin-power': async (el) => {
     const res = await adminCall('power', { scale: Number(el.dataset.scale) });

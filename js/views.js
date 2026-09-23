@@ -7,12 +7,16 @@ import {
   teamById, bossOf, levelInfo, weekly, daily, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
-  scheduleOf, paceOf, roundLength, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor,
+  scheduleOf, paceOf, roundLength, paceKeyFor, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor,
 } from './game.js';
 import { cardsForWeek, CARD_SETS, CARDS_TOTAL, cardAt } from './cards.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
 
 const me = (state) => state.users[state.me];
+// 운영자 일정 칸에서 쓰는 도우미 (한국 시간 입력칸 ↔ 시각, 간격 이름 찾기)
+const fromKstInputView = (v) => (v ? Date.parse(`${v}:00+09:00`) : NaN);
+const whenText = (ms) => new Date(ms).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+
 const pct = (a, b) => (b > 0 ? Math.max(0, Math.min(100, (a / b) * 100)) : 0);
 
 const SVG = {
@@ -332,7 +336,7 @@ function arena(state, u, ui) {
         ? `${icon('seal', 18)}<b>마지막 힘으로 버티는 중!</b> ${info.killOpen
           ? '지금 공격하면 쓰러뜨릴 수 있어요. 어서!'
           : `${killLabel(state, state.week)}부터 마지막 일격을 넣을 수 있어요.`}`
-        : `${icon('food', 18)}이 보스는 <b>하루에 체력 ${Math.round(info.regenPerDay * 100)}%</b>를 회복해요. ${info.killOpen
+        : `${state.bossAdjust && state.bossAdjust !== 1 ? `<b>${state.bossAdjust > 1 ? `지난 회차 활약 소문에 보스가 단단해졌어요 (체력 ×${state.bossAdjust})` : `지난 회차가 힘겨워서 보스가 방심했어요 (체력 ×${state.bossAdjust})`}</b> · ` : ''}${icon('food', 18)}이 보스는 <b>하루에 체력 ${Math.round(info.regenPerDay * 100)}%</b>를 회복해요. ${info.killOpen
           ? '지금은 막판! 체력을 다 깎으면 바로 쓰러져요.'
           : `막판(${killLabel(state, state.week)})까지는 버티니 <b>꾸준히 조금씩</b> 힘을 보태 주세요.`}`}</p>` : ''}
       <div class="arena__ring" id="bossArena">
@@ -1355,6 +1359,12 @@ export function renderAdmin(state, ui) {
       <div class="admin-golden">${(ov.bossScales || [1]).map((v) => `
         <button class="btn btn--soft btn--sm ${(ov.bossScale || 1) === v ? 'is-active' : ''}" data-action="admin-power" data-scale="${v}">${v < 1 ? '약하게' : v > 1 ? '세게' : '보통'} (×${v})</button>`).join('')}
       </div>
+      <p class="sec-desc admin-adapt">지난 회차에 얼마나 몰아쳤는지에 따라 <b>다음 보스가 저절로</b> 세지거나 약해져요.
+        지금 자동 조절 <b>×${ov.bossAdjust ?? 1}</b> · ${ov.bossAdaptOn ? '켜짐' : '꺼짐'}</p>
+      <div class="admin-golden">
+        <button class="btn btn--soft btn--sm ${ov.bossAdaptOn ? 'is-active' : ''}" data-action="admin-adapt" data-on="1">자동 조절 켜기</button>
+        <button class="btn btn--soft btn--sm ${ov.bossAdaptOn ? '' : 'is-active'}" data-action="admin-adapt" data-on="">끄기</button>
+      </div>
     </section>
 
     <section class="card">
@@ -1370,26 +1380,37 @@ export function renderAdmin(state, ui) {
     </section>
 
     <section class="card">
-      ${secHead('일정 (시작 · 끝)', `<span class="sec-note">회차마다 ${P.label}${S.quick ? ' · 미리 해 보기' : ''}</span>`)}
-      <p class="sec-desc">시작 날짜에 1${P.round}가 열리고, 끝 날짜(현장 결전)까지를 똑같이 ${EVENT.weeks}번으로 나눠 회차가 바뀌어요. 회차마다 퀴즈·보스·럭키박스·가위바위보 횟수가 새로 열려요. 날짜와 시각은 한국 시간이에요.</p>
+      ${secHead('일정 (시작 · 간격)', `<span class="sec-note">회차마다 ${P.label}${S.quick ? ' · 미리 해 보기' : ''}</span>`)}
+      <p class="sec-desc">시작 시각에 1${P.round}가 열리고, 고른 <b>간격</b>마다 다음 회차로 넘어가요. ${EVENT.weeks}회차가 끝나는 시각이 곧 <b>현장 결전</b>이에요. 날짜와 시각은 한국 시간이에요.</p>
       <div class="admin-sched">
         <label class="admin-sched__field"><span>시작</span>
           <input type="datetime-local" id="schedStart" value="${ui.schedDraft?.start ?? kstInput(S.start)}">
           <button class="btn btn--soft btn--sm" data-action="admin-sched-now">지금</button>
+          <button class="btn btn--soft btn--sm" data-action="admin-sched-nov">11월 21일</button>
         </label>
-        <label class="admin-sched__field"><span>끝 (현장 결전)</span>
-          <input type="datetime-local" id="schedEnd" value="${ui.schedDraft?.end ?? kstInput(S.end)}">
-          <button class="btn btn--soft btn--sm" data-action="admin-sched-event">${eventDateLabelDefault()}</button>
-        </label>
-        <button class="btn btn--primary" data-action="admin-sched-save">일정 저장</button>
+      </div>
+      <p class="sec-desc admin-sched__quick">회차 간격 고르기</p>
+      <div class="admin-golden">
+        ${Object.entries(PACES).map(([k, q]) => `
+          <button class="btn btn--soft ${(ui.schedGap ?? paceKeyFor(S)) === k ? 'is-active' : ''}" data-action="admin-sched-gap" data-gap="${k}">${q.label}</button>`).join('')}
+      </div>
+      <p class="admin-sched__sum">${(() => {
+        const gap = PACES[ui.schedGap ?? paceKeyFor(S)];
+        const start = ui.schedDraft?.start ? fromKstInputView(ui.schedDraft.start) : S.start;
+        if (!gap || !Number.isFinite(start)) return '간격을 골라 주세요.';
+        const end = start + EVENT.weeks * gap.ms;
+        return `${gap.label}마다 ${EVENT.weeks}번 → <b>${whenText(start)}</b> 시작, <b>${whenText(end)}</b> 현장 결전`;
+      })()}</p>
+      <div class="admin-golden">
+        <button class="btn btn--primary" data-action="admin-sched-save">이 일정으로 저장</button>
       </div>
       <ol class="admin-rounds">
         ${BOSSES.map((b) => `<li${state.week === b.week ? ' class="is-now"' : ''}><b>${b.week}${P.round}</b><span>${weekDates(S, b.week).start} ~ ${weekDates(S, b.week).end}</span><small>${esc(b.name)}</small></li>`).join('')}
         <li${state.week >= FINAL_WEEK ? ' class="is-now"' : ''}><b>결전</b><span>${eventDateLabel(S)}</span><small>${esc(FINAL_BOSS.name)}</small></li>
       </ol>
-      <p class="sec-desc admin-sched__quick">빠른 미리 해 보기 — 지금 회차를 바로 새로 시작하고, 회차마다 이 시간씩 (보스 체력이 낮아져 혼자서도 해 볼 수 있어요)</p>
+      <p class="sec-desc admin-sched__quick">지금 바로 시작 — 누르는 순간 이번 회차가 새로 시작되고, 그 뒤로 이 간격마다 넘어가요</p>
       <div class="admin-golden">
-        ${Object.entries(PACES).map(([k, q]) => `<button class="btn btn--soft" data-action="admin-pace" data-pace="${k}">${q.label}</button>`).join('')}
+        ${Object.entries(PACES).map(([k, q]) => `<button class="btn btn--soft" data-action="admin-pace" data-pace="${k}">${q.label}마다</button>`).join('')}
       </div>
       <p class="sec-desc admin-pace__note">미리 해 보기가 끝나면 맨 아래 “전체 초기화”를 누르세요. “지금 바로 시작 → ${eventDateLabelDefault()} 결전” 일정과 샘플 상품으로 돌아가요.</p>
     </section>
