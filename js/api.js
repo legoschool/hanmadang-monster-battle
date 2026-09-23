@@ -63,5 +63,7 @@ async function call(route, body) {
 
 export const fetchState = (sinceVersion) => call('state', { token: memoryToken, v: sinceVersion || null });
 export const join = (params) => call('join', { params });
+export const find = (name) => call('find', { name });                       // 이름으로 힌트 질문 찾기
+export const recover = (name, answer) => call('recover', { name, answer }); // 힌트 답을 맞히면 이어하기
 export const act = (type, params = {}) => call('action', { token: memoryToken, type, params });
 export const admin = (type, params = {}) => call('admin', { adminKey: memoryAdmin, type, params });
