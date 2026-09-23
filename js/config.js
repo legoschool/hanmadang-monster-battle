@@ -22,6 +22,20 @@ export const EVENT = {
 // 처음(초기화 뒤)에는 "지금 바로 시작 → 12월 19일(토) 0시 결전"이다.
 // 아래는 운영자 화면의 "빠른 미리 해 보기" 버튼: 지금부터 회차마다 이 시간씩.
 const HOUR = 3600 * 1000;
+// 참가자 수준 — 문제와 카드 글이 달라진다 (보상·보스 피해는 똑같다)
+export const LEVELS = {
+  adult:   { label: '선생님 · 일반', desc: '기본 난이도. 업무와 생활에서 바로 쓰는 이야기' },
+  student: { label: '학생',          desc: '쉬운 말로 된 문제와 카드' },
+};
+
+// 운영자가 한 번에 고르는 진행 방식
+export const MODES = [
+  { key: 'class40', label: '수업 한 차시', sub: '40분 · 회차 10분', pace: 'min10' },
+  { key: 'half',    label: '반나절',      sub: '2시간 · 회차 30분', pace: 'min30' },
+  { key: 'oneday',  label: '하루 만에',   sub: '4시간 · 회차 1시간', pace: 'hour' },
+  { key: 'project', label: '4주 프로젝트', sub: '1주일씩 · 현장 결전까지', project: true },
+];
+
 export const PACES = {
   day:   { label: '1일',   ms: 24 * HOUR },
   hour:  { label: '1시간', ms: HOUR },

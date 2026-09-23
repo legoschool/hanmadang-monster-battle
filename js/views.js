@@ -1,13 +1,13 @@
 // 페이지 화면 (HTML 문자열을 만든다)
 import {
-  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, PACES, SAMPLE_MARK,
+  EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, PACES, MODES, LEVELS, SAMPLE_MARK,
   spriteOf, bossImgOf, avatarOf,
 } from './config.js';
 import {
   teamById, bossOf, levelInfo, weekly, daily, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
-  scheduleOf, paceOf, roundLength, eventDefaultMs, killLabel, bossPower, roundDays, byDay,
+  scheduleOf, paceOf, roundLength, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor,
 } from './game.js';
 import { cardsForWeek, CARD_SETS, CARDS_TOTAL, cardAt } from './cards.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
@@ -124,7 +124,16 @@ export function renderOnboarding(state, ui) {
     </section>
 
     <section class="card onboard__form">
-      <h2><span class="step">1</span>내 커뮤니티 고르기</h2>
+      <h2><span class="step">1</span>누가 참여하나요?</h2>
+      <p class="onboard__note">고른 수준에 맞춰 문제와 카드 글이 달라져요. 나중에 「내 정보」에서 바꿀 수 있어요.</p>
+      <div class="level-pick" role="radiogroup" aria-label="수준">
+        ${Object.entries(LEVELS).map(([k, v]) => `
+          <button class="level-pick__item ${(ui.pickLevel || 'adult') === k ? 'is-selected' : ''}" role="radio" aria-checked="${(ui.pickLevel || 'adult') === k}"
+            data-action="pick-level" data-level="${k}">
+            <b>${esc(v.label)}</b><span>${esc(v.desc)}</span>
+          </button>`).join('')}
+      </div>
+      <h2><span class="step">2</span>내 커뮤니티 고르기</h2>
       <div class="team-pick" role="radiogroup" aria-label="커뮤니티">
         ${TEAMS.map((t) => `
           <button class="team-pick__item ${ui.pickTeam === t.id ? 'is-selected' : ''}" role="radio" aria-checked="${ui.pickTeam === t.id}"
@@ -134,15 +143,15 @@ export function renderOnboarding(state, ui) {
             <span>${esc(t.monster)}</span>
           </button>`).join('')}
       </div>
-      <h2><span class="step">2</span>내 아바타 고르기</h2>
+      <h2><span class="step">3</span>내 아바타 고르기</h2>
       <p class="onboard__note">활동할 때마다 이 아바타가 보스 전투 장면과 소식에 나타나요.</p>
       ${renderAvatarGrid(ui.pickAvatar, 'pick-avatar')}
-      <h2><span class="step">3</span>활동 이름 정하기</h2>
+      <h2><span class="step">4</span>활동 이름 정하기</h2>
       <label class="field">
         <input id="nickname" type="text" maxlength="12" placeholder="예: 반짝쌤" autocomplete="nickname" value="${esc(ui.nickname || '')}">
         <small>소식과 원정대 화면에 보이는 이름이에요. 실명 대신 별명을 추천해요.</small>
       </label>
-      <h2><span class="step">4</span>나만 아는 힌트 만들기</h2>
+      <h2><span class="step">5</span>나만 아는 힌트 만들기</h2>
       <p class="onboard__note">나중에 이름이나 기기를 잊어버렸을 때, 이 질문의 답을 맞히면 다시 이어서 할 수 있어요. 남이 맞히기 어려운 것으로 적어 주세요.</p>
       <div class="hint-fields">
         <label class="field"><input id="hintQ" type="text" maxlength="40" placeholder="질문 (예: 우리 반 반려식물 이름은?)" value="${esc(ui.hintQ || '')}"></label>
@@ -150,7 +159,7 @@ export function renderOnboarding(state, ui) {
       </div>
       <p class="onboard__note">띄어쓰기와 대소문자는 신경 쓰지 않아도 돼요. 개인정보(주민번호·전화번호)는 적지 마세요.</p>
       ${state.joinCodeRequired ? `
-      <h2><span class="step">5</span>참가 코드</h2>
+      <h2><span class="step">6</span>참가 코드</h2>
       <label class="field">
         <input id="joinCode" type="text" maxlength="40" placeholder="커뮤니티 안내에 있는 참가 코드" autocomplete="off">
       </label>` : ''}
@@ -658,7 +667,8 @@ function aiCards(state, ui, u) {
   const collected = (c.read || []).length;
   const totalAll = CARD_SETS.reduce((s, x) => s + x.cards.length, 0);
 
-  const cardLine = (card, w, i, openCount) => {
+  const cardLine = (rawCard, w, i, openCount) => {
+    const card = cardFor(w, i, state.level) || rawCard;
     const isRead = read.has(`${w}:${i}`);
     const open = ui.cardOpen === `${w}:${i}`;
     const fresh = w === state.week && i === openCount - 1 && !isRead;
@@ -678,6 +688,7 @@ function aiCards(state, ui, u) {
       </li>`;
   };
   const list = set.cards.slice(0, c.open).map((card, i) => cardLine(card, state.week, i, c.open)).join('');
+  const theme = cardThemeFor(state.week, state.level);
 
   // 지난 회차 카드는 모두 열려 있어요 (웹툰 몰아 보기)
   const past = CARD_SETS.filter((x) => x.week < state.week);
@@ -687,7 +698,7 @@ function aiCards(state, ui, u) {
   return `
     <section class="card ai-cards">
       ${secHead('오늘의 AI 한 조각', `<span class="sec-note">${every} 한 장씩 열려요 · 읽으면 먹이 ${RULES.card.food}개 + ${RULES.card.points}P</span>`)}
-      <p class="sec-desc">${esc(c.theme)} — 컴퓨터 기초부터 AI까지, 알아 두면 힘이 되는 이야기예요. 못 본 카드는 사라지지 않으니 <b>웹툰처럼 몰아서</b> 봐도 되고, 그날 열린 카드를 그날 보면 <b>+${RULES.card.onTimePoints}P</b>와 꾸준 점수를 더 받아요.</p>
+      <p class="sec-desc">${esc(theme)} — 컴퓨터 기초부터 AI까지, 알아 두면 힘이 되는 이야기예요. 못 본 카드는 사라지지 않으니 <b>웹툰처럼 몰아서</b> 봐도 되고, 그날 열린 카드를 그날 보면 <b>+${RULES.card.onTimePoints}P</b>와 꾸준 점수를 더 받아요.</p>
       <div class="ai-cards__bar">
         <span class="ai-cards__count">모은 카드 <b>${num(collected)}</b> / ${num(totalAll)}장</span>
         <span class="goal__bar"><span style="width:${pct(collected, totalAll)}%"></span></span>
@@ -1266,6 +1277,14 @@ export function renderSettings(state, token, revealed) {
       ${renderAvatarGrid(u.avatar, 'avatar-set')}
     </section>
     <section class="device-code">
+      <h3>문제 수준</h3>
+      <p>지금은 <b>${esc(LEVELS[state.level || 'adult'].label)}</b> 수준이에요. 바꾸면 이번 회차 문제가 새 수준으로 다시 열려요(이미 받은 포인트는 그대로예요).</p>
+      <div class="admin-golden">
+        ${Object.entries(LEVELS).map(([k, v]) => `
+          <button class="btn btn--soft btn--sm ${(state.level || 'adult') === k ? 'is-active' : ''}" data-action="level-set" data-level="${k}">${esc(v.label)}</button>`).join('')}
+      </div>
+    </section>
+    <section class="device-code">
       <h3>이름 찾기 힌트</h3>
       <p>이름이나 기기를 잊었을 때, 시작 화면에서 <b>활동 이름 + 이 질문의 답</b>으로 이어서 할 수 있어요.</p>
       <p class="hint-now">${u.hint?.q ? `${icon('mystery', 20)}<b>${esc(u.hint.q)}</b>` : '<span class="muted">아직 힌트가 없어요</span>'}</p>
@@ -1342,6 +1361,18 @@ export function renderAdmin(state, ui) {
       <div class="admin-golden">${(ov.bossScales || [1]).map((v) => `
         <button class="btn btn--soft btn--sm ${(ov.bossScale || 1) === v ? 'is-active' : ''}" data-action="admin-power" data-scale="${v}">${v < 1 ? '약하게' : v > 1 ? '세게' : '보통'} (×${v})</button>`).join('')}
       </div>
+    </section>
+
+    <section class="card">
+      ${secHead('진행 방식', `<span class="sec-note">지금 ${S.quick ? `미리 해 보기 · 회차 ${P.label}` : `회차 ${P.label}`}</span>`)}
+      <p class="sec-desc">한 번만 누르면 시작 시각과 회차 길이가 한꺼번에 맞춰져요. 수업 시간에 짧게 해 보거나, 4주 프로젝트로 길게 할 수 있어요.</p>
+      <div class="mode-pick">
+        ${MODES.map((m) => `
+          <button class="mode-pick__item" data-action="admin-mode" data-mode="${m.key}">
+            <b>${m.label}</b><span>${m.sub}</span>
+          </button>`).join('')}
+      </div>
+      <p class="sec-desc admin-pace__note">짧은 방식은 보스 체력이 낮아져 적은 인원으로도 해 볼 수 있어요. 끝나면 맨 아래 “전체 초기화”를 누르면 기본 일정과 샘플 상품으로 돌아가요.</p>
     </section>
 
     <section class="card">

@@ -1,5 +1,5 @@
 // 앱 시작, 화면 이동, 버튼 동작. 모든 판정은 서버가 하고 화면은 서버가 보낸 상태를 그린다.
-import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, SERVER_READY, spriteOf, eggOf } from './config.js';
+import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, MODES, SERVER_READY, spriteOf, eggOf } from './config.js';
 import * as G from './game.js';
 import * as API from './api.js';
 import * as V from './views.js';
@@ -13,7 +13,7 @@ let state = null;
 const ui = {
   pickTeam: null, pickAvatar: null, quizReveal: null, crewTab: 'alliance', crewMode: 'week',
   giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {},
-  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null,
+  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null, pickLevel: 'adult',
   adminOverview: null, adminError: '', adminPrizes: null, schedDraft: null,
   seenHit: 0, seenRounds: null, seenPrizes: null,
   cheerQueue: 0, cheerInflight: 0, cheerPending: 0,
@@ -448,6 +448,17 @@ const actions = {
     });
     $('joinError').textContent = '';
   },
+  'pick-level': (el) => {
+    ui.pickLevel = el.dataset.level === 'student' ? 'student' : 'adult';
+    render();
+  },
+  'level-set': async (el) => {
+    const res = await act('level', { level: el.dataset.level });
+    if (!res?.ok) return toast(`<span>${esc(res?.reason || '바꾸지 못했어요')}</span>`, 'warn');
+    updateModal(V.renderSettings(state, API.getToken(), ui.codeRevealed));
+    render();
+    toast(`<span>문제 수준을 <b>${res.level === 'student' ? '학생' : '선생님 · 일반'}</b>으로 바꿨어요</span>`, 'good');
+  },
   'pick-avatar': (el) => {
     ui.pickAvatar = el.dataset.avatar;
     document.querySelectorAll('.avatar-pick__item').forEach((b) => {
@@ -474,7 +485,7 @@ const actions = {
     const seq = ++sentSeq;
     let checkin;
     try {
-      const data = await API.join({ name, teamId: ui.pickTeam, avatar: ui.pickAvatar, hintQ, hintA, code: $('joinCode')?.value });
+      const data = await API.join({ name, teamId: ui.pickTeam, avatar: ui.pickAvatar, level: ui.pickLevel, hintQ, hintA, code: $('joinCode')?.value });
       API.setToken(data.token);
       apply(data.state, seq, data.token);
       checkin = data.checkin;
@@ -881,6 +892,20 @@ const actions = {
       render();
       toast('<span><b>일정을 저장했어요</b></span>', 'good');
     }
+  },
+  'admin-mode': async (el) => {
+    const mode = MODES.find((m) => m.key === el.dataset.mode);
+    if (!mode) return;
+    if (!confirm(`「${mode.label}」(${mode.sub})로 바꿀까요? 지금 회차가 새로 시작돼요.`)) return;
+    let res;
+    if (mode.project) {
+      const end = G.eventDefaultMs();
+      res = await adminCall('schedule', { start: end - EVENT.weeks * 7 * 24 * 3600 * 1000, end });
+    } else {
+      res = await adminCall('pace', { pace: mode.pace });
+    }
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) toast(`<span><b>${mode.label}</b>로 바꿨어요 · ${mode.sub}</span>`, 'good');
   },
   'admin-power': async (el) => {
     const res = await adminCall('power', { scale: Number(el.dataset.scale) });
