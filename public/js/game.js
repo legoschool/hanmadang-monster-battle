@@ -8,6 +8,7 @@ import {
   EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, expForLevel,
 } from './config.js';
 import { cardsForWeek, CARDS_PER_ROUND } from './cards.js';
+import { kidCardsForWeek } from './cards-kid.js';
 
 export const SCHEMA = 6; // 저장 데이터 모양이 바뀌면 올린다 (예전 모양은 새로 시작). 6: 날마다 열리는 문제·AI 카드 도감
 export const FINAL_WEEK = EVENT.weeks + 1;
@@ -196,9 +197,9 @@ export function newGameState() {
   return state;
 }
 
-export function newUser({ id, name, teamId, avatar }) {
+export function newUser({ id, name, teamId, avatar, level }) {
   return {
-    id, name, teamId, avatar,
+    id, name, teamId, avatar, level: level === 'student' ? 'student' : 'adult',
     food: 0, premium: 0, points: 0, totalPoints: 0, totalDmg: 0, totalCorrect: 0,
     items: { booster: 0, cheer: 0, coffee: 0 },
     coupons: [], visitedWeeks: [], bossRewards: [], cards: [], onTime: 0,
@@ -281,6 +282,27 @@ export function nextOpenAt(state, total, now = Date.now()) {
 
 // 「오늘의 AI 한 조각」 — 회차마다 CARDS_PER_ROUND장, 시간이 지날수록 한 장씩 열린다
 export const cardKey = (week, i) => `${week}:${i}`;
+// 수준에 맞는 카드 글 (학생이면 쉬운 말 판을 덮어쓴다. 번호·낱말은 같다)
+export function cardFor(week, i, level) {
+  const base = cardsForWeek(week)?.cards[i];
+  if (!base) return null;
+  const kid = level === 'student' ? kidCardsForWeek(week)?.cards[i] : null;
+  return kid ? { ...base, ...kid } : base;
+}
+export const cardThemeFor = (week, level) =>
+  (level === 'student' ? kidCardsForWeek(week)?.theme : null) || cardsForWeek(week)?.theme || '';
+
+// 참가자 수준 바꾸기 (이번 회차 문제는 수준마다 달라서 답을 지우고 다시 연다)
+export function setLevel(state, userId, level) {
+  const u = state.users[userId];
+  const v = level === 'student' ? 'student' : 'adult';
+  if (u.level === v) return { ok: false, reason: '이미 그 수준이에요' };
+  u.level = v;
+  const d = weekly(state, u);
+  d.quiz = [];
+  d.quizDoneAt = 0;
+  return { ok: true, level: v };
+}
 export function cardState(state, user, now = Date.now()) {
   const set = cardsForWeek(state.week);
   const total = set ? set.cards.length : 0;
@@ -319,7 +341,7 @@ export function readCard(state, userId, week, index, now = Date.now()) {
   const onTime = w === state.week && i === open - 1;
   if (onTime) u.onTime = (u.onTime || 0) + 1;
   addPoints(state, u, R.points + (onTime ? R.onTimePoints : 0));
-  const card = set.cards[i];
+  const card = cardFor(w, i, u.level) || set.cards[i];
   if (u.cards.length % CARDS_PER_ROUND === 0) {
     pushFeed(state, 'premium', `${u.name}님이 AI 한 조각 ${u.cards.length}장을 모았어요! (도감 ${u.cards.length}장)`, who(u));
   }
