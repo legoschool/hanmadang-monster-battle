@@ -6,6 +6,7 @@ import {
 } from './config.js';
 import {
   teamById, bossOf, levelInfo, weekly, daily, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
+  personalRanking, RANK_KEYS,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
   scheduleOf, paceOf, roundLength, paceKeyFor, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor, teamSkill, isFree,
@@ -1050,7 +1051,7 @@ export function renderCrew(state, ui) {
   const u = me(state);
   const tab = ui.crewTab || 'alliance';
   const play = isPlayWeek(state.week);
-  const tabs = [['alliance', '연합 현황'], ['people', '활약 대원'], ['hall', '명예의 전당']];
+  const tabs = [['alliance', '연합 현황'], ['people', '활약 대원'], ['board', '랭킹 보드'], ['hall', '명예의 전당']];
   let body = '';
 
   if (tab === 'alliance') {
@@ -1106,6 +1107,50 @@ export function renderCrew(state, ui) {
         ${shown.map(row).join('')}
         ${mineRow && mineRow.rank > 20 ? `<li class="gap">⋯</li>${row(mineRow)}` : ''}
       </ol>`;
+  } else if (tab === 'board') {
+    const key = ui.boardKey || 'dmg';
+    const info = RANK_KEYS[key];
+    const list = personalRanking(state, key);
+    const mineRow = list.find((r) => r.u.id === u.id);
+    const medal = (n) => (n === 1 ? '🥇' : n === 2 ? '🥈' : n === 3 ? '🥉' : n);
+    const row = (r) => `
+      <li class="person-row ${r.u.id === u.id ? 'is-mine' : ''}">
+        <span class="rank-row__no rank-${r.rank}">${medal(r.rank)}</span>
+        ${face(r.u, 36)}
+        <div><b>${esc(r.u.name)}${r.u.id === u.id ? ' (나)' : ''}</b><small>${esc(teamById(r.u.teamId).community)}${r.u.laps ? ` · ${r.u.laps}바퀴 완주` : ''}</small></div>
+        <span class="person-row__score">${num(r.score)}${info.unit}</span>
+      </li>`;
+    const seasons = state.seasons || [];
+    body = `
+      <p class="sec-desc">${isFree(state)
+        ? `프리 모드에서도 기록은 그대로 쌓여요. 지금 <b>${state.lap || 1}바퀴째</b>를 돌고 있어요.`
+        : '정규 시즌과 프리 모드에서 쌓은 기록을 모두 합쳐서 보여 줘요.'}</p>
+      <div class="board-keys">
+        ${Object.entries(RANK_KEYS).map(([k, v]) => `
+          <button class="btn btn--soft btn--sm ${k === key ? 'is-active' : ''}" data-action="board-key" data-key="${k}">${esc(v.label)}</button>`).join('')}
+      </div>
+      <ol class="person-list">
+        ${list.slice(0, 20).map(row).join('')}
+        ${mineRow && mineRow.rank > 20 ? `<li class="gap">⋯</li>${row(mineRow)}` : ''}
+        ${list.length ? '' : '<li class="gap">아직 기록이 없어요</li>'}
+      </ol>
+
+      <h3 class="board-head">${icon('crown', 22)}지난 기록</h3>
+      ${seasons.length ? `
+      <ul class="season-list">
+        ${seasons.map((x) => `
+          <li class="season-card">
+            <div class="season-card__top">
+              <b>${x.mode === 'free' ? `프리 ${x.no}바퀴` : `시즌 ${x.no}`}</b>
+              <small>${new Date(x.at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })} · 대원 ${num(x.users)}명 · 봉인 ${x.seals}개</small>
+            </div>
+            <div class="season-card__rows">
+              ${(x.teams || []).map((t, i) => `<span class="season-team">${['🥇', '🥈', '🥉'][i] || ''} ${esc(teamById(t.id)?.community || t.id)} <i>${num(t.dmg)}</i></span>`).join('')}
+            </div>
+            ${x.top?.length ? `<div class="season-card__rows"><span class="season-team">최고 대원 <b>${esc(x.top[0].name)}</b> <i>${num(x.top[0].score)}</i></span>
+              ${x.king ? `<span class="season-team">지식왕 <b>${esc(x.king.name)}</b> <i>${num(x.king.score)}문제</i></span>` : ''}</div>` : ''}
+          </li>`).join('')}
+      </ul>` : '<p class="sec-desc">아직 끝난 시즌이 없어요. 한 바퀴를 완주하거나 운영자가 전체 초기화를 하면 그때의 기록이 여기 남아요.</p>'}`;
   } else {
     const weeks = Object.keys(state.awards).map(Number).sort((a, b) => b - a);
     const liveKing = play ? knowledgeKing(state) : null;

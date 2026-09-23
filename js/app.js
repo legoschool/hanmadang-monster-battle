@@ -12,7 +12,7 @@ const CHEER_FLUSH_MS = 6000;  // 누른 응원을 모아서 보내는 간격 (�
 let state = null;
 const ui = {
   pickTeam: null, pickAvatar: null, quizReveal: null, crewTab: 'alliance', crewMode: 'week',
-  giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {},
+  giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {}, boardKey: 'dmg',
   findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null, keyShown: false, keyDraft: '', schedGap: null,
   adminOverview: null, adminError: '', adminPrizes: null, schedDraft: null,
   seenHit: 0, seenRounds: null, seenPrizes: null,
@@ -737,6 +737,10 @@ const actions = {
   'crew-tab': (el) => {
     ui.crewTab = el.dataset.tab;
     if (location.hash.includes('?')) history.replaceState(null, '', '#/crew');
+    render();
+  },
+  'board-key': (el) => {
+    ui.boardKey = el.dataset.key;
     render();
   },
   'crew-mode': (el) => {
