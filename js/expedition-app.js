@@ -1,13 +1,20 @@
 import * as API from './api.js';
-import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js';
-import {ExpeditionEngine} from './expedition-engine.js';
+import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=fx3';
+import {ExpeditionEngine} from './expedition-engine.js?v=fx3';
+import {ExpeditionRenderer} from './expedition-renderer.js?v=fx3';
+import {ExpeditionAudio} from './expedition-audio.js?v=fx3';
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state,user,profile,library=[],zone='code',mode='survival',gentle=true,engine=null,run=null,pending=null;
 let busy=false,frame=0,lastFrame=0,hudTime=0,noticeTimer,keys=new Set(),pad={x:0,y:0},stick=null;
 let view='lobby',answered=0,auto=true,lastMove={x:1,y:0};
-let calmEffects=false;
+let preferences={sound:true,music:false,volume:.22,calm:matchMedia('(prefers-reduced-motion: reduce)').matches,quality:'high'};
+try{const saved=JSON.parse(localStorage.getItem('expedition-presentation')||'null');if(saved)preferences={...preferences,...saved};}catch{}
+let calmEffects=!!preferences.calm,renderer=null,endingRemaining=-1,training=false;
+const audio=new ExpeditionAudio();audio.configure(preferences);
+function savePreferences(){calmEffects=!!preferences.calm;audio.configure(preferences);if(renderer){renderer.calm=calmEffects;renderer.quality=preferences.quality;}try{localStorage.setItem('expedition-presentation',JSON.stringify(preferences));}catch{}}
+
 const assets=new Map();
 function img(path){if(!assets.has(path)){const i=new Image();i.src=path;assets.set(path,i);}return assets.get(path);}
 function notice(text){$('notice').textContent=text;$('notice').style.display='block';clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').style.display='none',3800);}
@@ -16,10 +23,11 @@ function closeDialog(){$('dialog').hidden=true;$('dialog').innerHTML='';$('arena
 async function request(type,params={}){const {result}=await API.act(type,params);if(!result?.ok)throw new Error(result?.reason||'원정 서버 응답을 확인하지 못했어요. 서버 업데이트가 필요할 수 있어요.');if(result.profile)profile=result.profile;return result;}
 function header(){return `<header class="top"><div class="brand"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>몬스터 원정대</span></div><a href="index.html#/home">공동 원정으로 돌아가기 ↗</a></header>`;}
 function login(message='공동 원정에서 커뮤니티와 아바타를 고르면 이곳에서도 같은 대원으로 이어집니다.'){
-  $('expedition').innerHTML=header()+`<section class="login-card"><span class="eyebrow">G-DEAL KNOWLEDGE QUEST</span><h1>내 아바타로 떠나는<br>지식의 숲</h1><p>${esc(message)}</p><a class="primary" href="index.html#/home">원정대에 참여하기</a><p class="muted">참여한 뒤 홈의 ‘지식의 숲’에서 돌아오세요.</p></section>`;
+  $('expedition').innerHTML=header()+`<section class="login-card"><span class="eyebrow">G-DEAL KNOWLEDGE QUEST</span><h1>내 아바타로 떠나는<br>지식의 숲</h1><p>${esc(message)}</p><a class="primary" href="index.html#/home">원정대에 참여하기</a><p class="muted">참여한 뒤 홈의 ‘지식의 숲’에서 돌아오세요.</p><button class="secondary" data-action="guestTraining">가입 없이 전투 체험</button><p class="muted">체험에서는 이름이나 플레이 기록을 서버에 저장하지 않습니다.</p></section>`;
 }
 function renderLobby(){
-  cancelAnimationFrame(frame);engine=null;view='lobby';run=null;pending=null;closeDialog();
+  cancelAnimationFrame(frame);engine=null;renderer=null;training=false;endingRemaining=-1;view='lobby';audio.update(false);run=null;pending=null;closeDialog();
+  if(!user){login();return;}
   const z=zoneById(zone),lv=profile.level,weapon=gearById(profile.weapon),charm=gearById(profile.charm);
   const spots=[[18,38],[37,25],[64,22],[84,37],[82,68],[62,78],[35,78],[16,68]];
   $('expedition').innerHTML=header()+`<section class="lobby">
@@ -33,11 +41,19 @@ function renderLobby(){
       <aside class="hero-card"><span class="eyebrow">MY EXPLORER</span><div class="hero-display"><img src="assets/avatars/${esc(profile.avatar)}.png" alt="${esc(profile.name)}"><img class="worn-weapon" src="${gearImage(weapon.id)}" alt="${weapon.name}">${charm?`<img class="worn-charm" src="${gearImage(charm.id)}" alt="${charm.name}">`:""}</div>
       <h2>${esc(profile.name)}</h2><button class="plain" data-action="customize">이름 · 모습 바꾸기</button><p class="muted">${esc(weapon.name)}${charm?' · '+esc(charm.name):' · 첫 장비와 함께 출발'}</p><div class="hero-level"><b>Lv.${lv} ${explorerTitle(lv)}</b><span>${profile.xp%60} / 60 XP</span></div><div class="bar"><i style="width:${profile.xp%60/60*100}%"></i></div><p class="muted">새 정답 3개마다 개인 레벨 +1<br>배운 문제 ${profile.mastered.length} / ${profile.total}</p>
       <div class="gear-mini"><button data-action="gear">내 장비 ${profile.owned.length}종</button><button data-action="library">지식 도감 · 복습</button></div></aside></div>
-    <div class="options-row"><label>진행 <select id="mode"><option value="survival" ${mode==='survival'?'selected':''}>숲 탐험 · 2분 30초 뒤 보스</option><option value="boss" ${mode==='boss'?'selected':''}>보스 도전 · 바로 전투</option><option value="study" ${mode==='study'?'selected':''}>지식 탐구 · 전투 없이 문제 풀기</option></select></label><label><input type="checkbox" id="gentle" ${gentle?'checked':''}> 여유 모드 (체력↑ · 적 속도↓)</label><button class="plain" data-action="guide">게임 방법</button></div>
+    <div class="options-row"><label>진행 <select id="mode"><option value="survival" ${mode==='survival'?'selected':''}>숲 탐험 · 2분 30초 뒤 보스</option><option value="boss" ${mode==='boss'?'selected':''}>보스 도전 · 바로 전투</option><option value="study" ${mode==='study'?'selected':''}>지식 탐구 · 전투 없이 문제 풀기</option></select></label><label><input type="checkbox" id="gentle" ${gentle?'checked':''}> 여유 모드 (체력↑ · 적 속도↓)</label><button class="plain" data-action="guide">게임 방법</button><button class="secondary" data-action="settings">소리 · 화면 효과</button><button class="secondary" data-action="trainingMenu">장비 체험 훈련장</button></div>
     <div class="section-head"><h2>오늘은 어디로 갈까요?</h2><span>모든 지역이 처음부터 열려 있어요</span></div><div class="zones">${ZONES.map((x,i)=>{const p=profile.zones.find(v=>v.id===x.id);return `<button class="zone ${x.id===zone?'active':''}" data-zone="${x.id}" style="--zone:${x.color}" aria-pressed="${x.id===zone}"><span class="zone-number">REGION ${String(i+1).padStart(2,'0')}</span><i class="zone-dot"></i><b>${x.topic}</b><span>${x.name} · ${p.learned} / ${p.total}</span></button>`;}).join('')}</div>
     <div class="controls-note"><kbd>WASD</kbd> / 방향키 이동 · <kbd>Space</kbd> 공격 · <kbd>E</kbd> 스킬 · <kbd>Shift</kbd> 돌진 · <kbd>Esc</kbd> 쉬기<br>휴대폰은 화면을 드래그하거나 방향 버튼으로 이동해요. 공격은 자동으로도 나갑니다.</div>
     <footer class="lobby-foot"><span>처음 맞힌 문제: 개인 경험치 20 + 먹이 1 + 5P + 커뮤니티 경험치 10<br>복습도 전투 강화는 그대로. 접속하지 않은 날의 개인 경험치는 줄지 않아요.</span><a href="index.html#/crew">우리 커뮤니티 보기 ↗</a></footer>
   </section>`;
+}
+function settingsDialog(){
+ dialog(`<div class="eyebrow">PRESENTATION</div><h2>나에게 맞는 전투 연출</h2><div class="settings-list"><label><input id="soundSetting" type="checkbox" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><label><input id="musicSetting" type="checkbox" ${preferences.music?'checked':''}> 전투 배경 선율</label><label>소리 크기 <input id="volumeSetting" aria-label="소리 크기" type="range" min="0" max="50" value="${Math.round(preferences.volume*100)}"></label><label><input id="calmSetting" type="checkbox" ${preferences.calm?'checked':''}> 화면 흔들림과 입자 줄이기</label><label>화면 품질 <select id="qualitySetting"><option value="high" ${preferences.quality==='high'?'selected':''}>선명하게</option><option value="low" ${preferences.quality==='low'?'selected':''}>가볍게</option></select></label></div><p class="muted">공격 범위와 적의 공격 예고는 어느 설정에서도 표시됩니다. 소리는 출발 버튼을 누른 뒤 재생돼요.</p><div class="dialog-actions"><button class="primary" data-action="settingsDone">설정 완료</button></div>`);
+}
+function trainingMenu(){dialog(`<div class="eyebrow">TRAINING GROUNDS</div><h2>세 무기를 직접 써 보세요.</h2><p>보상과 기록이 없는 체험 전투입니다. 모든 무기를 시험할 수 있고 체력이 넉넉합니다.</p><div class="training-weapons">${['blade','wand','orbit'].map(id=>`<button data-training="${id}"><img src="${gearImage(id)}" alt=""><b>${gearById(id).name}</b><small>${id==='blade'?'대형 검격과 충격파':id==='wand'?'별빛 탄환과 방사 폭발':'회전 궤도와 중력장'}</small></button>`).join('')}</div><div class="dialog-actions"><button class="secondary" data-action="close">돌아가기</button></div>`);}
+async function startTraining(weapon){
+ if(busy)return;busy=true;
+ await audio.unlock();audio.configure(preferences);training=true;run=null;pending=null;engine=new ExpeditionEngine({weapon,charm:profile.charm,level:profile.level,mode:'boss',gentle:true,bossType:zoneById(zone).boss,cinematic:true,seed:Date.now()>>>0});engine.hero.maxHp=engine.hero.hp=750;try{battle();}finally{busy=false;}
 }
 function customizeDialog(){
   dialog(`<div class="eyebrow">MY COMPANION</div><h2>함께 자랄 대원의 이름</h2><p>이름과 모습을 바꿔도 경험치와 장비는 그대로 남아요.</p><form id="customForm"><label>아바타 이름<input id="heroName" name="heroName" maxlength="16" required value="${esc(profile.name)}" autocomplete="off"></label><div class="avatar-picker">${Array.from({length:20},(_,i)=>{const id='a'+String(i+1).padStart(2,'0');return `<label><input type="radio" name="heroAvatar" value="${id}" ${profile.avatar===id?'checked':''}><img src="assets/avatars/${id}.png" alt="아바타 ${i+1}"></label>`;}).join('')}</div><div class="dialog-actions"><button class="primary" type="submit">내 대원으로 저장</button><button class="secondary" type="button" data-action="close">돌아가기</button></div><p id="customError" role="status"></p></form>`);
@@ -51,21 +67,21 @@ async function showLibrary(filter='all'){
   }catch(e){notice(e.message);}
 }
 async function start(){
-  if(busy)return;busy=true;
+  if(busy)return;busy=true;training=false;await audio.unlock();audio.configure(preferences);
   const startId=crypto.randomUUID();
   try{const r=await request('expeditionStart',{zone,mode,requestId:startId});run=r.runId;pending=r.question;answered=0;
     if(mode==='study'){view='study';$('expedition').innerHTML=header()+`<section class="login-card"><span class="eyebrow">${zoneById(zone).name}</span><h1>한 문제씩,<br>내 속도로.</h1><p>힌트를 보고 다시 답해도 괜찮아요. 새 정답의 보상은 즉시 저장됩니다.</p></section>`;showQuestion();}
-    else{engine=new ExpeditionEngine({weapon:profile.weapon,charm:profile.charm,level:profile.level,mode,gentle,bossType:zoneById(zone).boss,seed:Date.now()>>>0});battle();}
+    else{engine=new ExpeditionEngine({weapon:profile.weapon,charm:profile.charm,level:profile.level,mode,gentle,bossType:zoneById(zone).boss,cinematic:true,seed:Date.now()>>>0});battle();}
   }catch(e){notice(e.message);}finally{busy=false;}
 }
 function battle(){
-  view='battle';closeDialog();keys.clear();pad={x:0,y:0};auto=true;
+  view='battle';endingRemaining=-1;closeDialog();keys.clear();pad={x:0,y:0};auto=true;
   const z=zoneById(zone);
   $('expedition').innerHTML=`<section class="battle"><canvas id="arena" tabindex="0" aria-label="${z.name} 전투장. 방향키로 이동, Space 공격, E 스킬, Shift 돌진"></canvas>
-    <div class="battle-top"><div class="hud-box"><div class="hud-title"><b>${esc(profile.name)}</b><span id="rank">전투 Lv.1</span></div><div class="bar hp"><i id="hpBar" style="width:100%"></i></div><div class="bar xp"><i id="xpBar" style="width:0%"></i></div><div class="hud-stats"><span id="hpText">체력</span><span id="kills">처치 0</span></div></div><div class="hud-box timer-box"><small>${z.name}</small><strong id="timer">2:30</strong></div><button class="pause-btn" data-action="pause" aria-label="일시정지">Ⅱ 쉬기</button></div>
-    <div class="boss-hud" id="bossHud" hidden><span>${BOSS_TYPES[z.boss].name}</span><div class="bar"><i id="bossBar"></i></div><small id="bossText"></small></div>
-    <div class="battle-bottom"><div class="dpad" aria-label="이동 버튼"><button data-move="up" aria-label="위로 이동">↑</button><button data-move="left" aria-label="왼쪽 이동">←</button><button data-move="down" aria-label="아래로 이동">↓</button><button data-move="right" aria-label="오른쪽 이동">→</button></div><div class="battle-actions"><button class="battle-action" data-action="dash">돌진<small id="dashCd">Shift</small></button><button class="battle-action" data-action="skill">${profile.weapon==='wand'?'별빛 폭풍':profile.weapon==='orbit'?'궤도 붕괴':'섬광 베기'}<small id="skillCd">E</small></button><button class="battle-action large" data-action="attack">공격<small>Space</small></button></div></div><div class="battle-help">이동 WASD · 공격 Space · 스킬 E · 돌진 Shift<br><span id="autoLabel">자동 공격 켜짐</span><br><span id="comboLabel"></span></div></section>`;
-  const canvas=$('arena');canvas.focus();
+    <div class="battle-top"><div class="hud-box player-hud"><img class="hud-portrait" src="assets/avatars/${esc(profile.avatar)}.png" alt=""><div class="hud-title"><b>${esc(profile.name)}</b><span id="rank">전투 Lv.1</span></div><div class="bar hp"><i id="hpBar" style="width:100%"></i></div><div class="bar xp"><i id="xpBar" style="width:0%"></i></div><div class="hud-stats"><span id="hpText">체력</span><span id="kills">처치 0</span></div></div><div class="hud-box timer-box"><small>${training?'장비 체험 훈련장':z.name}</small><strong id="timer">2:30</strong></div><button class="pause-btn" data-action="pause" aria-label="일시정지">Ⅱ 쉬기</button></div>
+    <div class="boss-hud" id="bossHud" hidden><span><img class="boss-portrait" src="assets/bosses/${z.boss}.png" alt="">${BOSS_TYPES[z.boss].name}</span><div class="bar"><i id="bossBar"></i></div><small id="bossText"></small></div>
+    <div class="battle-bottom"><div class="dpad" aria-label="이동 버튼"><button data-move="up" aria-label="위로 이동">↑</button><button data-move="left" aria-label="왼쪽 이동">←</button><button data-move="down" aria-label="아래로 이동">↓</button><button data-move="right" aria-label="오른쪽 이동">→</button></div><div class="battle-actions"><button class="battle-action" data-action="dash"><span class="action-glyph">»</span>돌진<small id="dashCd">Shift</small></button><button class="battle-action" data-action="skill"><img src="${gearImage(engine.weapon)}" alt="">${engine.weapon==='wand'?'별빛 폭풍':engine.weapon==='orbit'?'궤도 붕괴':'섬광 베기'}<small id="skillCd">E</small></button><button class="battle-action large" data-action="attack"><span class="action-glyph">⌁</span>공격<small>Space</small></button></div></div><div class="battle-help">이동 WASD · 공격 Space · 스킬 E · 돌진 Shift<br><span id="autoLabel">자동 공격 켜짐</span><br><span id="comboLabel"></span></div></section>`;
+  const canvas=$('arena');canvas.focus();renderer=new ExpeditionRenderer(canvas,{profile,zone:z,image:img,audio,calm:calmEffects,quality:preferences.quality});
   canvas.addEventListener('pointerdown',e=>{if(engine.phase!=='playing')return;canvas.setPointerCapture(e.pointerId);stick={id:e.pointerId,x:e.clientX,y:e.clientY,dx:0,dy:0};});
   canvas.addEventListener('pointermove',e=>{if(stick?.id===e.pointerId){stick.dx=e.clientX-stick.x;stick.dy=e.clientY-stick.y;}});
   const stop=e=>{if(stick?.id===e.pointerId)stick=null;};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);canvas.addEventListener('lostpointercapture',stop);
@@ -79,73 +95,28 @@ function movement(){
 }
 function tick(t){
   if(!engine||view!=='battle')return;
-  const dt=(t-lastFrame)/1000;lastFrame=t;engine.step(dt,movement());draw();
+  const dt=Math.min(.05,(t-lastFrame)/1000);lastFrame=t;
+  engine.step(dt,movement());renderer.draw(engine,dt,{stick});audio.update(engine.phase==='playing'&&engine.entrance<=0);
   if(t-hudTime>90){hud();hudTime=t;}
-  if(engine.event){const event=engine.event;engine.event=null;if(event==='question')showQuestion();if(event==='end')finish();}
+  if(engine.event){const event=engine.event;engine.event=null;
+    if(event==='question'){if(training){engine.continueQuestion(true);engine.upgrade('heart');}else showQuestion();}
+    if(event==='end')endingRemaining=calmEffects?1:2.6;
+  }
+  if(endingRemaining>=0&&!document.hidden){endingRemaining-=dt;if(endingRemaining<=0){endingRemaining=-1;finish();}}
   frame=requestAnimationFrame(tick);
 }
 function hud(){
-  if(!engine||!$('rank'))return;const h=engine.hero,b=engine.boss;
+  if(!engine||!$('rank'))return;const h=engine.hero,b=engine.boss;$('arena').dataset.audioState=audio.ctx?.state||'unavailable';
   $('comboLabel').textContent=engine.combo>1?`${engine.combo} 연속 처치!`:'';
   $('rank').textContent=`전투 Lv.${engine.rank}`;$('hpText').textContent=`${Math.ceil(h.hp)} / ${h.maxHp}`;
   $('hpBar').style.width=`${h.hp/h.maxHp*100}%`;$('xpBar').style.width=`${engine.xp/engine.nextXp*100}%`;$('kills').textContent=`처치 ${engine.kills}`;
   const left=Math.max(0,Math.ceil(150-engine.time));$('timer').textContent=b?'BOSS':`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;
   $('dashCd').textContent=engine.dashCd>0?`${Math.ceil(engine.dashCd)}초`:'Shift';$('skillCd').textContent=engine.skillCd>0?`${Math.ceil(engine.skillCd)}초`:'E';
+  document.querySelector('[data-action="skill"]')?.style.setProperty('--cooldown',`${engine.skillCd/9*100}%`);document.querySelector('[data-action="skill"]')?.classList.toggle('ready',engine.skillCd<=0);
+  for(const action of ['attack','skill','dash']){const control=document.querySelector(`[data-action="${action}"]`);if(control)control.disabled=engine.phase!=='playing'||engine.entrance>0||(action==='skill'&&engine.skillCd>0)||(action==='dash'&&engine.dashCd>0);}
   $('bossHud').hidden=!b;if(b){$('bossBar').style.width=`${Math.max(0,b.hp/b.maxHp*100)}%`;$('bossText').textContent=`${Math.max(0,Math.ceil(b.hp))} / ${b.maxHp} · 봉인 해제 ${engine.seals}/3`;}
 }
-function draw(){
-  const c=$('arena');if(!c||!engine)return;const dpr=Math.min(2,devicePixelRatio||1),rect=c.getBoundingClientRect(),w=rect.width,h=rect.height;
-  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
-  const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
-  const scale=Math.max(w/1100,h/800),vw=w/scale,vh=h/scale,p=engine.hero;
-  const camX=Math.max(0,Math.min(engine.width-vw,p.x-vw/2)),camY=Math.max(0,Math.min(engine.height-vh,p.y-vh/2));
-  ctx.save();ctx.scale(scale,scale);ctx.translate(-camX,-camY);if(!calmEffects&&engine.shake>0)ctx.translate(Math.sin(engine.time*71)*engine.shake,Math.cos(engine.time*83)*engine.shake*.6);ctx.imageSmoothingEnabled=false;
-  ctx.fillStyle='#34583a';ctx.fillRect(0,0,1100,800);
-  const grd=ctx.createRadialGradient(550,420,40,550,420,580);grd.addColorStop(0,'#557248');grd.addColorStop(1,BOSS_TYPES[zoneById(zone).boss].bg);ctx.fillStyle=grd;ctx.fillRect(0,0,1100,800);
-  ctx.lineWidth=70;ctx.strokeStyle='#a6a07825';ctx.beginPath();ctx.moveTo(0,470);ctx.bezierCurveTo(300,280,620,600,1100,360);ctx.stroke();
-  for(let i=0;i<310;i++){const x=(i*137+31)%1100,y=(i*239+71)%800;ctx.fillStyle=i%5?'#a7bc7530':'#d4d09465';ctx.fillRect(x,y,i%3?3:6,2);if(i%7===0){ctx.fillRect(x+2,y-3,2,3);ctx.fillRect(x+5,y-5,2,5);}}
-  const tree=(x,y,s=1)=>{ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.fillStyle='#17352355';ctx.beginPath();ctx.ellipse(0,25,26,10,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#6f6443';ctx.fillRect(-5,-5,10,28);for(let k=0;k<3;k++){ctx.fillStyle=['#183b29','#244a31','#305739'][k];ctx.beginPath();ctx.moveTo(0,-65+k*17);ctx.lineTo(-29+k*2,2+k*12);ctx.lineTo(29-k*2,2+k*12);ctx.closePath();ctx.fill();}ctx.restore();};
-  for(let i=0;i<16;i++){tree(20+i*75,55,0.85+(i%3)*.12);tree(i*75,775,.85+(i%4)*.09);}
-  for(let i=1;i<10;i++){tree(20,i*77,1.05);tree(1080,i*77,.9);}
-  // 고대 회로의 제단과 돌. 직접 그린 도형을 사용한다.
-  ctx.strokeStyle='#ced59f29';ctx.lineWidth=2;ctx.beginPath();ctx.arc(550,400,155,0,Math.PI*2);ctx.stroke();
-  for(let i=0;i<8;i++){const a=i*Math.PI/4,x=550+Math.cos(a)*155,y=400+Math.sin(a)*155;ctx.fillStyle='#9baf7a';ctx.fillRect(x-5,y-5,10,10);ctx.fillStyle='#d5ddb1';ctx.fillRect(x-2,y-4,3,5);}
-  const charging=engine.boss?.charge;if(charging&&charging.wait>0){const b=engine.boss;ctx.save();ctx.translate(b.x,b.y);ctx.rotate(charging.angle);ctx.fillStyle='#ff674755';ctx.fillRect(0,-34,charging.left,68);ctx.strokeStyle='#ffb39c';ctx.setLineDash([12,8]);ctx.strokeRect(0,-34,charging.left,68);ctx.restore();}
-  for(const z of engine.hazards){ctx.fillStyle=`rgba(244,130,91,${.08+(1-z.ttl/1.3)*.3})`;ctx.strokeStyle='#f0b87d';ctx.lineWidth=2;ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,Math.PI*2);ctx.fill();ctx.stroke();}
-  for(const d of engine.drops){ctx.save();ctx.translate(d.x,d.y);ctx.shadowBlur=10;ctx.shadowColor=d.kind==='gem'?'#adf3bc':'#ffd7a8';ctx.fillStyle=d.kind==='gem'?'#aee6c1':'#efb18a';ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(6,0);ctx.lineTo(0,7);ctx.lineTo(-6,0);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#efffd2';ctx.fillRect(-1,-4,2,3);ctx.restore();}
-  const entities=[...engine.enemies,...(engine.boss?[engine.boss]:[]),{...p,kind:'hero'}].sort((a,b)=>a.y-b.y);
-  for(const e of entities){ctx.save();ctx.translate(e.x,e.y);ctx.fillStyle='#0e271e55';ctx.beginPath();ctx.ellipse(0,e.r*.65,e.r*1.1,e.r*.4,0,0,Math.PI*2);ctx.fill();
-    if(e.kind==='hero'){
-      {
-        if(p.inv>0)ctx.globalAlpha=Math.floor(engine.time*12)%2 ? 0.58 : 1;
-        const hero=img(`assets/avatars/${profile.avatar}.png`);if(hero.complete&&hero.naturalWidth)ctx.drawImage(hero,-29,-39,58,58);else{ctx.fillStyle='#ecdca6';ctx.fillRect(-12,-25,24,32);}
-        const a=engine.weapon==='orbit'?engine.time*3:p.face;
-        const item=img(gearImage(engine.weapon));ctx.save();ctx.rotate(a+Math.PI/4);ctx.translate(24,-7);if(item.complete&&item.naturalWidth)ctx.drawImage(item,-20,-28,44,44);ctx.restore();
-        if(profile.charm){const accessory=img(gearImage(profile.charm));if(accessory.complete&&accessory.naturalWidth)ctx.drawImage(accessory,profile.charm==='boots'?-14:-31,profile.charm==='boots'?6:-8,profile.charm==='boots'?28:23,profile.charm==='boots'?28:23);}
-        ctx.fillStyle='#eaffda';ctx.font='bold 10px system-ui';ctx.textAlign='center';ctx.fillText(profile.name,0,-48);
-        ctx.globalAlpha=1;
-      }
-    }else if(e.kind==='boss'){
-      const boss=img(`assets/bosses/${zoneById(zone).boss}.png`);if(boss.complete&&boss.naturalWidth)ctx.drawImage(boss,-60,-70,120,120);else{ctx.fillStyle='#c28cc6';ctx.fillRect(-35,-45,70,70);}
-      if(e.enraged){ctx.strokeStyle='#ff9777';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,-8,62+Math.sin(engine.time*5)*4,0,Math.PI*2);ctx.stroke();}
-      if(e.flash>0){ctx.fillStyle='#fff6bd66';ctx.beginPath();ctx.arc(0,-10,48,0,Math.PI*2);ctx.fill();}
-      if(e.shield){ctx.strokeStyle='#e4d391';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,65,0,Math.PI*2);ctx.stroke();}
-    }else{
-      ctx.fillStyle=e.flash>0?'#fff3c9':e.kind==='ghost'?'#b1a5cf':'#8cbb72';ctx.beginPath();ctx.arc(0,-5,e.r,Math.PI,0);ctx.lineTo(e.r,e.r*.65);ctx.lineTo(-e.r,e.r*.65);ctx.closePath();ctx.fill();
-      ctx.fillStyle='#233d30';ctx.fillRect(-8,-6,5,6);ctx.fillRect(4,-6,5,6);ctx.fillStyle='#f2f2c8';ctx.fillRect(-8,-6,2,2);ctx.fillRect(4,-6,2,2);
-      if(e.hp<e.maxHp){ctx.fillStyle='#153b29';ctx.fillRect(-18,-30,36,3);ctx.fillStyle='#e8c284';ctx.fillRect(-18,-30,36*Math.max(0,e.hp/e.maxHp),3);}
-    }ctx.restore();}
-  for(const shot of engine.shots){ctx.fillStyle=shot.enemy?'#e8b080':'#b5eeec';ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=8;ctx.beginPath();ctx.arc(shot.x,shot.y,shot.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
-  for(const fx of engine.effects){const f=1-fx.ttl/fx.max,r=fx.r+(fx.endR-fx.r)*f;ctx.globalAlpha=Math.max(0,1-f);ctx.strokeStyle=fx.color;ctx.lineWidth=fx.arc==null?5:13;ctx.beginPath();ctx.arc(fx.x,fx.y,r,fx.arc==null?0:fx.arc-1.1,fx.arc==null?Math.PI*2:fx.arc+1.1);ctx.stroke();ctx.globalAlpha=1;}
-  if(!calmEffects)for(const spark of engine.particles){ctx.globalAlpha=Math.max(0,spark.ttl/spark.max);ctx.fillStyle=spark.color;ctx.fillRect(spark.x-spark.r,spark.y-spark.r,spark.r*2,spark.r*2);}ctx.globalAlpha=1;
-  ctx.textAlign='center';ctx.font='bold 16px system-ui';for(const t of engine.texts){ctx.fillStyle=t.color;ctx.globalAlpha=Math.min(1,t.ttl*2);ctx.fillText(t.text,t.x,t.y);}ctx.globalAlpha=1;
-  if(engine.phase==='playing'&&engine.time<9){ctx.fillStyle='#f3ebc9';ctx.font='14px system-ui';ctx.fillText('이동해서 보석을 주워요. 가까운 적은 자동 공격!',p.x,p.y+62);}
-  ctx.restore();
-  const shade=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*.3,w/2,h/2,Math.max(w,h)*.7);shade.addColorStop(0,'#0c271400');shade.addColorStop(1,'#071d1c7a');ctx.fillStyle=shade;ctx.fillRect(0,0,w,h);
-  if(engine.bannerTime>0){ctx.save();ctx.textAlign='center';ctx.font=`bold ${w<500?16:22}px system-ui`;ctx.fillStyle='#112b28dd';ctx.fillRect(w*.08,h*.73-24,w*.84,48);ctx.fillStyle='#ffe1a8';ctx.fillText(engine.banner,w/2,h*.73+7);ctx.restore();}
-  if(stick){ctx.strokeStyle='#dde8b366';ctx.fillStyle='#dde8b333';ctx.lineWidth=2;ctx.beginPath();ctx.arc(stick.x-rect.left,stick.y-rect.top,36,0,Math.PI*2);ctx.stroke();const l=Math.max(1,Math.hypot(stick.dx,stick.dy)/32);ctx.beginPath();ctx.arc(stick.x-rect.left+stick.dx/l,stick.y-rect.top+stick.dy/l,15,0,Math.PI*2);ctx.fill();}
-}
-function pause(){if(!engine||engine.phase!=='playing')return;engine.pause();dialog(`<div class="eyebrow">TAKE YOUR TIME</div><h2>잠깐 쉬어가요.</h2><p>전투 시간과 적의 움직임이 멈췄습니다.<br>이번 원정 ${engine.kills}마리 처치 · 전투 Lv.${engine.rank}<br>내 영구 레벨 Lv.${profile.level} · 배운 문제 ${profile.mastered.length}개</p><label><input type="checkbox" id="calm" ${calmEffects?'checked':''}> 화면 흔들림 · 입자 효과 줄이기</label><br><label><input type="checkbox" id="auto" ${auto?'checked':''}> 자동 공격</label><div class="dialog-actions"><button class="primary" data-action="resume">계속하기</button><button class="secondary" data-action="finish">기록하고 로비로</button></div>`);}
+function pause(){if(!engine||engine.phase!=='playing')return;engine.pause();dialog(`<div class="eyebrow">TAKE YOUR TIME</div><h2>잠깐 쉬어가요.</h2><p>전투 시간과 적의 움직임이 멈췄습니다.<br>이번 원정 ${engine.kills}마리 처치 · 전투 Lv.${engine.rank}<br>내 영구 레벨 Lv.${profile.level} · 배운 문제 ${profile.mastered.length}개</p><label><input type="checkbox" id="soundSetting" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><br><label><input type="checkbox" id="calm" ${calmEffects?'checked':''}> 화면 흔들림 · 입자 효과 줄이기</label><br><label><input type="checkbox" id="auto" ${auto?'checked':''}> 자동 공격</label><div class="dialog-actions"><button class="primary" data-action="resume">계속하기</button><button class="secondary" data-action="finish">기록하고 로비로</button></div>`);}
 async function showQuestion(){
   keys.clear();pad={x:0,y:0};stick=null;
   try{
@@ -163,8 +134,8 @@ async function submitAnswer(answer,skip=false){
   busy=true;document.querySelectorAll('#dialog button').forEach(b=>b.disabled=true);
   try{const r=await request('expeditionAnswer',{runId:run,questionId:pending.id,answer,skip});
     if(!r.correct&&!r.skipped){$('answerStatus').textContent='아직 정답이 아니에요. 힌트를 보고 다시 답해 주세요.';$('hintBox').hidden=false;return;}
-    answered++;pending=null;
-    dialog(`<div class="eyebrow">${r.correct?'KNOWLEDGE ACQUIRED':'LEARN AND CONTINUE'}</div><h2 class="${r.correct?'success-title':''}">${r.correct?'맞았어요. 힘이 생겼어요!':'이 답을 기억해 두세요.'}</h2><div class="explanation"><b>${esc(r.answer)}</b><br>${esc(r.explain)}</div>${r.source?`<a class="source" href="${esc(r.source)}" target="_blank" rel="noopener noreferrer">근거 자료 읽기 ↗</a>`:''}<p class="save-note">${r.learned?'새 지식 저장 완료 · 개인 경험치 +20 · 먹이 +1 · 5P<br>우리 커뮤니티 경험치 +10':r.correct?'복습 정답! 영구 보상은 이미 받았어요. 이번 전투 강화는 그대로 받습니다.':'보상은 없지만 지식 도감의 복습 목록에 남겼어요.'}<br>내 영구 레벨 Lv.${profile.level}</p>${r.unlocked?.length?`<div class="hint"><b>새 장비 획득!</b><br>${r.unlocked.map(id=>esc(gearById(id).name)).join(' · ')}<br><small>원정을 마친 뒤 ‘내 장비’에서 착용해요.</small></div>`:''}<div class="dialog-actions"><button class="primary" data-continue="${r.correct?'correct':'skip'}">${mode==='study'?'다음 문제':r.correct?'강화 고르기':'전투로 돌아가기'}</button></div>`);
+    if(r.correct)audio.play('correct');answered++;pending=null;
+    dialog(`<div class="eyebrow">${r.correct?'KNOWLEDGE ACQUIRED':'LEARN AND CONTINUE'}</div><h2 class="${r.correct?'success-title':''}">${r.correct?'지식의 힘을 얻었어요!':'이 답을 기억해 두세요.'}</h2><div class="reward-emblem ${r.correct?'earned':''}">${r.correct?'+':'?'}</div><div class="explanation"><b>${esc(r.answer)}</b><br>${esc(r.explain)}</div>${r.source?`<a class="source" href="${esc(r.source)}" target="_blank" rel="noopener noreferrer">근거 자료 읽기 ↗</a>`:''}<p class="save-note">${r.learned?'새 지식 저장 완료 · 개인 경험치 +20 · 먹이 +1 · 5P<br>우리 커뮤니티 경험치 +10':r.correct?'복습 정답! 영구 보상은 이미 받았어요. 이번 전투 강화는 그대로 받습니다.':'보상은 없지만 지식 도감의 복습 목록에 남겼어요.'}<br>내 영구 레벨 Lv.${profile.level}</p>${r.unlocked?.length?`<div class="hint"><b>새 장비 획득!</b><br>${r.unlocked.map(id=>esc(gearById(id).name)).join(' · ')}<br><small>원정을 마친 뒤 ‘내 장비’에서 착용해요.</small></div>`:''}<div class="dialog-actions"><button class="primary" data-continue="${r.correct?'correct':'skip'}">${mode==='study'?'다음 문제':r.correct?'강화 고르기':'전투로 돌아가기'}</button></div>`);
   }catch(e){if($('answerStatus'))$('answerStatus').textContent=`${e.message} 같은 답으로 다시 눌러 주세요.`;else notice(e.message);}
   finally{busy=false;document.querySelectorAll('#dialog button').forEach(b=>b.disabled=false);}
 }
@@ -172,6 +143,7 @@ function showUpgrades(){dialog(`<div class="eyebrow">CHOOSE YOUR UPGRADE</div><h
   ['power','⌁','날카로운 생각','공격력 +22%'],['rapid','»','빠른 실행','공격 속도 증가'],['heart','♡','튼튼한 마음','최대 체력 +25 · 회복 +45'],['magnet','∩','지식 수집가','보석 수집 범위 +40 · 이동 속도 증가'],
 ].map(([id,symbol,name,desc])=>`<button data-upgrade="${id}"><div class="upgrade-symbol">${symbol}</div><strong>${name}</strong><span>${desc}</span></button>`).join('')}</div>`);}
 async function finish(){
+  if(training){cancelAnimationFrame(frame);view='result';dialog(`<div class="eyebrow">TRAINING COMPLETE</div><h2>체험 전투를 마쳤어요.</h2><p>${engine.kills}마리 처치 · 최고 ${engine.bestCombo} 연속 처치<br>훈련장에서는 경험치와 보상을 저장하지 않습니다.</p><div class="dialog-actions"><button class="primary" data-action="lobby">${user?'지역 선택으로':'처음 화면으로'}</button></div>`);return;}
   if(busy)return;busy=true;if(engine&&engine.phase==='playing')engine.pause();
   const won=engine?.phase==='won',lost=engine?.phase==='lost',kills=engine?.kills||0,rank=engine?.rank||1;
   try{const r=await request('expeditionFinish',{runId:run});view='result';cancelAnimationFrame(frame);
@@ -182,6 +154,7 @@ async function finish(){
 
 document.addEventListener('click',async e=>{
   const el=e.target.closest('button');if(!el||el.disabled)return;
+  if(el.dataset.training){startTraining(el.dataset.training);return;}
   if(el.dataset.zone){zone=el.dataset.zone;renderLobby();return;}
   if(el.dataset.equip){if(busy)return;busy=true;try{await request('expeditionEquip',{item:el.dataset.equip});gearDialog();}catch(err){notice(err.message);}finally{busy=false;}return;}
   if(el.dataset.library){showLibrary(el.dataset.library);return;}
@@ -193,6 +166,10 @@ document.addEventListener('click',async e=>{
   if(action==='guide')guide();
   if(action==='gear')gearDialog();
   if(action==='customize')customizeDialog();
+  if(action==='settings')settingsDialog();
+  if(action==='settingsDone'){closeDialog();renderLobby();}
+  if(action==='trainingMenu')trainingMenu();
+  if(action==='guestTraining'){profile={name:'체험 대원',avatar:'a05',level:1,charm:null,weapon:'blade'};zone='code';trainingMenu();}
   if(action==='library')showLibrary();
   if(action==='close'){closeDialog();renderLobby();}
   if(action==='pause')pause();
@@ -207,7 +184,7 @@ document.addEventListener('click',async e=>{
   if(action==='lobby')renderLobby();
   if(action==='again'){renderLobby();start();}
 });
-document.addEventListener('change',e=>{if(e.target.id==='calm')calmEffects=e.target.checked;if(e.target.id==='mode')mode=e.target.value;if(e.target.id==='gentle')gentle=e.target.checked;if(e.target.id==='auto'){auto=e.target.checked;if($('autoLabel'))$('autoLabel').textContent=auto?'자동 공격 켜짐':'직접 공격';}});
+document.addEventListener('change',e=>{if(e.target.id==='calm'){preferences.calm=e.target.checked;savePreferences();}const setting={soundSetting:'sound',musicSetting:'music',calmSetting:'calm',qualitySetting:'quality'}[e.target.id];if(setting){preferences[setting]=e.target.type==='checkbox'?e.target.checked:e.target.value;savePreferences();if(preferences.sound)audio.unlock();}if(e.target.id==='volumeSetting'){preferences.volume=Number(e.target.value)/100;savePreferences();}if(e.target.id==='mode')mode=e.target.value;if(e.target.id==='gentle')gentle=e.target.checked;if(e.target.id==='auto'){auto=e.target.checked;if($('autoLabel'))$('autoLabel').textContent=auto?'자동 공격 켜짐':'직접 공격';}});
 document.addEventListener('keydown',e=>{
   if(!$('dialog').hidden){
     if(e.key==='Tab'){
