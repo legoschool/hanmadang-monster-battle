@@ -1,4 +1,4 @@
-import {BOSS_TYPES,gearImage} from './expedition-config.js?v=fx3';
+import {BOSS_TYPES,gearImage} from './expedition-config.js?v=quiz4';
 
 const TAU=Math.PI*2;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
