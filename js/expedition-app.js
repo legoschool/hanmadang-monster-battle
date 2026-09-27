@@ -1,17 +1,18 @@
 import * as API from './api.js';
-import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=fx3';
-import {ExpeditionEngine} from './expedition-engine.js?v=fx3';
-import {ExpeditionRenderer} from './expedition-renderer.js?v=fx3';
-import {ExpeditionAudio} from './expedition-audio.js?v=fx3';
+import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=quiz4';
+import {ExpeditionEngine} from './expedition-engine.js?v=quiz4';
+import {ExpeditionRenderer} from './expedition-renderer.js?v=quiz4';
+import {ExpeditionAudio} from './expedition-audio.js?v=quiz4';
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let state,user,profile,library=[],zone='code',mode='survival',gentle=true,engine=null,run=null,pending=null;
+let state,user,profile,library=[],zone='code',theme='mixed',mode='survival',gentle=true,engine=null,run=null,pending=null;
 let busy=false,frame=0,lastFrame=0,hudTime=0,noticeTimer,keys=new Set(),pad={x:0,y:0},stick=null;
 let view='lobby',answered=0,auto=true,lastMove={x:1,y:0};
 let preferences={sound:true,music:false,volume:.22,calm:matchMedia('(prefers-reduced-motion: reduce)').matches,quality:'high'};
 try{const saved=JSON.parse(localStorage.getItem('expedition-presentation')||'null');if(saved)preferences={...preferences,...saved};}catch{}
 let calmEffects=!!preferences.calm,renderer=null,endingRemaining=-1,training=false;
+const THEMES={mixed:'전체 골고루',region:'선택한 지역 주제',stories:'AI·디지털 사건 이야기',trivia:'생활 속 일반 상식',everyday:'AI 활용·디지털 생활'};
 const audio=new ExpeditionAudio();audio.configure(preferences);
 function savePreferences(){calmEffects=!!preferences.calm;audio.configure(preferences);if(renderer){renderer.calm=calmEffects;renderer.quality=preferences.quality;}try{localStorage.setItem('expedition-presentation',JSON.stringify(preferences));}catch{}}
 
@@ -41,7 +42,7 @@ function renderLobby(){
       <aside class="hero-card"><span class="eyebrow">MY EXPLORER</span><div class="hero-display"><img src="assets/avatars/${esc(profile.avatar)}.png" alt="${esc(profile.name)}"><img class="worn-weapon" src="${gearImage(weapon.id)}" alt="${weapon.name}">${charm?`<img class="worn-charm" src="${gearImage(charm.id)}" alt="${charm.name}">`:""}</div>
       <h2>${esc(profile.name)}</h2><button class="plain" data-action="customize">이름 · 모습 바꾸기</button><p class="muted">${esc(weapon.name)}${charm?' · '+esc(charm.name):' · 첫 장비와 함께 출발'}</p><div class="hero-level"><b>Lv.${lv} ${explorerTitle(lv)}</b><span>${profile.xp%60} / 60 XP</span></div><div class="bar"><i style="width:${profile.xp%60/60*100}%"></i></div><p class="muted">새 정답 3개마다 개인 레벨 +1<br>배운 문제 ${profile.mastered.length} / ${profile.total}</p>
       <div class="gear-mini"><button data-action="gear">내 장비 ${profile.owned.length}종</button><button data-action="library">지식 도감 · 복습</button></div></aside></div>
-    <div class="options-row"><label>진행 <select id="mode"><option value="survival" ${mode==='survival'?'selected':''}>숲 탐험 · 2분 30초 뒤 보스</option><option value="boss" ${mode==='boss'?'selected':''}>보스 도전 · 바로 전투</option><option value="study" ${mode==='study'?'selected':''}>지식 탐구 · 전투 없이 문제 풀기</option></select></label><label><input type="checkbox" id="gentle" ${gentle?'checked':''}> 여유 모드 (체력↑ · 적 속도↓)</label><button class="plain" data-action="guide">게임 방법</button><button class="secondary" data-action="settings">소리 · 화면 효과</button><button class="secondary" data-action="trainingMenu">장비 체험 훈련장</button></div>
+    <div class="options-row"><label>문제 꾸러미 <select id="questionTheme">${Object.entries(THEMES).map(([id,label])=>`<option value="${id}" ${theme===id?'selected':''}>${label}</option>`).join('')}</select></label><label>진행 <select id="mode"><option value="survival" ${mode==='survival'?'selected':''}>숲 탐험 · 2분 30초 뒤 보스</option><option value="boss" ${mode==='boss'?'selected':''}>보스 도전 · 바로 전투</option><option value="study" ${mode==='study'?'selected':''}>지식 탐구 · 전투 없이 문제 풀기</option></select></label><label><input type="checkbox" id="gentle" ${gentle?'checked':''}> 여유 모드 (체력↑ · 적 속도↓)</label><button class="plain" data-action="guide">게임 방법</button><button class="secondary" data-action="settings">소리 · 화면 효과</button><button class="secondary" data-action="trainingMenu">장비 체험 훈련장</button></div>
     <div class="section-head"><h2>오늘은 어디로 갈까요?</h2><span>모든 지역이 처음부터 열려 있어요</span></div><div class="zones">${ZONES.map((x,i)=>{const p=profile.zones.find(v=>v.id===x.id);return `<button class="zone ${x.id===zone?'active':''}" data-zone="${x.id}" style="--zone:${x.color}" aria-pressed="${x.id===zone}"><span class="zone-number">REGION ${String(i+1).padStart(2,'0')}</span><i class="zone-dot"></i><b>${x.topic}</b><span>${x.name} · ${p.learned} / ${p.total}</span></button>`;}).join('')}</div>
     <div class="controls-note"><kbd>WASD</kbd> / 방향키 이동 · <kbd>Space</kbd> 공격 · <kbd>E</kbd> 스킬 · <kbd>Shift</kbd> 돌진 · <kbd>Esc</kbd> 쉬기<br>휴대폰은 화면을 드래그하거나 방향 버튼으로 이동해요. 공격은 자동으로도 나갑니다.</div>
     <footer class="lobby-foot"><span>처음 맞힌 문제: 개인 경험치 20 + 먹이 1 + 5P + 커뮤니티 경험치 10<br>복습도 전투 강화는 그대로. 접속하지 않은 날의 개인 경험치는 줄지 않아요.</span><a href="index.html#/crew">우리 커뮤니티 보기 ↗</a></footer>
@@ -69,7 +70,7 @@ async function showLibrary(filter='all'){
 async function start(){
   if(busy)return;busy=true;training=false;await audio.unlock();audio.configure(preferences);
   const startId=crypto.randomUUID();
-  try{const r=await request('expeditionStart',{zone,mode,requestId:startId});run=r.runId;pending=r.question;answered=0;
+  try{const r=await request('expeditionStart',{zone,mode,theme,requestId:startId});run=r.runId;pending=r.question;answered=0;
     if(mode==='study'){view='study';$('expedition').innerHTML=header()+`<section class="login-card"><span class="eyebrow">${zoneById(zone).name}</span><h1>한 문제씩,<br>내 속도로.</h1><p>힌트를 보고 다시 답해도 괜찮아요. 새 정답의 보상은 즉시 저장됩니다.</p></section>`;showQuestion();}
     else{engine=new ExpeditionEngine({weapon:profile.weapon,charm:profile.charm,level:profile.level,mode,gentle,bossType:zoneById(zone).boss,cinematic:true,seed:Date.now()>>>0});battle();}
   }catch(e){notice(e.message);}finally{busy=false;}
@@ -123,7 +124,7 @@ async function showQuestion(){
     if(!pending){dialog('<p>다음 문제를 불러오고 있어요.</p>');const r=await request('expeditionNext',{runId:run});pending=r.question;}
     if(!pending){if(engine){engine.continueQuestion(true);showUpgrades();}else await finish();return;}
     const q=pending,seal=engine?.quizReason==='seal';
-    dialog(`<div class="dialog-tag"><span>${seal?'보스의 지식 봉인':mode==='study'?'지식 탐구':'보석을 모았어요 · 강화 퀴즈'}</span><span>${q.number} / ${q.total} · ${q.difficulty}</span></div><h2 id="question-title">${esc(q.q)}</h2>
+    dialog(`<div class="dialog-tag"><span>${seal?'보스의 지식 봉인':mode==='study'?'지식 탐구':'보석을 모았어요 · 강화 퀴즈'}</span><span>${esc(({basics:'기초 지식',stories:'사건 이야기',trivia:'일반 상식',everyday:'AI·디지털 생활'})[q.category]||'퀴즈')} · ${q.number} / ${q.total} · ${q.difficulty}</span></div><h2 id="question-title">${esc(q.q)}</h2>
       ${q.type==='short'?`<form id="shortForm" class="short-form"><input id="shortAnswer" aria-label="주관식 답" placeholder="짧게 적어 주세요" maxlength="100" autocomplete="off"><button class="primary" type="submit">정답 확인</button></form>`:`<div class="answers">${q.options.map((o,i)=>`<button class="answer" data-answer="${i}"><em>${i+1}</em>${esc(o)}</button>`).join('')}</div>`}
       <div class="answer-status" id="answerStatus" role="status"></div><button class="plain" data-action="hint">${q.type==='short'?'초성·설명 힌트 보기':'힌트 보기'}</button><div id="hintBox" class="hint" hidden>${esc(q.hint)}</div><p class="muted">${mode==='study'?'시간 제한이 없어요.':'지금은 전투가 멈춰 있어요.'} 틀려도 힌트를 보고 다시 답할 수 있습니다.</p><div class="dialog-actions"><button class="secondary" data-action="skip">해설 보고 넘어가기</button><button class="plain" data-action="finish">이번 원정 마치기</button></div>`);
     $('shortForm')?.addEventListener('submit',e=>{e.preventDefault();submitAnswer($('shortAnswer').value);});
@@ -184,7 +185,7 @@ document.addEventListener('click',async e=>{
   if(action==='lobby')renderLobby();
   if(action==='again'){renderLobby();start();}
 });
-document.addEventListener('change',e=>{if(e.target.id==='calm'){preferences.calm=e.target.checked;savePreferences();}const setting={soundSetting:'sound',musicSetting:'music',calmSetting:'calm',qualitySetting:'quality'}[e.target.id];if(setting){preferences[setting]=e.target.type==='checkbox'?e.target.checked:e.target.value;savePreferences();if(preferences.sound)audio.unlock();}if(e.target.id==='volumeSetting'){preferences.volume=Number(e.target.value)/100;savePreferences();}if(e.target.id==='mode')mode=e.target.value;if(e.target.id==='gentle')gentle=e.target.checked;if(e.target.id==='auto'){auto=e.target.checked;if($('autoLabel'))$('autoLabel').textContent=auto?'자동 공격 켜짐':'직접 공격';}});
+document.addEventListener('change',e=>{if(e.target.id==='calm'){preferences.calm=e.target.checked;savePreferences();}const setting={soundSetting:'sound',musicSetting:'music',calmSetting:'calm',qualitySetting:'quality'}[e.target.id];if(setting){preferences[setting]=e.target.type==='checkbox'?e.target.checked:e.target.value;savePreferences();if(preferences.sound)audio.unlock();}if(e.target.id==='volumeSetting'){preferences.volume=Number(e.target.value)/100;savePreferences();}if(e.target.id==='questionTheme')theme=e.target.value;if(e.target.id==='mode')mode=e.target.value;if(e.target.id==='gentle')gentle=e.target.checked;if(e.target.id==='auto'){auto=e.target.checked;if($('autoLabel'))$('autoLabel').textContent=auto?'자동 공격 켜짐':'직접 공격';}});
 document.addEventListener('keydown',e=>{
   if(!$('dialog').hidden){
     if(e.key==='Tab'){

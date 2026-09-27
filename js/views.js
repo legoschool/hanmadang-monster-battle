@@ -440,7 +440,7 @@ export function renderHome(state, ui) {
 
   return `
   <div class="home">
-    <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><small>내 아바타로 떠나는 액션 원정</small><strong>지식의 숲이 열렸어요</strong><span>8개 지역 · 퀴즈 120개 · 장비 수집과 레벨업</span></div><b aria-hidden="true">→</b></a>
+    <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><small>내 아바타로 떠나는 액션 원정</small><strong>지식의 숲이 열렸어요</strong><span>8개 지역 · 상식·사건 퀴즈 200개 · 장비 수집과 레벨업</span></div><b aria-hidden="true">→</b></a>
     ${weekBanner(state, t)}
     ${golden ? `
     <section class="golden-banner" role="status">
