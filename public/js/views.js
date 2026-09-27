@@ -440,6 +440,7 @@ export function renderHome(state, ui) {
 
   return `
   <div class="home">
+    <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><small>내 아바타로 떠나는 액션 원정</small><strong>지식의 숲이 열렸어요</strong><span>8개 지역 · 퀴즈 120개 · 장비 수집과 레벨업</span></div><b aria-hidden="true">→</b></a>
     ${weekBanner(state, t)}
     ${golden ? `
     <section class="golden-banner" role="status">
@@ -838,6 +839,7 @@ export function renderPlay(state, ui) {
 
   return `
   ${pageHead('도전 · 뽑기', `운과 배짱으로 원정을 도와요. 럭키박스는 하루에 ${RULES.luckyPerDay}번, 보스 가위바위보는 ${RULES.rpsPerDay}번! 날마다 다시 채워져요.`)}
+  <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><small>직접 움직이고 공격하는 새 원정</small><strong>지식의 숲으로 출발</strong><span>코딩 · 바이브코딩 · 디지털 역사 · 주관식과 초성 힌트</span></div><b aria-hidden="true">→</b></a>
   <div class="play">
     <section class="card play-card">
       ${secHead('럭키박스', play ? `<span class="sec-note">오늘 남은 횟수 <b>${luckyLeft}</b>/${RULES.luckyPerDay}</span>` : '')}

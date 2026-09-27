@@ -242,6 +242,16 @@ function addPoints(state, user, n) {
   weekly(state, user).points += n;
 }
 
+// 새 원정의 미학습 정답만 서버가 호출한다. 기존 저장 형식 번호는 유지한다.
+export function earnExpeditionKnowledge(state, userId) {
+  const user = state.users[userId];
+  user.food += 1;
+  addPoints(state, user, 5);
+  state.teams[user.teamId].exp += 10;
+  const hit = dealDamage(state, user, 10, 'quiz');
+  return {food:1,points:5,teamExp:10,dmg:hit?.dmg||0};
+}
+
 export const teamMembers = (state, teamId) => Object.values(state.users).filter((u) => u.teamId === teamId);
 export const teamMemberCount = (state, teamId) => teamMembers(state, teamId).length;
 
