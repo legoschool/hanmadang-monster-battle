@@ -11,18 +11,26 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/promo.css?v=joincenter1">
   <link rel="stylesheet" href="css/guide-cards.css?v=short3">
+  <link rel="stylesheet" href="css/hub.css?v=hub1">
 </head>
 <body>
-<section id="promoLanding" class="promo" hidden aria-label="몬스터 원정대 소개">
-  <header class="promo-nav"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>제3회 한마당 · 몬스터 원정대</span><a href="?join=1">참여 / 이어하기 ↗</a></header>
-  <div class="promo-start"><span>준비되셨나요? 여기서 시작하세요</span><a href="?join=1">참여 / 이어하기 <b aria-hidden="true">→</b></a><small>처음 오신 분도, 다시 오신 분도 눌러주세요</small></div>
-  <div class="promo-layout"><div class="promo-copy"><span class="promo-kicker">LEARN. PLAY. TOGETHER.</span><h1>배운 만큼 강해지는<br><em>우리의 원정.</em></h1><p>아바타와 펫이 함께 싸우고, 배운 만큼 성장하고.<br>플레이로 모은 포인트는 미스터리 선물에!</p><div class="promo-date">FINAL BATTLE <b>12월 19일</b></div><div class="promo-buttons"><a class="promo-primary" href="expedition.html?demo=1">둘러보기 · 바로 게임 체험 →</a><button id="showGuide" class="promo-secondary">참여 방법</button></div><small>가입 없이 전투부터 체험해 보세요. 체험 기록·포인트는 저장되지 않아요.</small></div>
-  <div class="promo-screen"><div class="promo-screen-top"><span class="promo-dot"></span> REAL PLAY / 실제 플레이 화면</div><video id="promoVideo" autoplay muted loop playsinline preload="metadata" poster="assets/promo/promo-poster.jpg?v=short2" aria-label="몬스터 원정대 홍보영상"><source src="assets/promo/gdeal-promo.mp4?v=short2" type="video/mp4"></video><div class="promo-video-controls"><button id="promoToggle">영상 일시정지</button><button id="promoSound" aria-pressed="false">소리 켜기</button><button id="promoFullscreen">크게 보기</button><span>14초로 만나는 원정대</span></div><p id="promoPlayback" role="status"></p></div></div>
-  <div class="promo-path"><div><b>01</b><span>배우고<small>AI 카드 · 원정 미션</small></span></div><div><b>02</b><span>플레이하고<small>액션 원정 · 3종 미니게임</small></span></div><div><b>03</b><span>함께 도전해요<small>랭킹 · 포인트 선물 응모</small></span></div></div>
-  <guide-cards data-key="intro"></guide-cards>
-  <footer class="promo-footer"><span>우리는 모두 G-DEAL!</span><a href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">활동 안내 책자 PDF ↗</a></footer>
+<section id="promoLanding" class="promo hub" hidden aria-label="몬스터 원정대 메인">
+  <header class="hub-nav"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>제3회 한마당 · 몬스터 원정대</span><div><button id="hubMotion" type="button" aria-pressed="false">움직임 잠깐 멈춤</button><b>최종 결전 · 12월 19일</b></div></header>
+  <div class="hub-title"><div><span>LEARN · PLAY · TOGETHER</span><h1>배우면 강해지는 <em>우리의 원정!</em></h1></div><p>내 아바타와 펫이 함께 싸우고<br>모은 포인트로 선물까지 도전해요.</p></div>
+  <div class="hub-stage">
+    <section class="hub-theater" aria-label="아바타와 함께 보는 홍보영상">
+      <span class="hub-badge">✦ PLAY THE ADVENTURE</span>
+      <div class="hub-avatars" aria-label="원정대 아바타"></div>
+      <div class="promo-screen"><div class="promo-screen-top"><span class="promo-dot"></span> 실제 플레이 · 펫과 함께하는 14초 원정</div><video id="promoVideo" autoplay muted loop playsinline preload="metadata" poster="assets/promo/promo-poster.jpg?v=short2" aria-label="몬스터 원정대 홍보영상"><source src="assets/promo/gdeal-promo.mp4?v=short2" type="video/mp4"></video><div class="promo-video-controls"><button id="promoToggle">영상 일시정지</button><button id="promoSound" aria-pressed="false">소리 켜기</button><button id="promoFullscreen">크게 보기</button></div><p id="promoPlayback" role="status"></p></div>
+      <div class="hub-cheer" aria-live="polite">아바타를 눌러보세요. 원정대가 인사해요!</div>
+    </section>
+    <guide-cards class="hub-guide" data-key="intro"></guide-cards>
+  </div>
+  <nav class="hub-actions" aria-label="원정 시작하기"><a class="hub-join" href="?join=1&mode=join"><small>처음 오셨나요?</small><strong>참여하기 <span>→</span></strong></a><a class="hub-resume" href="?join=1&mode=resume"><small>다시 오셨군요!</small><strong>이어서 플레이 <span>→</span></strong></a><a class="hub-demo" href="expedition.html?demo=1"><strong>둘러보기 ↗</strong><small>가입 없이 바로 전투 체험</small></a><button id="showGuide" type="button">참여 방법 <span>?</span></button></nav>
+  <section class="hub-story" aria-label="프롤로그 카드뉴스" aria-roledescription="캐러셀"><div class="hub-story-label"><span>THE STORY</span><h2>우리의 모험은<br>이렇게 시작돼요.</h2><div><button id="storyPrev" aria-label="이전 프롤로그">←</button><button id="storyPause" aria-label="프롤로그 자동 넘김 정지">Ⅱ</button><button id="storyNext" aria-label="다음 프롤로그">→</button></div></div><div class="hub-story-scene"><img id="storyImage" alt=""><div><span id="storyChapter"></span><h3 id="storyTitle"></h3><p id="storyText"></p></div></div><div class="hub-story-dots" aria-label="프롤로그 페이지 선택"></div></section>
+  <footer class="hub-footer"><span>10개 커뮤니티 · 하나의 원정대 · 우리는 모두 G-DEAL!</span><a href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">가이드북 PDF ↗</a></footer>
 </section>
-<dialog id="participationGuide" class="promo-guide"><form method="dialog"><button class="promo-close" aria-label="참여 방법 닫기">×</button></form><span class="promo-kicker">START YOUR ADVENTURE</span><h2>참여는 이렇게 해요.</h2><ol><li><b>내 대원 만들기</b><p>커뮤니티와 아바타를 고르고 닉네임·나만 아는 힌트를 입력해요. 참가 코드가 있다면 운영진 안내를 따라주세요.</p></li><li><b>배우고 플레이하기</b><p>AI 카드와 원정 미션, 동행 펫과 지식의 숲 액션 원정, 퀴즈·기억력·숫자 탐색을 즐겨요.</p></li><li><b>기록 쌓고 선물 응모하기</b><p>선물별 수량·응모 현황을 보고 포인트를 배정해요. 더 많이 배정할수록 추첨에서 유리해져요.</p></li></ol><p class="promo-guide-note">응모 포인트는 예약되고 추첨 시 소모돼요. 누적 랭킹은 유지됩니다. 선물과 마감은 운영진이 설정해요.</p><div class="promo-buttons"><a class="promo-primary" href="?join=1">참여하러 가기 →</a><a class="promo-secondary" href="expedition.html?demo=1">먼저 체험하기</a></div><a class="promo-download" href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">자세한 활동 안내 책자 보기 ↗</a></dialog>
+<dialog id="participationGuide" class="promo-guide"><form method="dialog"><button class="promo-close" aria-label="참여 방법 닫기">×</button></form><span class="promo-kicker">START YOUR ADVENTURE</span><h2>참여는 이렇게 해요.</h2><ol><li><b>내 대원 만들기</b><p>커뮤니티와 아바타를 고르고 닉네임·나만 아는 힌트를 입력해요. 참가 코드가 있다면 운영진 안내를 따라주세요.</p></li><li><b>배우고 플레이하기</b><p>AI 카드와 원정 미션, 동행 펫과 지식의 숲 액션 원정, 퀴즈·기억력·숫자 탐색을 즐겨요.</p></li><li><b>기록 쌓고 선물 응모하기</b><p>선물별 수량·응모 현황을 보고 포인트를 배정해요. 더 많이 배정할수록 추첨에서 유리해져요.</p></li></ol><p class="promo-guide-note">응모 포인트는 예약되고 추첨 시 소모돼요. 누적 랭킹은 유지됩니다. 선물과 마감은 운영진이 설정해요.</p><div class="promo-buttons"><a class="promo-primary" href="?join=1&mode=join">참여하러 가기 →</a><a class="promo-secondary" href="expedition.html?demo=1">먼저 체험하기</a></div><a class="promo-download" href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">자세한 활동 안내 책자 보기 ↗</a></dialog>
 
   <div class="app" id="app">
     <aside class="sidebar">
@@ -56,8 +64,9 @@
   <div id="toast-root" class="toast-root" aria-live="polite"></div>
 
   <script type="module" src="js/guide-cards.js?v=short2"></script>
-  <script type="module" src="js/promo.js?v=1"></script>
-  <script type="module" src="js/app.js?v=joincenter1"></script>
+  <script type="module" src="js/promo.js?v=hub1"></script>
+  <script type="module" src="js/app.js?v=hub1"></script>
+  <script type="module" src="js/hub.js?v=hub1"></script>
 </body>
 </html>
 
