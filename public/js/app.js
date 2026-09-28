@@ -11,6 +11,7 @@ const CHEER_FLUSH_MS = 6000;  // 누른 응원을 모아서 보내는 간격 (�
 
 let state = null;
 const ui = {
+  startMode: new URLSearchParams(location.search).get('mode') === 'resume' ? 'resume' : new URLSearchParams(location.search).get('mode') === 'join' ? 'join' : null,
   pickTeam: null, pickAvatar: null, quizReveal: null, crewTab: 'alliance', crewMode: 'week',
   giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {}, boardKey: 'dmg',
   findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null, keyShown: false, keyDraft: '', schedGap: null,

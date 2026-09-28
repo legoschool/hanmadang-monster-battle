@@ -1,5 +1,5 @@
 const landing=document.getElementById('promoLanding'),app=document.getElementById('app'),video=document.getElementById('promoVideo'),guide=document.getElementById('participationGuide');
-const show=!location.hash&&!new URLSearchParams(location.search).has('join');landing.hidden=!show;app.hidden=show;
+const show=!location.hash&&!new URLSearchParams(location.search).has('mode');landing.hidden=!show;app.hidden=show;
 const toggle=document.getElementById('promoToggle'),sound=document.getElementById('promoSound'),status=document.getElementById('promoPlayback');
 function labels(){toggle.textContent=video.paused?'영상 재생':'영상 일시정지';sound.textContent=video.muted?'소리 켜기':'소리 끄기';sound.setAttribute('aria-pressed',String(!video.muted));}
 async function play(){try{await video.play();status.textContent='';}catch{status.textContent='재생 버튼을 누르면 영상을 볼 수 있어요.';}labels();}
