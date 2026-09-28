@@ -1,10 +1,12 @@
 import {makeCompanion,companionStep,castCompanion} from './expedition-companions.js?v=pet1';
 // 순수 전투 시뮬레이션. DOM·서버와 분리해 이동, 충돌, 일시정지, 강화 등을 검사한다.
 export class ExpeditionEngine {
-  constructor({weapon='blade',charm=null,level=1,mode='survival',gentle=true,seed=1,bossType='bugbug',cinematic=false,companion=null}={}) {
+  constructor({weapon='blade',charm=null,level=1,mode='survival',gentle=true,seed=1,bossType='bugbug',cinematic=false,companion=null,questionGap=45}={}) {
     Object.assign(this,{width:1100,height:800,weapon,charm,mode,gentle,seed,phase:'playing',time:0,kills:0,
       xp:0,rank:1,nextXp:6,attackCd:0,dashCd:0,skillCd:0,spawnCd:0,seq:0,boss:null,bossMade:false,
       enemies:[],shots:[],drops:[],effects:[],texts:[],hazards:[],particles:[],quizReason:'',seals:0,event:null,bossType,shake:0,combo:0,comboTime:0,bestCombo:0,banner:'',bannerTime:0,cinematic,entrance:0,hitStop:0,fxEvents:[],swing:0});
+    this.questionGap=[30,45,60].includes(Number(questionGap))?Number(questionGap):45;
+    this.nextQuestionAt=20;this.pendingLevelQuestion=false;
     const maxHp=(gentle?150:100)+(charm==='shield'?35:0);
     this.hero={x:550,y:400,hp:maxHp,maxHp,r:22,face:0,inv:1,speed:190*(charm==='boots'?1.15:1),
       damage:(24+Math.min(10,level-1)*1.5)*(charm==='lens'?1.2:1),rate:1,magnet:85+(charm==='magnet'?60:0)};
@@ -16,10 +18,11 @@ export class ExpeditionEngine {
   emit(kind,data={}){this.fxEvents.push({kind,x:this.hero.x,y:this.hero.y,weapon:this.weapon,...data});this.fxEvents=this.fxEvents.slice(-64);}
   pause(){if(this.phase==='playing')this.phase='paused';}
   resume(){if(this.phase==='paused')this.phase='playing';}
-  requestQuestion(reason){if(this.phase!=='playing')return;this.phase='question';this.quizReason=reason;this.event='question';}
+  requestQuestion(reason){if(this.phase!=='playing')return;this.phase='question';this.quizReason=reason;this.event='question';this.pendingLevelQuestion=false;}
   continueQuestion(correct){
     if(this.phase!=='question')return;
     if(this.quizReason==='seal'){this.seals++;if(this.boss){this.boss.shield=false;this.boss.nextSeal-=0.34;}}
+    this.nextQuestionAt=this.time+this.questionGap;
     this.phase=correct?'upgrade':'playing';
     if(correct){this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+18);this.skillCd=0;}
     this.hero.inv=2;
@@ -68,7 +71,7 @@ export class ExpeditionEngine {
   }
   petSkill(){return castCompanion(this);}
   hit(e,n,source='hero'){if(e.hp<=0||e.shield)return;if(this.pet){this.pet.charge=Math.min(100,this.pet.charge+(source==='pet'?2:1));if(source==='pet')this.pet.dealt+=Math.min(e.hp,n);}e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&n>this.hero.damage*1.8)this.hitStop=Math.max(this.hitStop,.05);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
-  hurt(n){const h=this.hero;if(h.inv>0)return;if(this.pet?.guard>0)n*=.55;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
+  hurt(n){const h=this.hero;if(this.phase!=='playing'||h.inv>0)return;if(this.pet?.guard>0)n*=.55;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
     this.texts.push({x:h.x,y:h.y-26,text:`-${n}`,ttl:0.7,color:'#ffa49e'});if(h.hp<=0){this.phase='lost';this.event='end';this.emit('defeat');}}
   spawn(){
     const angle=this.random()*Math.PI*2,dist=330+this.random()*80,h=this.hero;
@@ -98,6 +101,7 @@ export class ExpeditionEngine {
       e.x+=(h.x-e.x)/d*e.speed*dt;e.y+=(h.y-e.y)/d*e.speed*dt;
       if(d<e.r+h.r)this.hurt(this.gentle?8:13);
     }
+    if(this.phase!=='playing')return;
     const b=this.boss;
     if(b&&b.hp>0){
       if(b.hp<b.maxHp*.4&&!b.enraged){b.enraged=true;b.speed*=1.3;this.banner='분노한 수호자 · 공격 속도 상승';this.bannerTime=2;this.burst(b.x,b.y,'#ff927b',32);this.emit('rage',{x:b.x,y:b.y});}
@@ -113,7 +117,7 @@ export class ExpeditionEngine {
         else{const count=pattern==='bubble'?7:12;for(let i=0;i<count;i++){const a=pattern==='bubble'?aim+(i-3)*.19:i*Math.PI*2/count+b.turn*.37;const speed=pattern==='bubble'?145:100;this.shots.push({x:b.x,y:b.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,ttl:5,damage:12,enemy:true,r:7});}this.banner=pattern==='bubble'?'파도 탄막 · 옆으로 피하세요':'나선 탄막 · 틈을 찾으세요';}
         this.bannerTime=1.3;this.emit('bossAttack',{x:b.x,y:b.y,bossType:this.bossType});
       }
-      if(b.hp/b.maxHp<=b.nextSeal&&b.nextSeal>0){b.shield=true;this.requestQuestion('seal');return;}
+      if(this.time>=this.nextQuestionAt&&b.hp/b.maxHp<=b.nextSeal&&b.nextSeal>0){b.shield=true;this.requestQuestion('seal');return;}
     }
     if(this.phase!=='playing')return;
     for(const shot of this.shots){
@@ -121,8 +125,10 @@ export class ExpeditionEngine {
       if(shot.enemy){if(this.dist(shot,h)<h.r+shot.r){this.hurt(shot.damage);shot.ttl=0;}}
       else for(const e of [...this.enemies,...(b?[b]:[])])if(e.hp>0&&this.dist(shot,e)<e.r+shot.r){this.hit(e,shot.damage,shot.source);shot.ttl=0;break;}
     }
+    if(this.phase!=='playing')return;
     this.shots=this.shots.filter(p=>p.ttl>0);
     for(const z of this.hazards){z.ttl-=dt;if(z.ttl<=0){if(this.dist(z,h)<z.r+h.r)this.hurt(this.gentle?14:22);this.emit('meteor',{x:z.x,y:z.y,radius:z.r});this.effects.push({...z,endR:z.r+15,ttl:0.3,max:0.3,color:'#ff9584'});}}
+    if(this.phase!=='playing')return;
     this.hazards=this.hazards.filter(z=>z.ttl>0);
     for(const e of this.enemies.filter(e=>e.hp<=0)){
       this.kills++;this.drops.push({x:e.x,y:e.y,kind:'gem',v:3});
@@ -139,6 +145,7 @@ export class ExpeditionEngine {
     for(const text of this.texts){text.ttl-=dt;text.y-=25*dt;}this.texts=this.texts.filter(t=>t.ttl>0).slice(-30);
     if(this.phase!=='playing')return;
     if(b&&b.hp<=0){this.phase='won';this.event='end';this.emit('victory',{x:b.x,y:b.y});return;}
-    if(this.xp>=this.nextXp){this.xp-=this.nextXp;this.rank++;this.nextXp=6+this.rank*4;this.emit('level',{level:this.rank});this.requestQuestion('level');}
+    if(this.xp>=this.nextXp){this.xp-=this.nextXp;this.rank++;this.nextXp=6+this.rank*4;this.hero.damage*=1.06;this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+8);this.emit('level',{level:this.rank});this.pendingLevelQuestion=true;}
+    if(this.pendingLevelQuestion&&this.time>=this.nextQuestionAt)this.requestQuestion('level');
   }
 }
