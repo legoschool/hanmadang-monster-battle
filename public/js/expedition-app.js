@@ -70,9 +70,9 @@ function settingsDialog(){
  dialog(`<div class="eyebrow">PRESENTATION</div><h2>나에게 맞는 전투 연출</h2><div class="settings-list"><label><input id="soundSetting" type="checkbox" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><label><input id="musicSetting" type="checkbox" ${preferences.music?'checked':''}> 전투 배경 선율</label><label>소리 크기 <input id="volumeSetting" aria-label="소리 크기" type="range" min="0" max="50" value="${Math.round(preferences.volume*100)}"></label><label><input id="calmSetting" type="checkbox" ${preferences.calm?'checked':''}> 화면 흔들림과 입자 줄이기</label><label>화면 품질 <select id="qualitySetting"><option value="high" ${preferences.quality==='high'?'selected':''}>선명하게</option><option value="low" ${preferences.quality==='low'?'selected':''}>가볍게</option></select></label></div><p class="muted">공격 범위와 적의 공격 예고는 어느 설정에서도 표시됩니다. 소리는 출발 버튼을 누른 뒤 재생돼요.</p><div class="dialog-actions"><button class="primary" data-action="settingsDone">설정 완료</button></div>`);
 }
 function trainingMenu(){dialog(`<div class="eyebrow">TRAINING GROUNDS</div><h2>세 무기를 직접 써 보세요.</h2><p>보상과 기록이 없는 체험 전투입니다. 모든 무기를 시험할 수 있고 체력이 넉넉합니다.</p><div class="training-weapons">${['blade','wand','orbit'].map(id=>`<button data-training="${id}"><img src="${gearImage(id)}" alt=""><b>${gearById(id).name}</b><small>${id==='blade'?'대형 검격과 충격파':id==='wand'?'별빛 탄환과 방사 폭발':'회전 궤도와 중력장'}</small></button>`).join('')}</div><div class="dialog-actions"><button class="secondary" data-action="close">돌아가기</button></div>`);}
-async function startTraining(weapon){
+async function startTraining(weapon,quick=false){
  if(busy)return;busy=true;
- await audio.unlock();audio.configure(preferences);training=true;run=null;pending=null;engine=new ExpeditionEngine({weapon,charm:profile.charm,level:profile.level,mode:'boss',gentle:true,bossType:zoneById(zone).boss,cinematic:true,seed:Date.now()>>>0});engine.hero.maxHp=engine.hero.hp=750;try{storyDirector=new StoryDirector();battle();storyDirector.take('intro');showStory('intro',()=>{});}finally{busy=false;}
+ if(!quick)await audio.unlock();audio.configure(preferences);training=true;run=null;pending=null;engine=new ExpeditionEngine({weapon,charm:profile.charm,level:profile.level,mode:'boss',gentle:true,bossType:zoneById(zone).boss,cinematic:true,seed:Date.now()>>>0});engine.hero.maxHp=engine.hero.hp=750;try{storyDirector=new StoryDirector();battle();storyDirector.take('intro');if(quick){for(const beat of ['trail','boss','seal'])storyDirector.take(beat);notice('가입 없는 체험 · 이동 WASD / 방향키 · 공격 자동 · 스킬 E · 돌진 Shift');}else showStory('intro',()=>{});}finally{busy=false;}
 }
 function customizeDialog(){
   dialog(`<div class="eyebrow">MY COMPANION</div><h2>함께 자랄 대원의 이름</h2><p>이름과 모습을 바꿔도 경험치와 장비는 그대로 남아요.</p><form id="customForm"><label>아바타 이름<input id="heroName" name="heroName" maxlength="16" required value="${esc(profile.name)}" autocomplete="off"></label><div class="avatar-picker">${Array.from({length:20},(_,i)=>{const id='a'+String(i+1).padStart(2,'0');return `<label><input type="radio" name="heroAvatar" value="${id}" ${profile.avatar===id?'checked':''}><img src="assets/avatars/${id}.png" alt="아바타 ${i+1}"></label>`;}).join('')}</div><div class="dialog-actions"><button class="primary" type="submit">내 대원으로 저장</button><button class="secondary" type="button" data-action="close">돌아가기</button></div><p id="customError" role="status"></p></form>`);
@@ -167,7 +167,7 @@ function showUpgrades(){dialog(`<div class="eyebrow">CHOOSE YOUR UPGRADE</div><h
 async function finish(afterStory=false){
   if(story)return;
   if(!afterStory&&storyDirector.take('ending')){showStory(engine?.phase==='won'?'win':'rest',()=>finish(true));return;}
-  if(training){cancelAnimationFrame(frame);view='result';dialog(`<div class="eyebrow">TRAINING COMPLETE</div><h2>체험 전투를 마쳤어요.</h2><p>${engine.kills}마리 처치 · 최고 ${engine.bestCombo} 연속 처치<br>훈련장에서는 경험치와 보상을 저장하지 않습니다.</p><div class="dialog-actions"><button class="primary" data-action="lobby">${user?'지역 선택으로':'처음 화면으로'}</button></div>`);return;}
+  if(training){cancelAnimationFrame(frame);view='result';dialog(`<div class="eyebrow">TRAINING COMPLETE</div><h2>체험 전투를 마쳤어요.</h2><p>${engine.kills}마리 처치 · 최고 ${engine.bestCombo} 연속 처치<br>훈련장에서는 경험치와 보상을 저장하지 않습니다.</p><div class="dialog-actions"><button class="primary" data-action="lobby">${user?'지역 선택으로':'처음 화면으로'}</button><button class="secondary" data-action="trainingMenu">다른 무기로 체험</button><a class="primary" href="index.html?join=1">참여하고 기록 남기기</a></div>`);return;}
   if(busy)return;busy=true;if(engine&&engine.phase==='playing')engine.pause();
   const won=engine?.phase==='won',lost=engine?.phase==='lost',kills=engine?.kills||0,rank=engine?.rank||1;
   try{const r=await request('expeditionFinish',{runId:run});view='result';cancelAnimationFrame(frame);
@@ -233,6 +233,12 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&engine?.ph
 window.addEventListener('beforeunload',e=>{if(run&&['battle','study'].includes(view)){e.preventDefault();e.returnValue='';}});
 
 async function boot(){
+  if(new URLSearchParams(location.search).get('demo')==='1'){
+    profile={name:'체험 대원',avatar:'a05',level:1,charm:null,weapon:'blade'};zone='code';
+    document.addEventListener('pointerdown',()=>audio.unlock(),{once:true});
+    document.addEventListener('keydown',()=>audio.unlock(),{once:true});
+    await startTraining('blade',true);return;
+  }
   try{state=await API.fetchState();user=state.users?.[state.me];if(!user){login();return;}const r=await request('expeditionLibrary');profile=r.profile;renderLobby();}
   catch(e){$('expedition').innerHTML=header()+`<section class="login-card"><h1>연결을 확인해 주세요.</h1><p>${esc(e.message)}</p><button class="primary" id="retryBoot">다시 연결</button><p><a href="index.html#/home">공동 원정으로</a></p></section>`;$('retryBoot').onclick=boot;}
 }
