@@ -2,7 +2,7 @@
 import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, MODES, SERVER_READY, spriteOf, eggOf } from './config.js';
 import * as G from './game.js';
 import * as API from './api.js';
-import * as V from './views.js?v=short2';
+import * as V from './views.js?v=joincenter1';
 import { esc, num, icon, openModal, updateModal, closeModal, modalOpen, toast, floatText, bump, confetti, wait, timeLeft, now, setServerNow } from './ui.js';
 
 const POLL_MS = 12000;
@@ -439,6 +439,8 @@ const actions = {
   retry: () => location.reload(),
 
   // 시작 화면
+  'start-join': () => { ui.startMode = 'join'; render(); $('joinForm')?.focus({ preventScroll: true }); $('joinForm')?.scrollIntoView({ block: 'start' }); },
+  'start-resume': () => { ui.startMode = 'resume'; render(); $('resumeForm')?.scrollIntoView({ block: 'start' }); $('findName')?.focus({ preventScroll: true }); },
   'pick-team': (el) => {
     ui.pickTeam = el.dataset.team;
     render();                       // 고른 커뮤니티 소개·스킬을 보여 주려고 다시 그린다
