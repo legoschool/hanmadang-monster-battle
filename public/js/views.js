@@ -440,7 +440,8 @@ export function renderHome(state, ui) {
 
   return `
   <div class="home">
-    <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><small>내 아바타로 떠나는 액션 원정</small><strong>지식의 숲이 열렸어요</strong><span>8개 지역 · 상식·사건 퀴즈 200개 · 장비 수집과 레벨업</span></div><b aria-hidden="true">→</b></a>
+    <a class="expedition-entry" href="lounge.html"><img src="assets/icons/luckybox.png" alt=""><div><small>게임 기록과 포인트를 선물로</small><strong>플레이 라운지 · 선물 응모</strong><span>퀴즈 · 기억력 · 숫자 탐색 · 포인트 배분</span></div><b aria-hidden="true">→</b></a>
+  <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><small>내 아바타로 떠나는 액션 원정</small><strong>지식의 숲이 열렸어요</strong><span>8개 지역 · 상식·사건 퀴즈 200개 · 장비 수집과 레벨업</span></div><b aria-hidden="true">→</b></a>
     ${weekBanner(state, t)}
     ${golden ? `
     <section class="golden-banner" role="status">
@@ -839,6 +840,7 @@ export function renderPlay(state, ui) {
 
   return `
   ${pageHead('도전 · 뽑기', `운과 배짱으로 원정을 도와요. 럭키박스는 하루에 ${RULES.luckyPerDay}번, 보스 가위바위보는 ${RULES.rpsPerDay}번! 날마다 다시 채워져요.`)}
+  <a class="expedition-entry" href="lounge.html"><img src="assets/icons/luckybox.png" alt=""><div><small>게임 기록과 포인트를 선물로</small><strong>플레이 라운지 · 선물 응모</strong><span>퀴즈 · 기억력 · 숫자 탐색 · 포인트 배분</span></div><b aria-hidden="true">→</b></a>
   <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><small>직접 움직이고 공격하는 새 원정</small><strong>지식의 숲으로 출발</strong><span>코딩 · 바이브코딩 · 디지털 역사 · 주관식과 초성 힌트</span></div><b aria-hidden="true">→</b></a>
   <div class="play">
     <section class="card play-card">
@@ -1412,6 +1414,7 @@ export function renderAdmin(state, ui) {
 
   return `
   ${pageHead('운영자', `참가자 ${num(ov.userCount)}명 · ${weekText} · 현장 모임 ${eventDateLabel(S)}${S.quick ? ` · 미리 해 보기(${P.label})` : ''}`)}
+  <a class="expedition-entry" href="lounge.html#admin"><img src="assets/icons/mystery.png" alt=""><div><small>포인트 응모 선물 관리</small><strong>선물 등록 · 수량 · 회차 · 추첨</strong><span>선물 최대 10종 · 수량별 당첨자 선정 · 지급 확인</span></div><b aria-hidden="true">→</b></a>
   <div class="admin">
     <section class="card">
       ${secHead('진행 관리')}
