@@ -2,7 +2,7 @@
 import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, MODES, SERVER_READY, spriteOf, eggOf } from './config.js';
 import * as G from './game.js';
 import * as API from './api.js';
-import * as V from './views.js?v=joincenter1';
+import * as V from './views.js?v=hub2';
 import { esc, num, icon, openModal, updateModal, closeModal, modalOpen, toast, floatText, bump, confetti, wait, timeLeft, now, setServerNow } from './ui.js';
 
 const POLL_MS = 12000;

@@ -11,22 +11,24 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/promo.css?v=joincenter1">
   <link rel="stylesheet" href="css/guide-cards.css?v=short3">
-  <link rel="stylesheet" href="css/hub.css?v=hub1">
+  <link rel="stylesheet" href="css/hub.css?v=hub2">
 </head>
 <body>
 <section id="promoLanding" class="promo hub" hidden aria-label="몬스터 원정대 메인">
-  <header class="hub-nav"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>제3회 한마당 · 몬스터 원정대</span><div><button id="hubMotion" type="button" aria-pressed="false">움직임 잠깐 멈춤</button><b>최종 결전 · 12월 19일</b></div></header>
-  <div class="hub-title"><div><span>LEARN · PLAY · TOGETHER</span><h1>배우면 강해지는 <em>우리의 원정!</em></h1></div><p>내 아바타와 펫이 함께 싸우고<br>모은 포인트로 선물까지 도전해요.</p></div>
+  <header class="hub-nav"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>제3회 한마당 · 몬스터 원정대</span><div><b>최종 결전 · 12월 19일</b></div></header>
+  <div class="hub-title"><div><span>우리는 모두 G-DEAL! · 제3회 한마당</span><h1><b class="hub-gdeal">G-DEAL</b> <em>몬스터 원정대</em></h1></div><p>내 아바타와 펫이 함께 싸우고<br>모은 포인트로 선물까지 도전해요.</p></div>
   <div class="hub-stage">
     <section class="hub-theater" aria-label="아바타와 함께 보는 홍보영상">
       <span class="hub-badge">✦ PLAY THE ADVENTURE</span>
       <div class="hub-avatars" aria-label="원정대 아바타"></div>
       <div class="promo-screen"><div class="promo-screen-top"><span class="promo-dot"></span> 실제 플레이 · 펫과 함께하는 14초 원정</div><video id="promoVideo" autoplay muted loop playsinline preload="metadata" poster="assets/promo/promo-poster.jpg?v=short2" aria-label="몬스터 원정대 홍보영상"><source src="assets/promo/gdeal-promo.mp4?v=short2" type="video/mp4"></video><div class="promo-video-controls"><button id="promoToggle">영상 일시정지</button><button id="promoSound" aria-pressed="false">소리 켜기</button><button id="promoFullscreen">크게 보기</button></div><p id="promoPlayback" role="status"></p></div>
-      <div class="hub-cheer" aria-live="polite">아바타를 눌러보세요. 원정대가 인사해요!</div>
+      <div class="hub-cheer" aria-live="polite">커뮤니티와 동행 펫을 눌러 자세히 만나보세요!</div>
     </section>
     <guide-cards class="hub-guide" data-key="intro"></guide-cards>
   </div>
   <nav class="hub-actions" aria-label="원정 시작하기"><a class="hub-join" href="?join=1&mode=join"><small>처음 오셨나요?</small><strong>참여하기 <span>→</span></strong></a><a class="hub-resume" href="?join=1&mode=resume"><small>다시 오셨군요!</small><strong>이어서 플레이 <span>→</span></strong></a><a class="hub-demo" href="expedition.html?demo=1"><strong>둘러보기 ↗</strong><small>가입 없이 바로 전투 체험</small></a><button id="showGuide" type="button">참여 방법 <span>?</span></button></nav>
+  <section class="hub-communities" aria-label="G-DEAL 커뮤니티와 동행 펫 소개"><div class="community-heading"><b>G-DEAL의 10개 커뮤니티와 동행 펫</b><small>6초마다 다음 커뮤니티 · 눌러서 직접 보기</small></div><div id="communityTabs" aria-label="커뮤니티 선택"></div><div id="communityDetail"></div></section>
+
   <section class="hub-story" aria-label="프롤로그 카드뉴스" aria-roledescription="캐러셀"><div class="hub-story-label"><span>THE STORY</span><h2>우리의 모험은<br>이렇게 시작돼요.</h2><div><button id="storyPrev" aria-label="이전 프롤로그">←</button><button id="storyPause" aria-label="프롤로그 자동 넘김 정지">Ⅱ</button><button id="storyNext" aria-label="다음 프롤로그">→</button></div></div><div class="hub-story-scene"><img id="storyImage" alt=""><div><span id="storyChapter"></span><h3 id="storyTitle"></h3><p id="storyText"></p></div></div><div class="hub-story-dots" aria-label="프롤로그 페이지 선택"></div></section>
   <footer class="hub-footer"><span>10개 커뮤니티 · 하나의 원정대 · 우리는 모두 G-DEAL!</span><a href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">가이드북 PDF ↗</a></footer>
 </section>
@@ -63,10 +65,10 @@
   <div id="modal-root"></div>
   <div id="toast-root" class="toast-root" aria-live="polite"></div>
 
-  <script type="module" src="js/guide-cards.js?v=short2"></script>
-  <script type="module" src="js/promo.js?v=hub1"></script>
-  <script type="module" src="js/app.js?v=hub1"></script>
-  <script type="module" src="js/hub.js?v=hub1"></script>
+  <script type="module" src="js/guide-cards.js?v=hub2"></script>
+  <script type="module" src="js/promo.js?v=hub2"></script>
+  <script type="module" src="js/app.js?v=hub2"></script>
+  <script type="module" src="js/hub.js?v=hub2"></script>
 </body>
 </html>
 

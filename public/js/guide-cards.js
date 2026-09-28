@@ -10,7 +10,7 @@ const saved = new Map();
 class GuideCards extends HTMLElement {
   connectedCallback() {
     this.key=this.dataset.key||'default';
-    this.state=saved.get(this.key)||{index:0,paused:matchMedia('(prefers-reduced-motion: reduce)').matches};
+    this.state=saved.get(this.key)||{index:0,paused:this.classList.contains('hub-guide')?false:matchMedia('(prefers-reduced-motion: reduce)').matches};
     saved.set(this.key,this.state);
     this.innerHTML=`<section class="gc" aria-label="활동 가이드 카드뉴스" aria-roledescription="캐러셀">
       <div class="gc-head"><div><small>HOW TO PLAY · 활동 가이드</small><h2>넘겨보면, 바로 시작!</h2></div><button type="button" class="gc-pause"></button></div>
