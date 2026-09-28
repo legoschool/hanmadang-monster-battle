@@ -1,11 +1,12 @@
 import {TEAMS} from './config.js';
+import {petGrowthMarkup} from './pet-growth.js?v=growth1';
 import {levelInfo} from './game.js';
-import {companionSpec} from './expedition-companions.js?v=pet1';
+import {companionSpec} from './expedition-companions.js?v=growth1';
 import {BIOMES} from './expedition-environment.js?v=pet1';
 import {storyPages,StoryDirector} from './expedition-story.js?v=story5';
 import * as API from './api.js';
 import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=story5';
-import {ExpeditionEngine} from './expedition-engine.js?v=comfort1';
+import {ExpeditionEngine} from './expedition-engine.js?v=growth1';
 import {ExpeditionRenderer} from './expedition-renderer.js?v=pet1';
 import {ExpeditionAudio} from './expedition-audio.js?v=story5';
 
@@ -52,7 +53,7 @@ function storyJournal(){dialog(`<div class="eyebrow">STORY JOURNAL</div><h2>지�
 function closeDialog(){$('expedition').inert=false;$('dialog').hidden=true;$('dialog').innerHTML='';$('arena')?.focus({preventScroll:true});}
 async function request(type,params={}){const {result}=await API.act(type,params);if(!result?.ok)throw new Error(result?.reason||'원정 서버 응답을 확인하지 못했어요. 서버 업데이트가 필요할 수 있어요.');if(result.profile)profile=result.profile;return result;}
 function petSpec(){const team=TEAMS.find(t=>t.id===user?.teamId)||TEAMS[0];return companionSpec(team,user?levelInfo(state?.teams?.[team.id]?.exp||0).level:3);}
-function petCard(){const p=petSpec();return '<div class="companion-profile"><img src="'+p.image+'" alt="'+p.monsterName+'"><div><b>동행 펫 · '+p.monsterName+'</b><span>Lv.'+p.level+' · '+p.stage+' 단계</span><small>'+p.skillName+' · 자동 공격 + 합동 기술</small><small>'+(user?'Lv.1 새싹 → Lv.3 동료 → Lv.7 수호. 먹이와 배움으로 함께 키워요.':'체험에서는 Lv.3 펫이 함께해요.')+'</small></div></div>';}
+function petCard(){const p=petSpec();return '<div class="companion-profile"><img src="'+p.image+'" alt="'+p.monsterName+'"><div><b>동행 펫 · '+p.monsterName+'</b><span>Lv.'+p.level+' · '+p.stage+' 단계</span><small>'+p.skillName+' · 자동 공격 + 합동 기술</small><small>'+(user?'Lv.1 새싹 → Lv.3 동료 → Lv.7 수호. 먹이와 배움으로 함께 키워요.':'체험에서는 Lv.3 펫이 함께해요.')+'</small></div></div>'+(user?petGrowthMarkup(TEAMS.find(t=>t.id===user.teamId)||TEAMS[0],state?.teams?.[user.teamId]?.exp||0):'');}
 function header(){return `<header class="top"><div class="brand"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>몬스터 원정대</span></div><a href="index.html#/home">공동 원정으로 돌아가기 ↗</a></header>`;}
 function login(message='공동 원정에서 커뮤니티와 아바타를 고르면 이곳에서도 같은 대원으로 이어집니다.'){
   $('expedition').innerHTML=header()+`<section class="login-card"><span class="eyebrow">G-DEAL KNOWLEDGE QUEST</span><h1>내 아바타로 떠나는<br>지식의 숲</h1><p>${esc(message)}</p><a class="primary" href="index.html#/home">원정대에 참여하기</a><p class="muted">참여한 뒤 홈의 ‘지식의 숲’에서 돌아오세요.</p><button class="secondary" data-action="guestTraining">가입 없이 전투 체험</button><p class="muted">체험에서는 이름이나 플레이 기록을 서버에 저장하지 않습니다.</p></section>`;
@@ -145,7 +146,7 @@ function hud(){
   $('comboLabel').textContent=engine.combo>1?`${engine.combo} 연속 처치!`:'';
   $('rank').textContent=`전투 Lv.${engine.rank}`;$('hpText').textContent=`${Math.ceil(h.hp)} / ${h.maxHp}`;
   $('hpBar').style.width=`${h.hp/h.maxHp*100}%`;$('xpBar').style.width=`${engine.xp/engine.nextXp*100}%`;$('kills').textContent=`처치 ${engine.kills}`;
-  if(engine.pet){const p=engine.pet;$('petCharge').style.width=p.charge+'%';$('petState').textContent='펫 피해 '+Math.round(p.dealt)+' · '+p.stage+' 단계';$('petReady').textContent=p.skillCd>0?Math.ceil(p.skillCd)+'초 대기':p.charge>=100?'Q · 합동 기술 준비!':Math.floor(p.charge)+'% · 함께 싸워 충전';const button=document.querySelector('[data-action=petSkill]');button.disabled=engine.phase!=='playing'||engine.entrance>0||p.charge<100||p.skillCd>0;button.classList.toggle('ready',!button.disabled);}
+  if(engine.pet){const p=engine.pet;$('petCharge').style.width=p.charge+'%';$('petState').textContent='펫 피해 '+Math.round(p.dealt)+' · 기술 '+p.casts+'회'+(p.healed?' · 회복 '+Math.round(p.healed):'')+(p.blocked?' · 보호 '+Math.round(p.blocked):'');$('petReady').textContent=p.skillCd>0?Math.ceil(p.skillCd)+'초 대기':p.charge>=100?'Q · 합동 기술 준비!':Math.floor(p.charge)+'% · 함께 싸워 충전';const button=document.querySelector('[data-action=petSkill]');button.disabled=engine.phase!=='playing'||engine.entrance>0||p.charge<100||p.skillCd>0;button.classList.toggle('ready',!button.disabled);}
   const left=Math.max(0,Math.ceil(150-engine.time));$('timer').textContent=b?'BOSS':`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;
   $('dashCd').textContent=engine.dashCd>0?`${Math.ceil(engine.dashCd)}초`:'Shift';$('skillCd').textContent=engine.skillCd>0?`${Math.ceil(engine.skillCd)}초`:'E';
   document.querySelector('[data-action="skill"]')?.style.setProperty('--cooldown',`${engine.skillCd/9*100}%`);document.querySelector('[data-action="skill"]')?.classList.toggle('ready',engine.skillCd<=0);
@@ -262,4 +263,5 @@ async function boot(){
   catch(e){$('expedition').innerHTML=header()+`<section class="login-card"><h1>연결을 확인해 주세요.</h1><p>${esc(e.message)}</p><button class="primary" id="retryBoot">다시 연결</button><p><a href="index.html#/home">공동 원정으로</a></p></section>`;$('retryBoot').onclick=boot;}
 }
 boot();
+
 

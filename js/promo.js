@@ -9,3 +9,11 @@ document.getElementById('showGuide').onclick=()=>{video.pause();guide.showModal(
 let resume=false;document.addEventListener('visibilitychange',()=>{if(document.hidden){resume=!video.paused;video.pause();}else if(resume&&!landing.hidden&&!guide.open)play();});window.addEventListener('hashchange',()=>{landing.hidden=true;app.hidden=false;video.pause();});
 document.getElementById('promoFullscreen').onclick=async()=>{try{if(video.requestFullscreen)await video.requestFullscreen();else if(video.webkitEnterFullscreen)video.webkitEnterFullscreen();else video.controls=true;}catch{video.controls=true;}play();};
 document.addEventListener('fullscreenchange',()=>{video.controls=document.fullscreenElement===video;});
+
+const friendlyKey='gdeal-friendly-guide-v1';
+function rememberGuide(){try{localStorage.setItem(friendlyKey,'seen');}catch{}}
+guide.querySelectorAll('a').forEach(a=>a.addEventListener('click',rememberGuide));
+document.getElementById('friendlyExplore').onclick=()=>guide.close();
+guide.addEventListener('close',()=>{rememberGuide();if(!landing.hidden&&!document.hidden)play();});
+let friendlySeen=false;try{friendlySeen=localStorage.getItem(friendlyKey)==='seen';}catch{}
+if(show&&!friendlySeen)setTimeout(()=>{if(!landing.hidden&&!document.querySelector('dialog[open]')){video.pause();guide.showModal();}},350);

@@ -1,12 +1,15 @@
 import { TEAMS, spriteOf } from './config.js';
-import { PET_SKILLS } from './expedition-companions.js';
+import { PET_SKILLS } from './expedition-companions.js?v=growth1';
+import {petGrowthMarkup} from './pet-growth.js?v=growth1';
+import {fetchState} from './api.js';
+let communityState=null;
 const hub=document.getElementById('promoLanding');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const portraits=['a05','a02','a18','a17','a01','a20','a07','a08','a09','a10'];
 const tabs=document.getElementById('communityTabs'),detail=document.getElementById('communityDetail');
 let selectedTeam=0,lastChoice=0;
 tabs.innerHTML=TEAMS.map((t,i)=>`<button type="button" data-team-index="${i}" aria-pressed="false"><img src="${spriteOf(t.id)}" alt="" width="28" height="28">${t.community}</button>`).join('');
-function communityPaint(){const t=TEAMS[selectedTeam],avatar=portraits[selectedTeam];tabs.querySelectorAll('button').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===selectedTeam)));detail.innerHTML=`<div class="community-pair"><img class="community-avatar" src="assets/avatars/${avatar}.png" alt="아바타 예시"><img class="community-pet" src="${spriteOf(t.id)}" alt="${t.monster}"></div><div class="community-description"><h2>${t.community} <span>동행 펫 · ${t.monster}</span></h2><p>${t.about}</p><small>${t.desc}</small></div><div class="community-skills"><b>펫 전투 기술 · ${PET_SKILLS[t.id].name}</b><span>성장 기술 · ${t.skill.name} (Lv.5)<br>${t.skill.effect}</span><small>아바타는 예시이며 가입할 때 자유롭게 골라요.</small></div>`;
+function communityPaint(){const t=TEAMS[selectedTeam],avatar=portraits[selectedTeam];tabs.querySelectorAll('button').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===selectedTeam)));detail.innerHTML=`<div class="community-pair"><img class="community-avatar" src="assets/avatars/${avatar}.png" alt="아바타 예시"><img class="community-pet" src="${spriteOf(t.id)}" alt="${t.monster}"></div><div class="community-description"><h2>${t.community} <span>동행 펫 · ${t.monster}</span></h2><p>${t.about}</p><small>${t.desc}</small></div><div class="community-skills"><b>펫 전투 기술 · ${PET_SKILLS[t.id].name}</b><span>성장 기술 · ${t.skill.name} (Lv.5)<br>${t.skill.effect}</span><small>아바타는 예시이며 가입할 때 자유롭게 골라요.</small></div>${communityState?.teams?.[t.id]?petGrowthMarkup(t,communityState.teams[t.id].exp):'<p class="pet-growth-loading">커뮤니티 성장 기록을 확인하고 있어요.</p>'}`;
  const surrounding=Array.from({length:6},(_,i)=>(selectedTeam+i)%TEAMS.length);
  hub.querySelector('.hub-avatars').innerHTML=surrounding.map((n,i)=>{const team=TEAMS[n];return `<button type="button" data-community="${n}" aria-label="${team.community}, 펫 ${team.monster} 소개 보기" style="--delay:${-i*.5}s"><span class="hub-pair"><img src="assets/avatars/${portraits[n]}.png" alt=""><img src="${spriteOf(team.id)}" alt=""></span><small>${team.community}</small></button>`}).join('');
 }
@@ -33,3 +36,6 @@ const adminMenu=document.getElementById('adminMenu'),adminOpen=document.getEleme
 adminOpen.onclick=()=>{const video=document.getElementById('promoVideo');adminVideoWasPlaying=!video.paused;video.pause();adminMenu.showModal();};
 adminMenu.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{adminVideoWasPlaying=false;adminMenu.close();}));
 adminMenu.addEventListener('close',()=>{adminOpen.focus({preventScroll:true});if(adminVideoWasPlaying&&!hub.hidden&&!document.hidden)document.getElementById('promoVideo').play().catch(()=>{});});
+
+async function refreshPetGrowth(){if(hub.hidden||document.hidden)return;try{communityState=await fetchState();communityPaint();}catch{const note=detail.querySelector('.pet-growth-loading');if(note)note.textContent='성장 기록을 불러오지 못했어요. 잠시 후 다시 확인합니다.';}}
+refreshPetGrowth();setInterval(refreshPetGrowth,60000);
