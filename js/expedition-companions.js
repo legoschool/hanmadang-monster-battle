@@ -1,0 +1,16 @@
+// Community companions: shared monster growth powers local combat, never point awards.
+export const PET_SKILLS={
+ koalbot:{name:'데이터 광선',type:'beam',color:'#83e7ff'},antro:{name:'연결 번개',type:'chain',color:'#ffd189'},monggeul:{name:'꿈빛 회복',type:'heal',color:'#d6b1ff'},digibugi:{name:'파도 방벽',type:'guard',color:'#8bcaff'},pickling:{name:'씨앗 폭발',type:'burst',color:'#c0ed88'},droni:{name:'별빛 포격',type:'burst',color:'#ffe188'},owllab:{name:'지혜의 고리',type:'chain',color:'#b2e9b1'},hongaengi:{name:'응원 공명',type:'guard',color:'#ffacb9'},maninyang:{name:'발톱 연격',type:'beam',color:'#f3cf99'},h2o:{name:'생명의 물결',type:'heal',color:'#9cece1'}
+};
+export function companionSpec(team,level=1){const id=PET_SKILLS[team?.id]?team.id:'koalbot',lv=Math.max(1,Math.min(20,Math.floor(Number(level)||1)));return {id,name:team?.monster||'코알봇',level:lv,stage:lv>=7?'수호':lv>=3?'동료':'새싹',size:lv>=7?83:lv>=3?72:60,image:`assets/monsters/${id}/${id}.png`,...PET_SKILLS[id] ,skillName:PET_SKILLS[id].name,monsterName:team?.monster||'코알봇'};}
+export function makeCompanion(spec,hero){if(!spec)return null;return {...spec,name:spec.monsterName,x:hero.x-65,y:hero.y+25,face:0,attackCd:.5,skillCd:0,charge:30,dealt:0,casts:0,attacks:0,flash:0,guard:0};}
+export function companionStep(engine,dt){const p=engine.pet;if(!p)return;const h=engine.hero,tx=Math.max(30,Math.min(1070,h.x-Math.cos(h.face)*62-Math.sin(h.face)*30)),ty=Math.max(30,Math.min(770,h.y-Math.sin(h.face)*62+Math.cos(h.face)*30));const k=1-Math.exp(-dt*6);p.x+=(tx-p.x)*k;p.y+=(ty-p.y)*k;p.attackCd=Math.max(0,p.attackCd-dt);p.skillCd=Math.max(0,p.skillCd-dt);p.flash=Math.max(0,p.flash-dt);p.guard=Math.max(0,p.guard-dt);p.charge=Math.min(100,p.charge+dt*2.7);
+ const target=[...engine.enemies,...(engine.boss?[engine.boss]:[])].filter(e=>e.hp>0&&!e.shield&&engine.dist(e,p)<350).sort((a,b)=>engine.dist(a,p)-engine.dist(b,p))[0];
+ if(target&&p.attackCd<=0){p.attackCd=Math.max(.8,1.55-p.level*.025);p.face=Math.atan2(target.y-p.y,target.x-p.x);p.flash=.28;p.attacks++;engine.shots.push({x:p.x,y:p.y-14,vx:Math.cos(p.face)*390,vy:Math.sin(p.face)*390,ttl:1.1,damage:7+p.level*.7,enemy:false,r:6,source:'pet',color:p.color});engine.emit('petAttack',{x:p.x,y:p.y-14,toX:target.x,toY:target.y,color:p.color});}
+}
+export function castCompanion(engine){const p=engine.pet;if(!p||engine.phase!=='playing'||engine.entrance>0||p.charge<100||p.skillCd>0)return false;const targets=[...engine.enemies,...(engine.boss?[engine.boss]:[])].filter(e=>e.hp>0&&!e.shield&&engine.dist(e,p)<360).sort((a,b)=>engine.dist(a,p)-engine.dist(b,p));if(!targets.length&&!['heal','guard'].includes(p.type))return false;p.charge=0;p.skillCd=8;p.casts++;p.flash=.8;const n=27+p.level*2;let affected=[];
+ if(p.type==='heal'){engine.hero.hp=Math.min(engine.hero.maxHp,engine.hero.hp+20+p.level*2);engine.hero.inv=Math.max(engine.hero.inv,.6);affected=targets.slice(0,1);}
+ else if(p.type==='guard'){p.guard=4;affected=targets.slice(0,3);}
+ else affected=targets.slice(0,p.type==='beam'?1:p.type==='chain'?4:6);
+ for(const target of affected)engine.hit(target,n*(p.type==='beam'?2:1),'pet');engine.emit('petSkill',{x:p.x,y:p.y,color:p.color,type:p.type,name:p.skillName,radius:360,targets:affected.map(e=>({x:e.x,y:e.y}))});engine.banner=p.name+' · '+p.skillName;engine.bannerTime=1.6;return true;
+}
