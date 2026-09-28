@@ -442,7 +442,7 @@ export function renderHome(state, ui) {
 
   return `
   <div class="home">
-    <guide-cards data-key="home"></guide-cards>
+    <details class="guide-fold"><summary>참여 방법 · 가이드북 보기</summary><guide-cards data-key="home"></guide-cards></details>
     <a class="expedition-entry" href="lounge.html"><img src="assets/icons/luckybox.png" alt=""><div><small>게임 기록과 포인트를 선물로</small><strong>플레이 라운지 · 선물 응모</strong><span>퀴즈 · 기억력 · 숫자 탐색 · 포인트 배분</span></div><b aria-hidden="true">→</b></a>
   <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><small>내 아바타로 떠나는 액션 원정</small><strong>지식의 숲이 열렸어요</strong><span>8개 지역 · 상식·사건 퀴즈 200개 · 장비 수집과 레벨업</span></div><b aria-hidden="true">→</b></a>
     ${weekBanner(state, t)}

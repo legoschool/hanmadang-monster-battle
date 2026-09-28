@@ -15,14 +15,14 @@ function communityPaint(){const t=TEAMS[selectedTeam],avatar=portraits[selectedT
 }
 function choose(n){selectedTeam=n;lastChoice=Date.now();communityPaint();}
 tabs.onclick=e=>{const b=e.target.closest('button');if(b)choose(+b.dataset.teamIndex);};hub.querySelector('.hub-avatars').onclick=e=>{const b=e.target.closest('button');if(b)choose(+b.dataset.community);};
-setInterval(()=>{if(!hub.hidden&&!document.hidden&&!document.querySelector('dialog[open]')&&Date.now()-lastChoice>10000){selectedTeam=(selectedTeam+1)%TEAMS.length;communityPaint();}},6000);communityPaint();
+communityPaint();
 const scenes=[
  ['01 · 화면 너머의 이상 신호','어느 날, 화면 너머에서','그럴듯한 거짓말, 진짜 같은 가짜 얼굴, 보고 싶은 것만 보여주는 거품. 우리 화면에 이상한 것들이 늘어나기 시작했어요.','assets/bosses/bubble.png','필터버블'],
  ['02 · 혼란의 근원','대마왕 글리치의 등장','디지털 혼란을 즐기는 글리치가 네 부하를 풀어놓았어요. 버그벌레, 도플갱어, 할루시, 필터버블이 우리의 일상을 흔들어요.','assets/bosses/glitch.png','대마왕 글리치'],
  ['03 · 우리의 무기','아는 만큼, 강해진다!','부하들은 모르는 사람에게만 힘을 써요. 원리를 배우면 힘을 잃고, 여럿이 함께 알면 더는 버티지 못해요.','assets/avatars/a02.png','안경 박사'],
  ['04 · 열 개의 커뮤니티, 하나의 원정대','함께 배우고, 함께 물리쳐요','하루 한 조각씩 배우고, 아바타와 펫을 키우며 함께 도전해요. 12월 19일, 우리 모두의 힘으로 최종 결전에 나섭니다!','assets/monsters/koalbot/koalbot.png','코알봇'],
 ];
-let current=0,paused=false,still=false;
+let current=0,paused=true,still=false;
 const story=hub.querySelector('.hub-story'),pause=document.getElementById('storyPause'),dots=hub.querySelector('.hub-story-dots');
 dots.innerHTML=scenes.map((_,i)=>`<button type="button" data-story="${i}" aria-label="프롤로그 ${i+1}장"></button>`).join('');
 function paint(animate=false){const [chapter,title,text,src,alt]=scenes[current];document.getElementById('storyChapter').textContent=chapter;document.getElementById('storyTitle').textContent=title;document.getElementById('storyText').textContent=text;const img=document.getElementById('storyImage');img.src=src;img.alt=alt;dots.querySelectorAll('button').forEach((b,i)=>b.setAttribute('aria-current',String(i===current)));pause.textContent=paused?'▶':'Ⅱ';pause.setAttribute('aria-label',paused?'프롤로그 자동 넘김 시작':'프롤로그 자동 넘김 정지');pause.setAttribute('aria-pressed',String(paused));if(animate&&!still&&!reduced.matches)hub.querySelector('.hub-story-scene').animate([{opacity:0,transform:'translateX(12px)'},{opacity:1,transform:'translateX(0)'}],{duration:350});}
@@ -35,7 +35,10 @@ paint();
 const adminMenu=document.getElementById('adminMenu'),adminOpen=document.getElementById('openAdminMenu');let adminVideoWasPlaying=false;
 adminOpen.onclick=()=>{const video=document.getElementById('promoVideo');adminVideoWasPlaying=!video.paused;video.pause();adminMenu.showModal();};
 adminMenu.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{adminVideoWasPlaying=false;adminMenu.close();}));
-adminMenu.addEventListener('close',()=>{adminOpen.focus({preventScroll:true});if(adminVideoWasPlaying&&!hub.hidden&&!document.hidden)document.getElementById('promoVideo').play().catch(()=>{});});
+adminMenu.addEventListener('close',()=>{adminOpen.focus({preventScroll:true});if(adminVideoWasPlaying&&!hub.hidden&&!document.hidden&&document.getElementById('introMedia').open)document.getElementById('promoVideo').play().catch(()=>{});});
 
-async function refreshPetGrowth(){if(hub.hidden||document.hidden)return;try{communityState=await fetchState();communityPaint();}catch{const note=detail.querySelector('.pet-growth-loading');if(note)note.textContent='성장 기록을 불러오지 못했어요. 잠시 후 다시 확인합니다.';}}
+async function refreshPetGrowth(){if(hub.hidden||document.hidden||!document.getElementById('petDetails').open)return;try{communityState=await fetchState();communityPaint();}catch{const note=detail.querySelector('.pet-growth-loading');if(note)note.textContent='성장 기록을 불러오지 못했어요. 잠시 후 다시 확인합니다.';}}
 refreshPetGrowth();setInterval(refreshPetGrowth,60000);
+
+document.querySelectorAll('.hub-disclosure').forEach(panel=>panel.addEventListener('toggle',()=>{if(panel.open)document.querySelectorAll('.hub-disclosure').forEach(other=>{if(other!==panel)other.open=false;});}));
+document.getElementById('petDetails').addEventListener('toggle',e=>{if(e.target.open)refreshPetGrowth();});
