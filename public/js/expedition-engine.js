@@ -1,12 +1,14 @@
+import {makeCompanion,companionStep,castCompanion} from './expedition-companions.js?v=pet1';
 // 순수 전투 시뮬레이션. DOM·서버와 분리해 이동, 충돌, 일시정지, 강화 등을 검사한다.
 export class ExpeditionEngine {
-  constructor({weapon='blade',charm=null,level=1,mode='survival',gentle=true,seed=1,bossType='bugbug',cinematic=false}={}) {
+  constructor({weapon='blade',charm=null,level=1,mode='survival',gentle=true,seed=1,bossType='bugbug',cinematic=false,companion=null}={}) {
     Object.assign(this,{width:1100,height:800,weapon,charm,mode,gentle,seed,phase:'playing',time:0,kills:0,
       xp:0,rank:1,nextXp:6,attackCd:0,dashCd:0,skillCd:0,spawnCd:0,seq:0,boss:null,bossMade:false,
       enemies:[],shots:[],drops:[],effects:[],texts:[],hazards:[],particles:[],quizReason:'',seals:0,event:null,bossType,shake:0,combo:0,comboTime:0,bestCombo:0,banner:'',bannerTime:0,cinematic,entrance:0,hitStop:0,fxEvents:[],swing:0});
     const maxHp=(gentle?150:100)+(charm==='shield'?35:0);
     this.hero={x:550,y:400,hp:maxHp,maxHp,r:22,face:0,inv:1,speed:190*(charm==='boots'?1.15:1),
       damage:(24+Math.min(10,level-1)*1.5)*(charm==='lens'?1.2:1),rate:1,magnet:85+(charm==='magnet'?60:0)};
+    this.pet=makeCompanion(companion,this.hero);
     if(mode==='boss') this.spawnBoss();
   }
   random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
@@ -64,8 +66,9 @@ export class ExpeditionEngine {
     if(this.weapon==='wand')for(let i=0;i<12;i++){const a=i*Math.PI/6;this.shots.push({x:h.x,y:h.y,vx:Math.cos(a)*350,vy:Math.sin(a)*350,ttl:1,damage:h.damage,enemy:false,r:6});}
     h.inv=Math.max(h.inv,0.5);
   }
-  hit(e,n){if(e.hp<=0||e.shield)return;e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&n>this.hero.damage*1.8)this.hitStop=Math.max(this.hitStop,.05);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
-  hurt(n){const h=this.hero;if(h.inv>0)return;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
+  petSkill(){return castCompanion(this);}
+  hit(e,n,source='hero'){if(e.hp<=0||e.shield)return;if(this.pet){this.pet.charge=Math.min(100,this.pet.charge+(source==='pet'?2:1));if(source==='pet')this.pet.dealt+=Math.min(e.hp,n);}e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&n>this.hero.damage*1.8)this.hitStop=Math.max(this.hitStop,.05);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
+  hurt(n){const h=this.hero;if(h.inv>0)return;if(this.pet?.guard>0)n*=.55;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
     this.texts.push({x:h.x,y:h.y-26,text:`-${n}`,ttl:0.7,color:'#ffa49e'});if(h.hp<=0){this.phase='lost';this.event='end';this.emit('defeat');}}
   spawn(){
     const angle=this.random()*Math.PI*2,dist=330+this.random()*80,h=this.hero;
@@ -87,6 +90,7 @@ export class ExpeditionEngine {
     let dx=input.x||0,dy=input.y||0,len=Math.hypot(dx,dy);if(len>1){dx/=len;dy/=len;}
     if(len>0){h.face=Math.atan2(dy,dx);h.x=Math.max(32,Math.min(this.width-32,h.x+dx*h.speed*dt));h.y=Math.max(32,Math.min(this.height-32,h.y+dy*h.speed*dt));}
     if(input.auto!==false||input.attack)this.attack();
+    companionStep(this,dt);
     this.spawnCd-=dt;if(this.spawnCd<=0&&this.enemies.length<38){this.spawn();this.spawnCd=Math.max(0.45,1.3-this.time/230)*(this.boss?2.4:1);}
     if(!this.bossMade&&this.time>=150)this.spawnBoss();
     for(const e of this.enemies){
@@ -115,7 +119,7 @@ export class ExpeditionEngine {
     for(const shot of this.shots){
       shot.x+=shot.vx*dt;shot.y+=shot.vy*dt;shot.ttl-=dt;
       if(shot.enemy){if(this.dist(shot,h)<h.r+shot.r){this.hurt(shot.damage);shot.ttl=0;}}
-      else for(const e of [...this.enemies,...(b?[b]:[])])if(e.hp>0&&this.dist(shot,e)<e.r+shot.r){this.hit(e,shot.damage);shot.ttl=0;break;}
+      else for(const e of [...this.enemies,...(b?[b]:[])])if(e.hp>0&&this.dist(shot,e)<e.r+shot.r){this.hit(e,shot.damage,shot.source);shot.ttl=0;break;}
     }
     this.shots=this.shots.filter(p=>p.ttl>0);
     for(const z of this.hazards){z.ttl-=dt;if(z.ttl<=0){if(this.dist(z,h)<z.r+h.r)this.hurt(this.gentle?14:22);this.emit('meteor',{x:z.x,y:z.y,radius:z.r});this.effects.push({...z,endR:z.r+15,ttl:0.3,max:0.3,color:'#ff9584'});}}
