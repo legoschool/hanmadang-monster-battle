@@ -114,6 +114,15 @@ export function renderOnboarding(state, ui) {
   const crew = Object.values(state.users);
   return `
   <div class="onboard">
+    <section class="onboard__start" aria-label="참여 또는 이어하기 선택">
+      <span>몬스터 원정대 · 여기서 시작하세요</span>
+      <h1>처음 오셨나요?<br>다시 오셨나요?</h1>
+      <div class="onboard__choices">
+        <button type="button" data-action="start-join" aria-controls="joinForm" aria-expanded="${ui.startMode === 'join'}"><strong>처음 참여하기 →</strong><small>내 아바타와 닉네임 만들기</small></button>
+        <button type="button" data-action="start-resume" aria-controls="resumeForm" aria-expanded="${ui.startMode === 'resume'}"><strong>이어서 플레이 →</strong><small>기존 닉네임으로 로그인</small></button>
+      </div>
+      <a href="index.html">소개 화면으로 돌아가기</a>
+    </section>
     <section class="onboard__hero">
       <span class="eyebrow">${EVENT.name}</span>
       <img class="onboard__logo" src="assets/brand/gdeal.svg" alt="G-DEAL" width="240" height="40">
@@ -130,7 +139,8 @@ export function renderOnboarding(state, ui) {
       </div>
     </section>
 
-    <section class="card onboard__form">
+    <section class="card onboard__form" id="joinForm" tabindex="-1" ${ui.startMode === 'join' ? '' : 'hidden'}>
+      <h2>처음 참여하기</h2>
       <h2><span class="step">1</span>내 커뮤니티 고르기</h2>
       <div class="team-pick" role="radiogroup" aria-label="커뮤니티">
         ${TEAMS.map((t) => `
@@ -194,8 +204,8 @@ export function renderOnboarding(state, ui) {
       <div class="crew-wall">${crew.slice(-40).reverse().map((u) => face(u, 32)).join('')}</div>
     </section>` : ''}
 
-    <section class="card onboard__resume">
-      <h2>이미 참여했나요? 로그인</h2>
+    <section class="card onboard__resume" id="resumeForm" tabindex="-1" ${ui.startMode === 'resume' ? '' : 'hidden'}>
+      <h2>이어서 플레이 · 로그인</h2>
       <p><b>닉네임</b>을 넣고 내가 만든 <b>힌트의 답</b>을 맞히면 이어서 할 수 있어요. 휴대폰을 바꿔도 똑같아요.</p>
       ${ui.foundHint ? `
       <div class="found-hint">
