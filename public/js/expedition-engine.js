@@ -1,4 +1,4 @@
-import {makeCompanion,companionStep,castCompanion} from './expedition-companions.js?v=pet1';
+import {makeCompanion,companionStep,castCompanion} from './expedition-companions.js?v=growth1';
 // 순수 전투 시뮬레이션. DOM·서버와 분리해 이동, 충돌, 일시정지, 강화 등을 검사한다.
 export class ExpeditionEngine {
   constructor({weapon='blade',charm=null,level=1,mode='survival',gentle=true,seed=1,bossType='bugbug',cinematic=false,companion=null,questionGap=45,difficulty=null,gameSpeed=1,autoSkills=false}={}) {
@@ -81,7 +81,7 @@ export class ExpeditionEngine {
   }
   petSkill(){return castCompanion(this);}
   hit(e,n,source='hero'){if(e.hp<=0||e.shield)return;if(this.pet){this.pet.charge=Math.min(100,this.pet.charge+(source==='pet'?2:1));if(source==='pet')this.pet.dealt+=Math.min(e.hp,n);}e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&n>this.hero.damage*1.8)this.hitStop=Math.max(this.hitStop,.05);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
-  hurt(n){const h=this.hero;if(this.phase!=='playing'||h.inv>0)return;n*=this.difficultyStats.damage;if(this.pet?.guard>0)n*=.55;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
+  hurt(n){const h=this.hero;if(this.phase!=='playing'||h.inv>0)return;n*=this.difficultyStats.damage;if(this.pet?.guard>0){this.pet.blocked=(this.pet.blocked||0)+Math.min(h.hp,n)-Math.min(h.hp,n*.55);n*=.55;}h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
     this.texts.push({x:h.x,y:h.y-26,text:`-${n}`,ttl:0.7,color:'#ffa49e'});if(h.hp<=0){this.phase='lost';this.event='end';this.emit('defeat');}}
   spawn(){
     const angle=this.random()*Math.PI*2,dist=330+this.random()*80,h=this.hero;
