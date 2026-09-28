@@ -1,7 +1,7 @@
 import {makeCompanion,companionStep,castCompanion} from './expedition-companions.js?v=pet1';
 // 순수 전투 시뮬레이션. DOM·서버와 분리해 이동, 충돌, 일시정지, 강화 등을 검사한다.
 export class ExpeditionEngine {
-  constructor({weapon='blade',charm=null,level=1,mode='survival',gentle=true,seed=1,bossType='bugbug',cinematic=false,companion=null,questionGap=45}={}) {
+  constructor({weapon='blade',charm=null,level=1,mode='survival',gentle=true,seed=1,bossType='bugbug',cinematic=false,companion=null,questionGap=45,difficulty=null,gameSpeed=1,autoSkills=false}={}) {
     Object.assign(this,{width:1100,height:800,weapon,charm,mode,gentle,seed,phase:'playing',time:0,kills:0,
       xp:0,rank:1,nextXp:6,attackCd:0,dashCd:0,skillCd:0,spawnCd:0,seq:0,boss:null,bossMade:false,
       enemies:[],shots:[],drops:[],effects:[],texts:[],hazards:[],particles:[],quizReason:'',seals:0,event:null,bossType,shake:0,combo:0,comboTime:0,bestCombo:0,banner:'',bannerTime:0,cinematic,entrance:0,hitStop:0,fxEvents:[],swing:0});
@@ -10,8 +10,18 @@ export class ExpeditionEngine {
     const maxHp=(gentle?150:100)+(charm==='shield'?35:0);
     this.hero={x:550,y:400,hp:maxHp,maxHp,r:22,face:0,inv:1,speed:190*(charm==='boots'?1.15:1),
       damage:(24+Math.min(10,level-1)*1.5)*(charm==='lens'?1.2:1),rate:1,magnet:85+(charm==='magnet'?60:0)};
+    this.gameSpeed=[.5,.7,1].includes(Number(gameSpeed))?Number(gameSpeed):1;this.autoSkills=!!autoSkills;
+    this.setDifficulty(difficulty||(gentle?'gentle':'standard'));
     this.pet=makeCompanion(companion,this.hero);
     if(mode==='boss') this.spawnBoss();
+  }
+  setDifficulty(value){
+    const levels={beginner:{hp:220,speed:.6,damage:.5,spawn:1.7,cap:18},gentle:{hp:150,speed:.8,damage:1,spawn:1,cap:38},standard:{hp:100,speed:1,damage:1,spawn:1,cap:38}};
+    const next=levels[value]||levels.gentle,old=this.difficultyStats;
+    const ratio=this.hero.hp/this.hero.maxHp,oldBase=old?.hp||(this.gentle?150:100);
+    this.hero.maxHp+=next.hp-oldBase;this.hero.hp=Math.max(0,Math.min(this.hero.maxHp,this.hero.maxHp*ratio));
+    for(const e of this.enemies)e.speed*=next.speed/(old?.speed||(this.gentle?.8:1));
+    this.difficulty=levels[value]?value:'gentle';this.difficultyStats=next;this.gentle=this.difficulty!=='standard';
   }
   random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
   burst(x,y,color,count=18){for(let i=0;i<count;i++){const a=i/count*Math.PI*2,s=50+(i%5)*35;this.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,ttl:.55+(i%3)*.15,max:.85,color,r:2+i%3});}this.particles=this.particles.slice(-240);}
@@ -71,13 +81,13 @@ export class ExpeditionEngine {
   }
   petSkill(){return castCompanion(this);}
   hit(e,n,source='hero'){if(e.hp<=0||e.shield)return;if(this.pet){this.pet.charge=Math.min(100,this.pet.charge+(source==='pet'?2:1));if(source==='pet')this.pet.dealt+=Math.min(e.hp,n);}e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&n>this.hero.damage*1.8)this.hitStop=Math.max(this.hitStop,.05);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
-  hurt(n){const h=this.hero;if(this.phase!=='playing'||h.inv>0)return;if(this.pet?.guard>0)n*=.55;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
+  hurt(n){const h=this.hero;if(this.phase!=='playing'||h.inv>0)return;n*=this.difficultyStats.damage;if(this.pet?.guard>0)n*=.55;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
     this.texts.push({x:h.x,y:h.y-26,text:`-${n}`,ttl:0.7,color:'#ffa49e'});if(h.hp<=0){this.phase='lost';this.event='end';this.emit('defeat');}}
   spawn(){
     const angle=this.random()*Math.PI*2,dist=330+this.random()*80,h=this.hero;
     const x=Math.max(32,Math.min(this.width-32,h.x+Math.cos(angle)*dist)),y=Math.max(32,Math.min(this.height-32,h.y+Math.sin(angle)*dist));
     const kind=this.random()>0.7?'ghost':'slime',hp=kind==='ghost'?55:35;
-    this.enemies.push({id:++this.seq,x,y,hp,maxHp:hp,r:kind==='ghost'?26:24,kind,flash:0,speed:(kind==='ghost'?72:48)*(this.gentle?0.8:1)*(1+this.time/300)});
+    this.enemies.push({id:++this.seq,x,y,hp,maxHp:hp,r:kind==='ghost'?26:24,kind,flash:0,speed:(kind==='ghost'?72:48)*this.difficultyStats.speed*(1+this.time/300)});
   }
   spawnBoss(){
     this.bossMade=true;this.boss={id:'boss',x:this.hero.x,y:Math.max(150,this.hero.y-120),hp:900,maxHp:900,r:65,kind:'boss',speed:30,attack:2.4,nextSeal:0.72,shield:false,flash:0};
@@ -86,15 +96,16 @@ export class ExpeditionEngine {
   }
   step(dt,input={}){
     if(this.phase!=='playing')return;
-    dt=Math.max(0,Math.min(0.05,dt));if(this.entrance>0){this.entrance=Math.max(0,this.entrance-dt);return;}if(this.hitStop>0){this.hitStop=Math.max(0,this.hitStop-dt);return;}this.time+=dt;const h=this.hero;
+    dt=Math.max(0,Math.min(0.05,dt))*this.gameSpeed;if(this.entrance>0){this.entrance=Math.max(0,this.entrance-dt);return;}if(this.hitStop>0){this.hitStop=Math.max(0,this.hitStop-dt);return;}this.time+=dt;const h=this.hero;
     this.shake=Math.max(0,this.shake-dt*20);this.bannerTime=Math.max(0,this.bannerTime-dt);this.comboTime=Math.max(0,this.comboTime-dt);if(!this.comboTime)this.combo=0;
     for(const p of this.particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.ttl-=dt;p.vx*=.96;p.vy*=.96;}this.particles=this.particles.filter(p=>p.ttl>0);
     this.attackCd-=dt;this.dashCd=Math.max(0,this.dashCd-dt);this.skillCd=Math.max(0,this.skillCd-dt);h.inv=Math.max(0,h.inv-dt);
     let dx=input.x||0,dy=input.y||0,len=Math.hypot(dx,dy);if(len>1){dx/=len;dy/=len;}
     if(len>0){h.face=Math.atan2(dy,dx);h.x=Math.max(32,Math.min(this.width-32,h.x+dx*h.speed*dt));h.y=Math.max(32,Math.min(this.height-32,h.y+dy*h.speed*dt));}
+    if(this.autoSkills){const target=this.nearest();if(target&&this.dist(target,h)<270)this.skill();if(this.pet&&(target&&this.dist(target,this.pet)<340||this.pet.type==='heal'&&h.hp<h.maxHp*.7))this.petSkill();}
     if(input.auto!==false||input.attack)this.attack();
     companionStep(this,dt);
-    this.spawnCd-=dt;if(this.spawnCd<=0&&this.enemies.length<38){this.spawn();this.spawnCd=Math.max(0.45,1.3-this.time/230)*(this.boss?2.4:1);}
+    this.spawnCd-=dt;if(this.spawnCd<=0&&this.enemies.length<this.difficultyStats.cap){this.spawn();this.spawnCd=Math.max(0.45,1.3-this.time/230)*(this.boss?2.4:1)*this.difficultyStats.spawn;}
     if(!this.bossMade&&this.time>=150)this.spawnBoss();
     for(const e of this.enemies){
       e.flash=Math.max(0,e.flash-dt);if(e.hp<=0)continue;const d=this.dist(e,h)||1;
