@@ -29,3 +29,7 @@ let touch=null;story.addEventListener('touchstart',e=>touch=[e.touches[0].client
 let visible=false,hover=false;new IntersectionObserver(entries=>visible=entries[0].isIntersecting,{threshold:.2}).observe(story);story.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse')hover=true});story.addEventListener('pointerleave',()=>hover=false);
 setInterval(()=>{if(visible&&!hub.hidden&&!document.hidden&&!paused&&!still&&!hover&&(!story.contains(document.activeElement)||document.activeElement===pause)&&!document.querySelector('dialog[open]'))next(1)},6000);
 paint();
+const adminMenu=document.getElementById('adminMenu'),adminOpen=document.getElementById('openAdminMenu');let adminVideoWasPlaying=false;
+adminOpen.onclick=()=>{const video=document.getElementById('promoVideo');adminVideoWasPlaying=!video.paused;video.pause();adminMenu.showModal();};
+adminMenu.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{adminVideoWasPlaying=false;adminMenu.close();}));
+adminMenu.addEventListener('close',()=>{adminOpen.focus({preventScroll:true});if(adminVideoWasPlaying&&!hub.hidden&&!document.hidden)document.getElementById('promoVideo').play().catch(()=>{});});

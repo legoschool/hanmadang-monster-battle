@@ -11,11 +11,11 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/promo.css?v=joincenter1">
   <link rel="stylesheet" href="css/guide-cards.css?v=short3">
-  <link rel="stylesheet" href="css/hub.css?v=hub2">
+  <link rel="stylesheet" href="css/hub.css?v=admin1">
 </head>
 <body>
 <section id="promoLanding" class="promo hub" hidden aria-label="몬스터 원정대 메인">
-  <header class="hub-nav"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>제3회 한마당 · 몬스터 원정대</span><div><b>최종 결전 · 12월 19일</b></div></header>
+  <header class="hub-nav"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>제3회 한마당 · 몬스터 원정대</span><div><b>최종 결전 · 12월 19일</b><button id="openAdminMenu" type="button" aria-haspopup="dialog">관리자 ↗</button></div></header>
   <div class="hub-title"><div><span>우리는 모두 G-DEAL! · 제3회 한마당</span><h1><b class="hub-gdeal">G-DEAL</b> <em>몬스터 원정대</em></h1></div><p>내 아바타와 펫이 함께 싸우고<br>모은 포인트로 선물까지 도전해요.</p></div>
   <div class="hub-stage">
     <section class="hub-theater" aria-label="아바타와 함께 보는 홍보영상">
@@ -32,6 +32,7 @@
   <section class="hub-story" aria-label="프롤로그 카드뉴스" aria-roledescription="캐러셀"><div class="hub-story-label"><span>THE STORY</span><h2>우리의 모험은<br>이렇게 시작돼요.</h2><div><button id="storyPrev" aria-label="이전 프롤로그">←</button><button id="storyPause" aria-label="프롤로그 자동 넘김 정지">Ⅱ</button><button id="storyNext" aria-label="다음 프롤로그">→</button></div></div><div class="hub-story-scene"><img id="storyImage" alt=""><div><span id="storyChapter"></span><h3 id="storyTitle"></h3><p id="storyText"></p></div></div><div class="hub-story-dots" aria-label="프롤로그 페이지 선택"></div></section>
   <footer class="hub-footer"><span>10개 커뮤니티 · 하나의 원정대 · 우리는 모두 G-DEAL!</span><a href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">가이드북 PDF ↗</a></footer>
 </section>
+<dialog id="adminMenu" class="admin-menu" aria-labelledby="adminMenuTitle"><form method="dialog"><button class="admin-menu-close" aria-label="관리자 메뉴 닫기">×</button></form><span>G-DEAL ADMIN</span><h2 id="adminMenuTitle">관리자 메뉴</h2><p>관리할 항목을 선택하고 관리자 키로 로그인하세요.</p><a href="index.html#/admin"><strong>원정대 운영 관리 →</strong><small>일정 · 원정대 운영 설정</small></a><a href="lounge.html#admin"><strong>선물 · 응모 관리 →</strong><small>선물 등록 · 수량 · 응모 시작·마감 · 추첨</small></a></dialog>
 <dialog id="participationGuide" class="promo-guide"><form method="dialog"><button class="promo-close" aria-label="참여 방법 닫기">×</button></form><span class="promo-kicker">START YOUR ADVENTURE</span><h2>참여는 이렇게 해요.</h2><ol><li><b>내 대원 만들기</b><p>커뮤니티와 아바타를 고르고 닉네임·나만 아는 힌트를 입력해요. 참가 코드가 있다면 운영진 안내를 따라주세요.</p></li><li><b>배우고 플레이하기</b><p>AI 카드와 원정 미션, 동행 펫과 지식의 숲 액션 원정, 퀴즈·기억력·숫자 탐색을 즐겨요.</p></li><li><b>기록 쌓고 선물 응모하기</b><p>선물별 수량·응모 현황을 보고 포인트를 배정해요. 더 많이 배정할수록 추첨에서 유리해져요.</p></li></ol><p class="promo-guide-note">응모 포인트는 예약되고 추첨 시 소모돼요. 누적 랭킹은 유지됩니다. 선물과 마감은 운영진이 설정해요.</p><div class="promo-buttons"><a class="promo-primary" href="?join=1&mode=join">참여하러 가기 →</a><a class="promo-secondary" href="expedition.html?demo=1">먼저 체험하기</a></div><a class="promo-download" href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">자세한 활동 안내 책자 보기 ↗</a></dialog>
 
   <div class="app" id="app">
@@ -68,7 +69,7 @@
   <script type="module" src="js/guide-cards.js?v=hub2"></script>
   <script type="module" src="js/promo.js?v=hub2"></script>
   <script type="module" src="js/app.js?v=hub2"></script>
-  <script type="module" src="js/hub.js?v=hub2"></script>
+  <script type="module" src="js/hub.js?v=admin1"></script>
 </body>
 </html>
 
