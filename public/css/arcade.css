@@ -133,3 +133,62 @@ select, input[type=password] { min-height: 46px; padding: 8px 10px; border: 1px 
   .answers .button { font-size: 17px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+
+/* 화면 높이에 맞춘 플레이: 조작부는 항상 보이는 영역에 둔다. */
+.game-card-body .button { margin-top: 12px; }
+.section summary { min-height: 28px; }
+.section[open] summary { margin-bottom: 14px; }
+.game-preview { height: 200px; }
+body.is-playing { background: #17283a; overflow: hidden; overscroll-behavior: none; }
+.is-playing > .top { display: none; }
+.is-playing main { margin: 0 auto; padding: max(8px, env(safe-area-inset-top)) 12px max(8px, env(safe-area-inset-bottom)); height: 100dvh; height: 100svh; max-width: 760px; }
+.is-playing .game-shell { height: 100%; max-width: none; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.is-playing .game-top { width: 100%; flex: 0 0 44px; margin: 0; color: #fff; }
+.is-playing .game-top span { color: #c8d6e5; font-size: 13px; }
+.is-playing .game-top b { font-size: 17px; }
+.is-playing .game-top .button { font-size: 13px; min-height: 44px; padding: 6px 10px; }
+.is-playing .board { flex: 1 1 auto; min-height: 0; min-width: 0; width: auto; height: 0; max-width: 100%; aspect-ratio: 3 / 4; border-radius: 12px; box-shadow: 0 0 0 2px #425970; }
+.is-playing #game-canvas { width: 100%; height: 100%; object-fit: contain; }
+.is-playing .controls { flex: 0 0 76px; width: 100%; max-width: 480px; margin: 0; padding: 4px 0; }
+.is-playing .control { width: 76px; height: 64px; border-radius: 20px; }
+.is-playing .control.jump { width: 108px; height: 64px; font-size: 20px; }
+.is-playing .drag-hint { flex: 0 0 28px; margin: 0; color: #d2dfe9; font-size: 14px; }
+.overlay { padding: 14px; gap: 4px; justify-content: safe center; }
+.overlay h2 { font-size: 22px; }
+.overlay p { font-size: 15px; }
+.overlay .button { min-width: 100px; min-height: 44px; padding: 8px 12px; }
+.overlay .row { gap: 8px; }
+.speed { margin-top: 4px; }
+@media(max-width:650px) {
+  .intro { flex-direction: row; align-items: center; margin-bottom: 12px; }
+  .intro h1 { font-size: 28px; }
+  .wallet { padding: 6px 10px; font-size: 12px; }
+  .wallet b { font-size: 19px; }
+  .games { gap: 12px; }
+  .game-card { display: grid; grid-template-columns: 34% 1fr; border-radius: 18px; }
+  .game-preview { width: 100%; height: 100%; min-height: 180px; object-fit: cover; }
+  .game-card-body { padding: 14px; }
+  .game-card-body h2 { font-size: 22px; }
+  .game-card-body .muted { font-size: 13px; }
+  .game-card-body .fine { font-size: 12px; }
+  .game-card-body .button { min-height: 48px; font-size: 18px; margin-top: 8px; }
+  .section { margin: 12px 0; }
+}
+@media(orientation:landscape) and (max-height:520px) {
+  .is-playing .game-shell { position: relative; padding: 0 124px; }
+  .is-playing .game-top { position: absolute; left: 0; top: 0; width: 115px; display: grid; gap: 8px; }
+  .is-playing .game-top b, .is-playing .game-top span { display: block; }
+  .is-playing .controls { position: absolute; inset: auto 0 12px; max-width: none; pointer-events: none; }
+  .is-playing .controls .pad { flex-direction: column; gap: 12px; }
+  .is-playing .control { pointer-events: auto; }
+  .is-playing .drag-hint { position: absolute; bottom: 0; left: 0; width: 115px; font-size: 12px; }
+  .overlay h2 { font-size: 19px; }
+  .overlay p { font-size: 13px; }
+}
+.is-playing .board { flex: 0 1 auto; height: auto; width: min(100%, calc((100svh - 160px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * .75)); }
+.is-playing .space .board { width: min(100%, calc((100svh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * .75)); }
+.is-playing .controls, .is-playing .drag-hint { margin-top: auto; }
+@media(orientation:landscape) and (max-height:520px) {
+  .is-playing .board, .is-playing .space .board { width: min(100%, calc((100svh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * .75)); }
+}
+.is-playing .board { margin-top: auto; margin-bottom: auto; }
