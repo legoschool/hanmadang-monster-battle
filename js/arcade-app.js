@@ -11,7 +11,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const button = (text, act, extra = '', primary = false) => `<button class="button ${primary ? 'primary' : ''}" data-act="${act}" ${extra}>${text}</button>`;
 
 let state = null, adminData = null, run = null, sim = null, renderer = null, inputs = [], bits = 0, heldBits = 0;
-let frameId = 0, last = 0, acc = 0, paused = true, busy = false, demo = false, speed = 0.75, noticeTimer = 0, pending = null;
+let frameId = 0, last = 0, acc = 0, paused = true, busy = false, demo = false, speed = 0.6, noticeTimer = 0, pending = null;
 let preview = 'english', sent = false, drag = null, intro = 0, hitstop = 0, endWait = 0, previews = [];
 const audio = new ArcadeAudio();
 let prefs = { sound: true, music: true };
@@ -152,13 +152,13 @@ function startPanel() {
   return `<h2>${run.stage + 1} / 3 구간</h2><p>${a}<br>${b}</p>
     ${run.boost ? '<p class="boost">정답 보너스: 처음 6초 동안 빠르게 발사!</p>' : ''}
     <div class="row center">${button(run.stage === 0 ? '시작' : '시작', 'resume', '', true)}${button('게임 목록', 'leave')}</div>
-    <label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.75" ${speed === 0.75 ? 'selected' : ''}>천천히</option></select></label>`;
+    <label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.6" ${speed === 0.6 ? 'selected' : ''}>천천히</option></select></label>`;
 }
 function pausePanel() {
   return `<h2>일시정지</h2>
     <div class="row center">${button('이어서 플레이', 'resume', '', true)}</div>
     <div class="row center">${button(soundLabel(), 'sound', 'aria-pressed="' + prefs.sound + '"')}${button(prefs.music ? '음악 켜짐' : '음악 꺼짐', 'music', 'aria-pressed="' + prefs.music + '"')}</div>
-    <label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.75" ${speed === 0.75 ? 'selected' : ''}>천천히</option></select></label>
+    <label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.6" ${speed === 0.6 ? 'selected' : ''}>천천히</option></select></label>
     <p class="muted">${HOW[run.kind][0]}</p>
     <div class="row center">${button('게임 목록', 'leave')}</div>`;
 }
