@@ -4,46 +4,41 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>제3회 한마당 G-DEAL 몬스터 원정대</title>
-  <meta name="description" content="제3회 한마당 G-DEAL 몬스터 원정대 — 우리는 모두 G-DEAL! 커뮤니티 몬스터들이 한 팀이 되어 매주 보스를 함께 물리치고, 12월 19일 현장에서 대마왕 글리치와 최종 결전을 벌여요.">
+  <meta name="description" content="경상디지털교육자연합 한마당 사전 커뮤니티 활동">
   <meta name="theme-color" content="#66ae7d">
   <link rel="icon" type="image/png" href="assets/icons/crown.png">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/promo.css?v=friendly1">
   <link rel="stylesheet" href="css/guide-cards.css?v=simple1">
-  <link rel="stylesheet" href="css/hub.css?v=simple1">
+  <link rel="stylesheet" href="css/hub.css?v=clean1">
 </head>
 <body>
 <section id="promoLanding" class="promo hub" hidden aria-label="몬스터 원정대 메인">
-  <header class="hub-nav"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>제3회 한마당 · 몬스터 원정대</span><div><b>최종 결전 · 12월 19일</b><button id="openAdminMenu" type="button" aria-haspopup="dialog">관리자 ↗</button></div></header>
-  <div class="hub-title"><div><span>함께 배우고, 가볍게 즐겨요</span><h1><b class="hub-gdeal">G-DEAL</b><br><em>몬스터 원정대</em></h1><p class="simple-intro">경상디지털교육자연합 한마당<br>사전 커뮤니티 활동</p></div><div class="simple-friends" aria-hidden="true"><img src="assets/avatars/a05.png" alt=""><img src="assets/monsters/koalbot/koalbot.png" alt=""></div></div>
-  <nav class="hub-actions" aria-label="원정 시작하기"><a class="hub-join" href="?join=1&mode=join"><small>처음 오셨나요?</small><strong>참여하기 <span>→</span></strong></a><a class="hub-resume" href="?join=1&mode=resume"><small>다시 오셨군요!</small><strong>이어서 플레이 <span>→</span></strong></a><a class="hub-demo" href="expedition.html?demo=1"><strong>둘러보기 ↗</strong><small>가입 없이 바로 전투 체험</small></a><button id="showGuide" type="button">참여 방법 <span>?</span></button></nav>
+  <header class="hub-nav"><img src="assets/brand/gdeal.svg?v=clean1" alt="G-DEAL"><div><b>최종 결전 · 12월 19일</b><button id="openAdminMenu" type="button" aria-haspopup="dialog">관리자</button></div></header>
+  <div class="hub-title"><div><h1><b class="hub-gdeal">G-DEAL</b><br><em>몬스터 원정대</em></h1><p class="simple-intro">경상디지털교육자연합 한마당<br>사전 커뮤니티 활동</p></div><div class="hero-video"><div class="promo-screen"><video id="promoVideo" autoplay muted loop playsinline preload="metadata" poster="assets/promo/promo-poster.jpg?v=short2" aria-label="몬스터 원정대 홍보영상"><source src="assets/promo/gdeal-promo.mp4?v=short2" type="video/mp4"></video><div class="promo-video-controls"><button id="promoToggle">일시정지</button><button id="promoSound" aria-pressed="false">소리 켜기</button><button id="promoFullscreen">크게 보기</button></div><p id="promoPlayback" role="status"></p></div></div></div>
+  <nav class="hub-actions" aria-label="원정 시작하기"><a class="hub-join" href="?join=1&mode=join"><strong>참여하기</strong></a><a class="hub-resume" href="?join=1&mode=resume"><strong>이어서 플레이</strong></a><a class="hub-demo" href="expedition.html?demo=1"><strong>둘러보기</strong><small>가입 없이 바로 전투 체험</small></a><button id="showGuide" type="button">참여 방법</button></nav>
   <div class="simple-extras">
-    <details class="hub-disclosure" id="introMedia"><summary><b>영상과 활동 가이드</b><span>어떤 활동인지 먼저 살펴보기</span></summary>  <div class="hub-stage">
-    <section class="hub-theater" aria-label="아바타와 함께 보는 홍보영상">
-      <span class="hub-badge">✦ PLAY THE ADVENTURE</span>
-      <div class="hub-avatars" aria-label="원정대 아바타"></div>
-      <div class="promo-screen"><div class="promo-screen-top"><span class="promo-dot"></span> 실제 플레이 · 펫과 함께하는 14초 원정</div><video id="promoVideo" muted loop playsinline preload="metadata" poster="assets/promo/promo-poster.jpg?v=short2" aria-label="몬스터 원정대 홍보영상"><source src="assets/promo/gdeal-promo.mp4?v=short2" type="video/mp4"></video><div class="promo-video-controls"><button id="promoToggle">영상 일시정지</button><button id="promoSound" aria-pressed="false">소리 켜기</button><button id="promoFullscreen">크게 보기</button></div><p id="promoPlayback" role="status"></p></div>
-      <div class="hub-cheer" aria-live="polite">커뮤니티와 동행 펫을 눌러 자세히 만나보세요!</div>
-    </section>
+    <details class="hub-disclosure" id="introMedia"><summary><b>활동 가이드</b></summary>  <div class="hub-stage">
+
     <guide-cards class="hub-guide" data-key="intro"></guide-cards>
   </div>
 </details>
-    <details class="hub-disclosure" id="petDetails"><summary><b>커뮤니티와 팀들의 펫</b><span>펫 소개 · 성장과 전투 도움</span></summary>  <section class="hub-communities" aria-label="G-DEAL 커뮤니티와 동행 펫 소개"><div class="community-heading"><b>커뮤니티와 팀들의 펫</b><small>궁금한 커뮤니티를 눌러보세요</small></div><div id="communityTabs" aria-label="커뮤니티 선택"></div><div id="communityDetail"></div></section>
+    <details class="hub-disclosure" id="petDetails"><summary><b>커뮤니티와 팀들의 펫</b><span>펫 소개 · 성장과 전투 도움</span></summary>  <section class="hub-communities" aria-label="G-DEAL 커뮤니티와 동행 펫 소개"><div class="community-heading"><b>커뮤니티와 팀들의 펫</b></div><div id="communityTabs" aria-label="커뮤니티 선택"></div><div id="communityDetail"></div></section>
 
 </details>
-    <details class="hub-disclosure" id="storyDetails"><summary><b>원정대 이야기</b><span>프롤로그 읽기</span></summary>  <section class="hub-story" aria-label="프롤로그 카드뉴스" aria-roledescription="캐러셀"><div class="hub-story-label"><span>THE STORY</span><h2>우리의 모험은<br>이렇게 시작돼요.</h2><div><button id="storyPrev" aria-label="이전 프롤로그">←</button><button id="storyPause" aria-label="프롤로그 자동 넘김 정지">Ⅱ</button><button id="storyNext" aria-label="다음 프롤로그">→</button></div></div><div class="hub-story-scene"><img id="storyImage" alt=""><div><span id="storyChapter"></span><h3 id="storyTitle"></h3><p id="storyText"></p></div></div><div class="hub-story-dots" aria-label="프롤로그 페이지 선택"></div></section>
+    <details class="hub-disclosure" id="storyDetails"><summary><b>원정대 이야기</b><span>프롤로그 읽기</span></summary>  <section class="hub-story" aria-label="프롤로그 카드뉴스" aria-roledescription="캐러셀"><div class="hub-story-label"><h2>프롤로그</h2><div><button id="storyPrev" aria-label="이전 프롤로그">←</button><button id="storyPause" aria-label="프롤로그 자동 넘김 정지">Ⅱ</button><button id="storyNext" aria-label="다음 프롤로그">→</button></div></div><div class="hub-story-scene"><img id="storyImage" alt=""><div><span id="storyChapter"></span><h3 id="storyTitle"></h3><p id="storyText"></p></div></div><div class="hub-story-dots" aria-label="프롤로그 페이지 선택"></div></section>
 </details>
   </div>
-  <footer class="hub-footer"><span>10개 커뮤니티 · 하나의 원정대 · 우리는 모두 G-DEAL!</span><a href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">가이드북 PDF ↗</a></footer>
+  <footer class="hub-footer"><a href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">가이드북 PDF</a></footer>
 </section>
 <dialog id="adminMenu" class="admin-menu" aria-labelledby="adminMenuTitle"><form method="dialog"><button class="admin-menu-close" aria-label="관리자 메뉴 닫기">×</button></form><span>G-DEAL ADMIN</span><h2 id="adminMenuTitle">관리자 메뉴</h2><p>관리할 항목을 선택하고 관리자 키로 로그인하세요.</p><a href="index.html#/admin"><strong>원정대 운영 관리 →</strong><small>일정 · 원정대 운영 설정</small></a><a href="lounge.html#admin"><strong>선물 · 응모 관리 →</strong><small>선물 등록 · 수량 · 응모 시작·마감 · 추첨</small></a></dialog>
-<dialog id="participationGuide" class="promo-guide friendly-guide" aria-labelledby="friendlyTitle"><form method="dialog"><button class="promo-close" aria-label="쉬운 참여 안내 닫기">×</button></form><span class="promo-kicker">처음 오셨군요! 반가워요, G-DEAL 선생님.</span><div class="friendly-friends" aria-hidden="true"><img src="assets/avatars/a05.png" alt=""><img src="assets/monsters/koalbot/koalbot.png" alt=""><img src="assets/monsters/monggeul/monggeul.png" alt=""></div><h2 id="friendlyTitle">잘하지 못해도 괜찮아요.<br><em>재미로, 함께 해보세요!</em></h2><p class="friendly-intro">게임을 잘하는 대회를 하려는 게 아니에요. <br><b>조금씩 배우고, 우리 커뮤니티의 펫을 함께 키우며 <br>12월 19일 한마당을 즐겁게 준비하는 활동</b>이에요.</p><div class="friendly-steps"><article><span>1</span><div><h3>오늘은 구경만 해도 좋아요</h3><p>‘먼저 가볍게 체험하기’를 누르면 가입 없이 해볼 수 있어요. 방향키나 화면 밀기로 움직이면 공격과 펫 기술은 자동으로 도와줘요.</p></div></article><article><span>2</span><div><h3>마음에 들면, 내 대원을 만들어요</h3><p>‘참여하기’에서 커뮤니티와 아바타, 닉네임을 골라요. 다음에는 ‘이어서 플레이’로 돌아오면 됩니다.</p></div></article><article><span>3</span><div><h3>하루 한 조각 배우고, 펫도 키워요</h3><p>AI 카드·미션·먹이 주기·원정 학습에 참여해요. 커뮤니티 경험치가 쌓이면 펫이 자라고, 전투에서도 더 든든하게 도와줘요.</p></div></article></div><div class="friendly-reassure"><b>틀려도, 천천히 해도 괜찮아요.</b><p>문제가 나오면 전투가 멈춰요. 힌트를 보거나 해설을 보고 넘어가도 됩니다. 어려우면 ‘쉬기’에서 속도를 낮춰요. 쓰러져도 이미 얻은 지식 보상은 남아요.</p></div><p class="friendly-extra">익숙해지면 미니게임과 랭킹에도 도전하고, 모은 포인트로 선물에 응모해 보세요. 선물 응모는 운영진이 열면 시작돼요.</p><div class="promo-buttons"><a class="promo-primary" href="expedition.html?demo=1">먼저 가볍게 체험하기 →</a><button id="friendlyExplore" class="promo-secondary" type="button">메인 화면부터 둘러볼게요</button></div><a class="friendly-join" href="?join=1&mode=join">참여하고 내 기록 남기기 →</a><small class="friendly-note">체험 기록은 저장되지 않아요. 메인의 ‘참여 방법’에서 언제든 다시 볼 수 있어요.</small></dialog>
+<dialog id="participationGuide" class="promo-guide friendly-guide" aria-labelledby="friendlyTitle"><form method="dialog"><button class="promo-close" aria-label="쉬운 참여 안내 닫기">×</button></form><div class="friendly-friends" aria-hidden="true"><img src="assets/avatars/a05.png" alt=""><img src="assets/monsters/koalbot/koalbot.png" alt=""><img src="assets/monsters/monggeul/monggeul.png" alt=""></div><h2 id="friendlyTitle">참여 방법</h2><p class="friendly-intro"><b>조금씩 배우고, 우리 커뮤니티의 펫을 함께 키우며 <br>12월 19일 한마당을 즐겁게 준비하는 활동</b>이에요.</p><div class="friendly-steps"><article><span>1</span><div><h3>오늘은 구경만 해도 좋아요</h3><p>‘먼저 가볍게 체험하기’를 누르면 가입 없이 해볼 수 있어요. 방향키나 화면 밀기로 움직이면 공격과 펫 기술은 자동으로 도와줘요.</p></div></article><article><span>2</span><div><h3>마음에 들면, 내 대원을 만들어요</h3><p>‘참여하기’에서 커뮤니티와 아바타, 닉네임을 골라요. 다음에는 ‘이어서 플레이’로 돌아오면 됩니다.</p></div></article><article><span>3</span><div><h3>하루 한 조각 배우고, 펫도 키워요</h3><p>AI 카드·미션·먹이 주기·원정 학습에 참여해요. 커뮤니티 경험치가 쌓이면 펫이 자라고, 전투에서도 더 든든하게 도와줘요.</p></div></article></div><div class="friendly-reassure"><b>틀려도, 천천히 해도 괜찮아요.</b><p>문제가 나오면 전투가 멈춰요. 힌트를 보거나 해설을 보고 넘어가도 됩니다. 어려우면 ‘쉬기’에서 속도를 낮춰요. 쓰러져도 이미 얻은 지식 보상은 남아요.</p></div><p class="friendly-extra">익숙해지면 미니게임과 랭킹에도 도전하고, 모은 포인트로 선물에 응모해 보세요. 선물 응모는 운영진이 열면 시작돼요.</p><div class="promo-buttons"><a class="promo-primary" href="expedition.html?demo=1">먼저 가볍게 체험하기 →</a><button id="friendlyExplore" class="promo-secondary" type="button">메인 화면부터 둘러볼게요</button></div><a class="friendly-join" href="?join=1&mode=join">참여하고 내 기록 남기기 →</a><small class="friendly-note">체험 기록은 저장되지 않아요. 메인의 ‘참여 방법’에서 언제든 다시 볼 수 있어요.</small></dialog>
 
   <div class="app" id="app">
     <aside class="sidebar">
       <a class="brand" href="#/home">
-        <img class="brand__logo" src="assets/brand/gdeal.svg" alt="G-DEAL" width="120" height="20">
+        <img class="brand__logo" src="assets/brand/gdeal.svg?v=clean1" alt="G-DEAL" width="120" height="20">
         <span class="brand__text"><b>몬스터 원정대</b><small>제3회 한마당</small></span>
       </a>
       <nav class="side-nav" id="sideNav" aria-label="메뉴"></nav>
@@ -53,14 +48,14 @@
     <div class="main">
       <header class="topbar">
         <a class="brand brand--mobile" href="#/home" aria-label="홈">
-          <img class="brand__logo brand__logo--sm" src="assets/brand/gdeal.svg" alt="G-DEAL" width="76" height="13">
+          <img class="brand__logo brand__logo--sm" src="assets/brand/gdeal.svg?v=clean1" alt="G-DEAL" width="76" height="13">
         </a>
         <span class="day-chip" id="dayChip"></span>
         <div class="wallet-chips" id="walletChips"></div>
         <button class="icon-btn" id="toolsBtn" data-action="settings-open" aria-label="내 정보" title="내 정보"></button>
       </header>
       <main class="view" id="view"></main>
-      <footer class="foot">제3회 한마당 · G-DEAL 몬스터 원정대 · 우리는 모두 G-DEAL!
+      <footer class="foot">제3회 한마당 · G-DEAL 몬스터 원정대
         <a class="foot__admin" href="#/admin">운영자 로그인</a>
       </footer>
     </div>
@@ -71,10 +66,10 @@
   <div id="modal-root"></div>
   <div id="toast-root" class="toast-root" aria-live="polite"></div>
 
-  <script type="module" src="js/guide-cards.js?v=simple1"></script>
-  <script type="module" src="js/promo.js?v=simple1"></script>
+  <script type="module" src="js/guide-cards.js?v=clean1"></script>
+  <script type="module" src="js/promo.js?v=clean1"></script>
   <script type="module" src="js/app.js?v=simple1"></script>
-  <script type="module" src="js/hub.js?v=simple1"></script>
+  <script type="module" src="js/hub.js?v=clean1"></script>
 </body>
 </html>
 

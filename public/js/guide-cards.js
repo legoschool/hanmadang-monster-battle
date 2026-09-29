@@ -13,10 +13,10 @@ class GuideCards extends HTMLElement {
     this.state=saved.get(this.key)||{index:0,paused:this.classList.contains('hub-guide')?true:matchMedia('(prefers-reduced-motion: reduce)').matches};
     saved.set(this.key,this.state);
     this.innerHTML=`<section class="gc" aria-label="활동 가이드 카드뉴스" aria-roledescription="캐러셀">
-      <div class="gc-head"><div><small>HOW TO PLAY · 활동 가이드</small><h2>넘겨보면, 바로 시작!</h2></div><button type="button" class="gc-pause"></button></div>
-      <div class="gc-card"><button type="button" class="gc-image" aria-label="현재 안내 카드 크게 보기"><img width="833" height="1179" alt=""></button><div class="gc-copy"><span class="gc-number"></span><h3></h3><p></p><a class="gc-cta"></a><button type="button" class="gc-expand">안내 카드 크게 보기 ↗</button></div></div>
+      <div class="gc-head"><div><small>참여 안내</small><h2>활동 가이드</h2></div><button type="button" class="gc-pause"></button></div>
+      <div class="gc-card"><button type="button" class="gc-image" aria-label="현재 안내 카드 크게 보기"><img width="833" height="1179" alt=""></button><div class="gc-copy"><span class="gc-number"></span><h3></h3><p></p><a class="gc-cta"></a><button type="button" class="gc-expand">안내 카드 크게 보기</button></div></div>
       <div class="gc-controls"><button type="button" class="gc-prev" aria-label="이전 안내 카드">←</button><div class="gc-dots" role="group" aria-label="안내 카드 선택">${pages.map((_,i)=>`<button type="button" data-page="${i}" aria-label="${i+1}번 안내 카드"></button>`).join('')}</div><button type="button" class="gc-next" aria-label="다음 안내 카드">→</button></div>
-      <div class="gc-foot"><span>5초마다 자동으로 넘어가요 · 좌우로 밀어서 보기</span><a href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">가이드북 PDF ↗</a></div><span class="gc-sr" aria-live="polite"></span>
+      <div class="gc-foot"><span>좌우로 넘겨보기</span><a href="assets/promo/gdeal-guide.pdf?v=pet1" target="_blank" rel="noopener">가이드북 PDF</a></div><span class="gc-sr" aria-live="polite"></span>
       <dialog class="gc-dialog" aria-label="활동 가이드 확대 보기"><form method="dialog"><button type="submit" autofocus>닫기 ×</button></form><img alt=""><div><button type="button" class="gc-big-prev">← 이전</button><span class="gc-big-count"></span><button type="button" class="gc-big-next">다음 →</button></div></dialog>
     </section>`;
     this.dialog=this.querySelector('dialog');
