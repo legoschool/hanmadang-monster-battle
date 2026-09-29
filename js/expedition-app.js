@@ -5,6 +5,7 @@ import {companionSpec} from './expedition-companions.js?v=growth1';
 import {BIOMES} from './expedition-environment.js?v=pet1';
 import {storyPages,StoryDirector} from './expedition-story.js?v=story5';
 import * as API from './api.js';
+import {loadLookQuick} from './player-look.js?v=look1';
 import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=story5';
 import {ExpeditionEngine} from './expedition-engine.js?v=growth1';
 import {ExpeditionRenderer} from './expedition-renderer.js?v=pet1';
@@ -52,7 +53,8 @@ function endStory(){const current=story;if(!current)return;story=null;closeDialo
 function storyJournal(){dialog(`<div class="eyebrow">STORY JOURNAL</div><h2>지나온 이야기</h2><p>이 기기에서 만난 장면입니다. 다시 읽어도 경험치와 보상은 바뀌지 않아요.</p><div class="story-journal">${storyRead.length?storyRead.map((r,i)=>`<button class="secondary" data-story-replay="${i}">${zoneById(r.zone).name} · ${storyPages(r.zone,r.beat,profile?.name)[0].title}</button>`).join(''):'<p>원정을 출발하면 첫 이야기가 펼쳐집니다.</p>'}</div><div class="dialog-actions"><button class="primary" data-action="close">돌아가기</button></div>`);}
 function closeDialog(){$('expedition').inert=false;$('dialog').hidden=true;$('dialog').innerHTML='';$('arena')?.focus({preventScroll:true});}
 async function request(type,params={}){const {result}=await API.act(type,params);if(!result?.ok)throw new Error(result?.reason||'원정 서버 응답을 확인하지 못했어요. 서버 업데이트가 필요할 수 있어요.');if(result.profile)profile=result.profile;return result;}
-function petSpec(){const team=TEAMS.find(t=>t.id===user?.teamId)||TEAMS[0];return companionSpec(team,user?levelInfo(state?.teams?.[team.id]?.exp||0).level:3);}
+let demoTeam=null;
+function petSpec(){const team=TEAMS.find(t=>t.id===(user?.teamId||demoTeam))||TEAMS[0];return companionSpec(team,user?levelInfo(state?.teams?.[team.id]?.exp||0).level:3);}
 function petCard(){const p=petSpec();return '<div class="companion-profile"><img src="'+p.image+'" alt="'+p.monsterName+'"><div><b>동행 펫 · '+p.monsterName+'</b><span>Lv.'+p.level+' · '+p.stage+' 단계</span><small>'+p.skillName+' · 자동 공격 + 합동 기술</small><small>'+(user?'Lv.1 새싹 → Lv.3 동료 → Lv.7 수호. 먹이와 배움으로 함께 키워요.':'체험에서는 Lv.3 펫이 함께해요.')+'</small></div></div>'+(user?'<details class=pet-growth-more><summary>펫 성장과 전투 효과 보기</summary>'+petGrowthMarkup(TEAMS.find(t=>t.id===user.teamId)||TEAMS[0],state?.teams?.[user.teamId]?.exp||0)+'</details>':'');}
 function header(){return `<header class="top"><div class="brand"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>몬스터 원정대</span></div><a href="index.html#/home">공동 원정으로 돌아가기 ↗</a></header>`;}
 function login(message='공동 원정에서 커뮤니티와 아바타를 고르면 이곳에서도 같은 대원으로 이어집니다.'){
@@ -89,7 +91,7 @@ async function startTraining(weapon,quick=false){
  if(!quick)await audio.unlock();audio.configure(preferences);training=true;run=null;pending=null;engine=new ExpeditionEngine({weapon,charm:profile.charm,level:profile.level,companion:petSpec(),mode:'boss',gentle:true,difficulty,gameSpeed,autoSkills,questionGap,bossType:zoneById(zone).boss,cinematic:true,seed:Date.now()>>>0});engine.hero.maxHp=engine.hero.hp=750;if(engine.pet)engine.pet.charge=100;try{storyDirector=new StoryDirector();battle();storyDirector.take('intro');if(quick){for(const beat of ['trail','boss','seal'])storyDirector.take(beat);notice('동행 펫 준비 완료 · 합동 기술 Q / 버튼');}else showStory('intro',()=>{});}finally{busy=false;}
 }
 function customizeDialog(){
-  dialog(`<div class="eyebrow">MY COMPANION</div><h2>함께 자랄 대원의 이름</h2><p>이름과 모습을 바꿔도 경험치와 장비는 그대로 남아요.</p><form id="customForm"><label>아바타 이름<input id="heroName" name="heroName" maxlength="16" required value="${esc(profile.name)}" autocomplete="off"></label><div class="avatar-picker">${Array.from({length:20},(_,i)=>{const id='a'+String(i+1).padStart(2,'0');return `<label><input type="radio" name="heroAvatar" value="${id}" ${profile.avatar===id?'checked':''}><img src="assets/avatars/${id}.png" alt="아바타 ${i+1}"></label>`;}).join('')}</div><div class="dialog-actions"><button class="primary" type="submit">내 대원으로 저장</button><button class="secondary" type="button" data-action="close">돌아가기</button></div><p id="customError" role="status"></p></form>`);
+  dialog(`<div class="eyebrow">MY COMPANION</div><h2>함께 자랄 대원의 이름</h2><p>이름과 모습을 바꿔도 경험치와 장비는 그대로 남아요. 모습은 홈·아케이드·라운지에도 똑같이 바뀌어요.</p><form id="customForm"><label>아바타 이름<input id="heroName" name="heroName" maxlength="16" required value="${esc(profile.name)}" autocomplete="off"></label><div class="avatar-picker">${Array.from({length:20},(_,i)=>{const id='a'+String(i+1).padStart(2,'0');return `<label><input type="radio" name="heroAvatar" value="${id}" ${profile.avatar===id?'checked':''}><img src="assets/avatars/${id}.png" alt="아바타 ${i+1}"></label>`;}).join('')}</div><div class="dialog-actions"><button class="primary" type="submit">내 대원으로 저장</button><button class="secondary" type="button" data-action="close">돌아가기</button></div><p id="customError" role="status"></p></form>`);
   $('customForm').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;busy=true;try{const form=new FormData(e.target);await request('expeditionCustomize',{name:form.get('heroName'),avatar:form.get('heroAvatar')});renderLobby();notice('이름과 모습을 저장했어요. 다음 원정에도 함께해요.');}catch(err){$('customError').textContent=err.message;}finally{busy=false;}});
 }
 function guide(){dialog(`<div class="eyebrow">FIELD GUIDE</div><h2>움직이고 배우며<br>내 장비를 키워요.</h2><p>문제는 첫 20초 이후에 나오고, 이후에는 선택한 30·45·60초 이상의 전투 간격을 둡니다. 보석 레벨업은 자동 성장하고, 퀴즈 정답은 추가 강화를 줍니다.</p><p>방향키·WASD 또는 화면 드래그로 이동합니다. 가까운 적은 자동 공격하고, Space로 직접 공격할 수도 있어요.</p><p>적이 남긴 보석을 주우면 전투 레벨이 올라요. 레벨업은 자동으로 성장하며, 출제 간격이 지나 퀴즈를 맞히면 공격력·연사·체력·자석 중 하나를 추가로 고릅니다. E는 범위 공격, Shift는 잠깐 무적이 되는 돌진입니다.</p><p>우리 커뮤니티 몬스터가 동행 펫으로 함께 싸웁니다. 평소에는 자동 공격하고, 합동 게이지가 차면 Q 또는 합동 기술 버튼으로 고유 기술을 써요. 펫 레벨에 따라 크기·오라·기술 위력이 달라집니다. 회복형·방어형 펫도 있어요.</p><p>보스의 체력이 줄면 지식 봉인이 나타납니다. 퀴즈 중에는 시간과 공격이 모두 멈춰요. 틀려도 힌트를 보고 다시 답할 수 있고, 해설을 보고 넘어갈 수도 있습니다.</p><p>전투 강화는 이번 원정 동안만 유지됩니다. 처음 맞힌 문제로 얻은 개인 경험치와 장비는 서버에 남아 다음 원정에도 이어집니다. 쓰러져도 이미 얻은 지식 보상은 사라지지 않아요.</p><div class="dialog-actions"><button class="primary" data-action="close">준비됐어요</button></div>`);}
@@ -183,7 +185,7 @@ function showUpgrades(){dialog(`<div class="eyebrow">CHOOSE YOUR UPGRADE</div><h
 async function finish(afterStory=false){
   if(story)return;
   if(!afterStory&&storyDirector.take('ending')){showStory(engine?.phase==='won'?'win':'rest',()=>finish(true));return;}
-  if(training){cancelAnimationFrame(frame);view='result';dialog(`<div class="eyebrow">TRAINING COMPLETE</div><h2>체험 전투를 마쳤어요.</h2><p>${engine.kills}마리 처치 · 최고 ${engine.bestCombo} 연속 처치<br>훈련장에서는 경험치와 보상을 저장하지 않습니다.</p><div class="dialog-actions"><button class="primary" data-action="lobby">${user?'지역 선택으로':'처음 화면으로'}</button><button class="secondary" data-action="trainingMenu">다른 무기로 체험</button><a class="primary" href="index.html?join=1">참여하고 기록 남기기</a></div>`);return;}
+  if(training){cancelAnimationFrame(frame);view='result';dialog(`<div class="eyebrow">TRAINING COMPLETE</div><h2>체험 전투를 마쳤어요.</h2><p>${engine.kills}마리 처치 · 최고 ${engine.bestCombo} 연속 처치<br>훈련장에서는 경험치와 보상을 저장하지 않습니다.</p><div class="dialog-actions"><button class="primary" data-action="lobby">${user?'지역 선택으로':'처음 화면으로'}</button><button class="secondary" data-action="trainingMenu">다른 무기로 체험</button><a class="primary" href="index.html?join=1&mode=join">참여하고 기록 남기기</a></div>`);return;}
   if(busy)return;busy=true;if(engine&&engine.phase==='playing')engine.pause();
   const won=engine?.phase==='won',lost=engine?.phase==='lost',kills=engine?.kills||0,rank=engine?.rank||1;
   try{const r=await request('expeditionFinish',{runId:run});view='result';cancelAnimationFrame(frame);
@@ -254,7 +256,9 @@ window.addEventListener('beforeunload',e=>{if(run&&['battle','study'].includes(v
 
 async function boot(){
   if(new URLSearchParams(location.search).get('demo')==='1'){
-    profile={name:'체험 대원',avatar:'a05',level:1,charm:null,weapon:'blade'};zone='code';
+    // 로그인한 사람은 체험에서도 내 아바타와 내 커뮤니티 펫이 나온다
+    const look=await loadLookQuick();demoTeam=look.teamId;
+    profile={name:look.name||'체험 대원',avatar:look.avatar,level:1,charm:null,weapon:'blade'};zone='code';
     document.addEventListener('pointerdown',()=>audio.unlock(),{once:true});
     document.addEventListener('keydown',()=>audio.unlock(),{once:true});
     await startTraining('blade',true);return;

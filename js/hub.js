@@ -1,9 +1,14 @@
 import { TEAMS, spriteOf } from './config.js';
 import { PET_SKILLS } from './expedition-companions.js?v=growth1';
 import {petGrowthMarkup} from './pet-growth.js?v=growth1';
-import {fetchState} from './api.js';
+import {fetchState,getToken} from './api.js';
+import {cachedLook} from './player-look.js?v=look1';
 let communityState=null;
 const hub=document.getElementById('promoLanding');
+// 로그인한 사람에게는 예시 대신 내 아바타와 내 커뮤니티 펫을 보여 준다
+const paintParty=look=>{const party=hub.querySelector('.hero-party');if(party.querySelector('img')?.getAttribute('src')===look.avatarSrc&&party.querySelectorAll('img')[1]?.getAttribute('src')===look.petSrc)return;party.innerHTML=`<img src="${look.avatarSrc}" alt=""><img src="${look.petSrc}" alt="">`;};
+if(getToken())paintParty(cachedLook());
+window.addEventListener('player-look',e=>{if(getToken())paintParty(e.detail);});
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const portraits=['a05','a02','a18','a17','a01','a20','a07','a08','a09','a10'];
 const tabs=document.getElementById('communityTabs'),detail=document.getElementById('communityDetail');
