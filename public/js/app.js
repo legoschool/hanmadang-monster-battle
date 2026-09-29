@@ -2,6 +2,7 @@
 import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, MODES, SERVER_READY, spriteOf, eggOf } from './config.js';
 import * as G from './game.js';
 import * as API from './api.js';
+import { rememberLook } from './player-look.js?v=look1';
 import * as V from './views.js?v=arcade1';
 import { esc, num, icon, openModal, updateModal, closeModal, modalOpen, toast, floatText, bump, confetti, wait, timeLeft, now, setServerNow } from './ui.js';
 
@@ -66,6 +67,7 @@ function apply(snap, seq, sentToken) {
   state = snap;
   setServerNow(snap.serverNow);
   if (!state.me && sentToken) API.setToken(null); // 서버에 없는 참가자(초기화·내보내기)
+  else rememberLook(state.users?.[state.me]);
   // 처음 받은 상태 기준으로 "이미 본 것"을 정해 둔다 (새로고침해도 지난 라운드를 다시 틀지 않게)
   if (ui.seenRounds === null) ui.seenRounds = state.final?.rounds.length ?? 0;
   if (ui.seenPrizes === null) ui.seenPrizes = new Set(state.prizes.map((p, i) => (p.openedAt ? i : -1)).filter((i) => i >= 0));
@@ -133,7 +135,11 @@ function render() {
     return;
   }
   app.classList.toggle('is-onboarding', !me());
+  // 새로 그려도 펼쳐 둔 칸은 그대로 둔다
+  const summaryOf = (d) => d.querySelector('summary')?.textContent.trim();
+  const opened = [...$('view').querySelectorAll('details[open]')].map(summaryOf);
   $('view').innerHTML = PAGES[name](state, ui);
+  if (opened.length) $('view').querySelectorAll('details').forEach((d) => { if (opened.includes(summaryOf(d))) d.open = true; });
   if (name === 'home') ui.seenHit = Math.max(ui.seenHit, state.hits?.[0]?.id || 0);
 
   if (me()) {
@@ -160,11 +166,12 @@ function onRouteChange() {
   render();
   window.scrollTo(0, 0);
   if (name === 'admin' && API.getAdminKey() && !ui.adminOverview) adminCall('overview');
+  if (state && !$('app').hidden) { autoCheckIn(); checkEvents(); }
 }
 
 async function autoCheckIn() {
   const u = me();
-  if (!u || !G.isPlayWeek(state.week) || u.visitedWeeks.includes(state.week)) return;
+  if ($('app').hidden || !u || !G.isPlayWeek(state.week) || u.visitedWeeks.includes(state.week)) return;
   const res = await act('checkin');
   if (!res?.ok) return;
   render();
@@ -174,7 +181,7 @@ async function autoCheckIn() {
 
 // ---------------------------------------------------------------- 모두에게 알릴 일 (보스 격파, 새 라운드, 상자 공개)
 function checkEvents() {
-  if (!state || !me() || ui.busy || modalOpen()) return;
+  if ($('app').hidden || !state || !me() || ui.busy || modalOpen()) return; // 메인 화면을 보는 동안에는 알림을 띄우지 않는다
 
   // 새 결전 라운드: 모두의 화면에서 같은 장면을 재생한다
   const rounds = state.final?.rounds || [];
@@ -790,6 +797,7 @@ const actions = {
     closeModal();
     await refresh({ force: true });
     history.replaceState(null, '', location.pathname);
+    window.dispatchEvent(new HashChangeEvent('hashchange')); // 메인 화면으로 돌아간다
     render();
   },
 
@@ -837,14 +845,8 @@ const actions = {
     }
   },
   'admin-sched-now': () => {
-    const v = kstInput(now());
-    $('schedStart').value = v;
-    ui.schedDraft = { start: v, end: $('schedEnd').value };
-  },
-  'admin-sched-event': () => {
-    const v = kstInput(G.eventDefaultMs());
-    $('schedEnd').value = v;
-    ui.schedDraft = { start: $('schedStart').value, end: v };
+    ui.schedDraft = { ...(ui.schedDraft || {}), start: kstInput(now()) };
+    render();
   },
   'admin-sched-nov': () => {
     const s = new Date(G.eventDefaultMs() - EVENT.weeks * 7 * 24 * 3600 * 1000);
@@ -1051,7 +1053,7 @@ document.addEventListener('input', (e) => {
     });
   }
   if (t.dataset.prizeName !== undefined) editablePrizes()[Number(t.dataset.prizeName)].name = t.value;
-  if (t.id === 'schedStart' || t.id === 'schedEnd') ui.schedDraft = { start: $('schedStart').value, end: $('schedEnd').value };
+  if (t.id === 'schedStart') ui.schedDraft = { ...(ui.schedDraft || {}), start: t.value };
   if (t.id === 'nickname') ui.nickname = t.value;
   if (t.id === 'hintQ') ui.hintQ = t.value;
   if (t.id === 'hintA') ui.hintA = t.value;
@@ -1095,7 +1097,7 @@ async function poll() {
   if (state && !document.hidden && !ui.busy) {
     const typing = document.activeElement?.matches('input, textarea, select');
     const changed = await refresh();
-    if (changed && !modalOpen() && !typing && !ui.busy) {
+    if (changed && !modalOpen() && !typing && !ui.busy && !$('view').querySelector('dialog[open]')) {
       if (currentRoute().name === 'final' && G.cheerOpen(state, now())) patchCheerPanel();
       else render();
     }
