@@ -69,7 +69,7 @@ export class ArcadeRenderer {
     this.kind = sim.kind; this.stage = sim.stage;
     this.pet = { x: sim.p.x - 30, y: sim.p.y - 40 };
     this.bg = this.kind === 'bubble' ? this.bubbleBackground(sim.stage % 3) : this.spaceBackground(sim.stage % 3);
-    this.stars = Array.from({ length: 90 }, (_, i) => ({ x: (i * 173) % W, y: (i * 97) % H, layer: i % 3 }));
+    this.stars = Array.from({ length: 42 }, (_, i) => ({ x: (i * 173) % W, y: (i * 97) % H, layer: i % 3 }));
     this.flies = Array.from({ length: 14 }, (_, i) => ({ x: (i * 131) % W, y: 120 + (i * 71) % 420, p: i }));
   }
 
@@ -122,9 +122,9 @@ export class ArcadeRenderer {
     const th = SPACE_THEMES[stage], [c, x] = this.layer();
     const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, th.sky[0]); g.addColorStop(1, th.sky[1]);
     x.fillStyle = g; x.fillRect(0, 0, W, H);
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 2; i++) {
       const nx = (i * 157) % W, ny = (i * 211) % H, r = 90 + (i % 3) * 50, col = th.neb[i % 2];
-      const n = x.createRadialGradient(nx, ny, 0, nx, ny, r); n.addColorStop(0, col + '40'); n.addColorStop(1, col + '00');
+      const n = x.createRadialGradient(nx, ny, 0, nx, ny, r); n.addColorStop(0, col + '18'); n.addColorStop(1, col + '00');
       x.fillStyle = n; x.fillRect(0, 0, W, H);
     }
     // 멀리 있는 행성
@@ -132,7 +132,7 @@ export class ArcadeRenderer {
     const pg = x.createRadialGradient(px - 14, py - 14, 4, px, py, pr); pg.addColorStop(0, '#ffffffcc'); pg.addColorStop(0.25, th.planet); pg.addColorStop(1, '#0a0a2a');
     x.fillStyle = pg; x.beginPath(); x.arc(px, py, pr, 0, TAU); x.fill();
     x.strokeStyle = th.planet + '88'; x.lineWidth = 3; x.beginPath(); x.ellipse(px, py, pr * 1.7, pr * 0.35, -0.35, 0, TAU); x.stroke();
-    for (let i = 0; i < 120; i++) { x.fillStyle = `rgba(255,255,255,${0.15 + (i % 4) / 10})`; x.fillRect((i * 67) % W, (i * 131) % H, 1, 1); }
+    for (let i = 0; i < 40; i++) { x.fillStyle = `rgba(255,255,255,${0.15 + (i % 4) / 10})`; x.fillRect((i * 67) % W, (i * 131) % H, 1, 1); }
     return c;
   }
 
@@ -147,6 +147,26 @@ export class ArcadeRenderer {
     if (rot) ctx.rotate(rot);
     ctx.scale((flip ? -1 : 1) * sx, sy);
     ctx.drawImage(tint ? e[tint] : e.base, -w / 2, anchor === 'feet' ? -h : -h / 2, w, h);
+    ctx.restore();
+  }
+
+  // 분리된 팔·다리를 회전시켜 이동, 점프, 발사 자세를 만든다.
+  avatar(x, y, height, {flip = false, moving = false, airborne = false, firing = false, rot = 0, alpha = 1} = {}) {
+    const e = this.sprites.get('hero');
+    if (!e) return this.sprite('hero', x, y, height, {anchor: 'feet', flip, alpha});
+    const ctx = this.ctx, w = e.w * height / e.h, h = height;
+    const stride = moving ? Math.sin(this.t / 4) : 0;
+    ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(flip ? -1 : 1, 1);
+    const part = (l, top, width, high, px, py, angle = 0, dy = 0) => {
+      ctx.save(); ctx.translate((px - .5) * w, (py - 1) * h + dy); ctx.rotate(angle);
+      ctx.drawImage(e.base, l * e.w, top * e.h, width * e.w, high * e.h, (l - px) * w, (top - py) * h, width * w, high * h); ctx.restore();
+    };
+    part(0, .76, .5, .24, .38, .76, airborne ? -.35 : stride * .42, airborne ? -3 : 0);
+    part(.5, .76, .5, .24, .62, .76, airborne ? .5 : -stride * .42, airborne ? -2 : 0);
+    part(.24, .48, .52, .28, .5, .48);
+    part(0, .48, .24, .28, .24, .5, airborne ? .65 : -stride * .45);
+    part(.76, .48, .24, .28, .76, .5, firing ? -1.05 : airborne ? -.65 : stride * .45);
+    part(0, 0, 1, .48, .5, .48, Math.sin(this.t / 35) * .015);
     ctx.restore();
   }
 
@@ -170,7 +190,7 @@ export class ArcadeRenderer {
         case 'blow': this.burst(e.x, e.y, 3, ['#dffbff', '#9eeeff'], { speed: 1.5, life: 14, size: 2, gravity: 0 }); break;
         case 'jump': this.burst(e.x, e.y, 6, ['#f3e2b8', '#d8c08c'], { speed: 1.8, life: 16, size: 2.5, gravity: 0.05 }); this.squash = -0.8; break;
         case 'land': this.burst(e.x, e.y, 5, ['#f3e2b8', '#d8c08c'], { speed: 1.4, life: 14, size: 2.5, gravity: 0.05 }); this.squash = 1; break;
-        case 'pet': this.petPulse = 1; this.ring(this.pet.x, this.pet.y, 10, '#fff27a', 22, 4); this.text(this.pet.x, this.pet.y - 30, '펫의 큰 방울!', '#fff27a', 13, 50); break;
+        case 'pet': this.petPulse = 1; this.ring(this.pet.x, this.pet.y, 10, '#fff27a', 22, 4);  break;
         case 'trap': this.ring(e.x, e.y, 20, '#aef6ff', 16, 3); this.burst(e.x, e.y, 8, ['#e8fdff', '#8fe9ff'], { speed: 2.5, life: 18, size: 2, gravity: 0 }); break;
         case 'pop': {
           const col = CHAIN_COLORS[Math.min(e.chain, CHAIN_COLORS.length) - 1];
@@ -214,7 +234,7 @@ export class ArcadeRenderer {
         case 'rage': this.text(sim.boss?.x ?? W / 2, (sim.boss?.y ?? 140) + 70, '분노!', '#ff5d5d', 24, 60); this.flash = 0.2; this.flashColor = '#ff3b3b'; break;
         case 'bossDown':
           this.flash = 0.7; this.flashColor = '#ffffff'; this.shake = 16; stop = 12;
-          for (let i = 0; i < 7; i++) this.later.push({ at: this.t + i * 7, x: e.x + rand(-60, 60), y: e.y + rand(-50, 50) });
+          for (let i = 0; i < 2; i++) this.later.push({ at: this.t + i * 7, x: e.x + rand(-60, 60), y: e.y + rand(-50, 50) });
           this.text(e.x, e.y + 60, '+' + e.pts.toLocaleString(), '#fff27a', 26, 90);
           break;
         case 'bossEscape': this.text(W / 2, 200, '보스가 달아났어요', '#ffffff', 20, 90); break;
@@ -336,11 +356,10 @@ export class ArcadeRenderer {
     // 주인공: 달리기 흔들림, 점프 늘어남, 착지 눌림
     const moving = Math.abs(p.vx) > 0.6 && p.ground;
     const run = moving ? Math.abs(Math.sin(t / 4)) * 3 : 0;
-    const air = !p.ground ? (p.vy < 0 ? -0.35 : 0.15) : 0;
-    const sq = this.squash + air;
+
     const blink = p.inv > 0 && t % 8 < 4;
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 15, 4, 0, 0, TAU); ctx.fill();
-    this.sprite('hero', p.x, p.y - run, 60, { anchor: 'feet', flip: p.dir < 0, sx: 1 + sq * 0.18, sy: 1 - sq * 0.18, rot: moving ? p.vx * 0.025 : 0, alpha: blink ? 0.35 : 1 });
+    this.avatar(p.x, p.y - run, 60, {flip: p.dir < 0, moving, airborne: !p.ground, firing: p.fire > 14, rot: moving ? p.vx * .015 : 0, alpha: blink ? .35 : 1});
     if (s.boost && t % 6 < 3) this.burst(p.x, p.y - 30, 1, ['#fff27a'], { speed: 1.5, life: 16, size: 2, gravity: 0 });
   }
 
@@ -423,7 +442,7 @@ export class ArcadeRenderer {
     ctx.fillStyle = '#7ef0ff'; ctx.beginPath(); ctx.ellipse(0, 12, 28, 6, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = '#ffffff'; ctx.fillRect(-14, 10, 10, 2);
     ctx.restore();
-    this.sprite('hero', p.x, p.y + 12, 52, { anchor: 'feet', rot: this.tilt, alpha: blink ? 0.35 : 1 });
+    this.avatar(p.x, p.y + 12, 52, {moving: Math.abs(vx) > .5, firing: t % 20 < 8, rot: this.tilt, alpha: blink ? .35 : 1});
     if (s.foes.length > 12) { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, TAU); ctx.stroke(); }
 
     // 적 탄 (맨 위에 그려 잘 보이게)

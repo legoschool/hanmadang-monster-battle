@@ -2,7 +2,7 @@
 // 점수와 보상은 서버가 입력 기록을 똑같이 다시 돌려서 정한다(arcade-engine.js 공유).
 import * as API from './api.js';
 import { ARCADE_GAMES, createArcade, stepArcade, SAMPLE, ARCADE_VERSION, W, H } from './arcade-engine.js?v=arcade2';
-import { ArcadeRenderer, Sprites, SPRITE_SOURCES } from './arcade-render.js?v=arcade2';
+import { ArcadeRenderer, Sprites, SPRITE_SOURCES } from './arcade-render.js?v=mobile3';
 import { ArcadeAudio } from './arcade-audio.js?v=arcade2';
 import { cachedLook, loadLook } from './player-look.js?v=look1';
 
@@ -11,7 +11,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const button = (text, act, extra = '', primary = false) => `<button class="button ${primary ? 'primary' : ''}" data-act="${act}" ${extra}>${text}</button>`;
 
 let state = null, adminData = null, run = null, sim = null, renderer = null, inputs = [], bits = 0, heldBits = 0;
-let frameId = 0, last = 0, acc = 0, paused = true, busy = false, demo = false, speed = 1, noticeTimer = 0, pending = null;
+let frameId = 0, last = 0, acc = 0, paused = true, busy = false, demo = false, speed = 0.75, noticeTimer = 0, pending = null;
 let preview = 'english', sent = false, drag = null, intro = 0, hitstop = 0, endWait = 0, previews = [];
 const audio = new ArcadeAudio();
 let prefs = { sound: true, music: true };
@@ -33,8 +33,8 @@ const demoQuestions = [
   { text: '훈민정음을 창제한 왕은?', options: ['정조', '태조', '세종'], answer: 2, explain: '세종은 백성이 쉽게 쓸 수 있는 훈민정음을 창제했습니다.', preset: '역사 상식' },
 ];
 const HOW = {
-  bubble: ['방울에 갇힌 벌레에 닿으면 터져요. 붙어 있는 방울은 함께 터지고 점수가 두 배씩!', '무리 3개를 모두 물리치면 구간 클리어.'],
-  space: ['화면을 끌어서 움직여요. 공격은 자동이에요.', 'P 구슬을 먹으면 무기가 강해지고, 18초 뒤 보스가 나와요.'],
+  bubble: ['좌우 버튼으로 이동 · 점프', '방울 속 적에 닿으면 처치 · 공격은 자동'],
+  space: ['화면을 끌어 이동 · 공격은 자동', '적의 탄을 피하고 P를 모으세요.'],
 };
 
 function tell(text) { status.textContent = text; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => (status.textContent = ''), 6000); }
@@ -44,7 +44,7 @@ function stop() { cancelAnimationFrame(frameId); paused = true; bits = 0; drag =
 
 // ================================================================= 게임 목록
 async function home() {
-  stop(); run = null; pending = null; sim = null;
+  document.body.classList.remove('is-playing'); stop(); run = null; pending = null; sim = null;
   if (location.hash === '#admin') return adminHome();
   if (API.getToken()) {
     try { state = await action('arcadeState'); }
@@ -52,14 +52,14 @@ async function home() {
   } else state = null;
   const card = (id, g) => `<article class="game-card ${id}">
       <canvas class="game-preview" data-preview="${id}" aria-hidden="true"></canvas>
-      <div class="game-card-body"><h2>${g.name}</h2><p>${g.description}</p>
+      <div class="game-card-body"><h2>${g.name}</h2>
       <p class="muted">${id === 'bubble' ? '좌우 이동 · 점프 · 방울은 자동' : '화면 끌기로 이동 · 공격은 자동'}</p>
       ${button(state ? '플레이' : '체험하기', 'start', `data-kind="${id}"`, true)}
-      <p class="fine">${state?.daily.completed['arcade-' + id] ? '오늘 보상 받음 · 최고 기록에 도전' : state ? '하루 첫 완료 시 최대 60P' : '체험 기록과 포인트는 저장되지 않아요.'}${state?.best[id] ? ` · 내 최고 ${state.best[id].toLocaleString()}점` : ''}</p></div></article>`;
-  root.innerHTML = `<section class="intro"><div><h1>아케이드</h1><p class="muted">한 판 약 2분 · 구간마다 퀴즈 한 문제</p></div>${state ? `<div class="wallet">보유 포인트 <b>${state.wallet.toLocaleString()}P</b></div>` : '<a class="button primary" href="index.html?join=1&mode=join">참여하고 기록 남기기</a>'}</section>
+      <p class="fine">${state?.daily.completed['arcade-' + id] ? '오늘 보상 완료' : state ? '하루 최대 60P' : '체험 · 포인트 저장 안 됨'}${state?.best[id] ? ` · 내 최고 ${state.best[id].toLocaleString()}점` : ''}</p></div></article>`;
+  root.innerHTML = `<section class="intro"><div><h1>아케이드</h1></div>${state ? `<div class="wallet">보유 포인트 <b>${state.wallet.toLocaleString()}P</b></div>` : '<a class="button primary" href="index.html?join=1&mode=join">참여</a>'}</section>
     <div class="games">${Object.entries(ARCADE_GAMES).map(([id, g]) => card(id, g)).join('')}</div>
     ${state?.run && state.run.phase !== 'done' && state.run.version === ARCADE_VERSION ? `<section class="section">${button('진행 중인 게임 이어하기', 'restore', '', true)}</section>` : ''}
-    <section class="section"><h2>오늘의 퀴즈 주제</h2><div class="chips">${(state ? state.settings.catalog.filter((p) => state.settings.presets.includes(p.id)).map((p) => p.name) : ['영어 단어', '수학 퀴즈', '역사 상식']).map((n) => `<span class="chip">${esc(n)}</span>`).join('')}</div><p class="muted">퀴즈 중에는 게임이 멈춰요. 틀리거나 건너뛰어도 해설을 보고 계속할 수 있어요.</p></section>
+    <details class="section"><summary>퀴즈 주제</summary><div class="chips">${(state ? state.settings.catalog.filter((p) => state.settings.presets.includes(p.id)).map((p) => p.name) : ['영어 단어', '수학 퀴즈', '역사 상식']).map((n) => `<span class="chip">${esc(n)}</span>`).join('')}</div></details>
     <details class="section"><summary>조작 방법과 포인트</summary>
       <p><b>버블 정원</b> 방향키·A/D로 이동, ↑·W·스페이스로 점프. 휴대폰은 화면 아래 버튼.</p>
       <p><b>별빛 비행대</b> 화면을 끌거나 방향키·WASD로 이동.</p>
@@ -73,7 +73,7 @@ async function home() {
 }
 
 function leaders() {
-  return `<section class="section"><h2>최고 기록</h2><table class="table"><thead><tr><th>대원</th><th>버블 정원</th><th>별빛 비행대</th></tr></thead><tbody>${state.leaders.slice(0, 10).map((u) => `<tr><td>${esc(u.name)}</td><td>${u.best.bubble?.toLocaleString() || '—'}</td><td>${u.best.space?.toLocaleString() || '—'}</td></tr>`).join('') || '<tr><td colspan="3">아직 기록이 없어요.</td></tr>'}</tbody></table></section>`;
+  return `<details class="section"><summary>최고 기록</summary><table class="table"><thead><tr><th>대원</th><th>버블 정원</th><th>별빛 비행대</th></tr></thead><tbody>${state.leaders.slice(0, 10).map((u) => `<tr><td>${esc(u.name)}</td><td>${u.best.bubble?.toLocaleString() || '—'}</td><td>${u.best.space?.toLocaleString() || '—'}</td></tr>`).join('') || '<tr><td colspan="3">아직 기록이 없어요.</td></tr>'}</tbody></table></details>`;
 }
 
 // 게임 카드의 움직이는 미리보기 (자동으로 조작하는 한 판)
@@ -124,7 +124,7 @@ async function start(kind) {
   else run = (await action('arcadeStart', { kind })).run;
   renderRun();
 }
-function renderRun() { stop(); if (run.phase === 'playing') stage(); else if (run.phase === 'question') question(); else if (run.phase === 'review') review(); else result(); }
+function renderRun() { document.body.classList.toggle('is-playing', run.phase === 'playing'); window.scrollTo(0, 0); stop(); if (run.phase === 'playing') stage(); else if (run.phase === 'question') question(); else if (run.phase === 'review') review(); else result(); }
 
 function soundLabel() { return prefs.sound ? '소리 켜짐' : '소리 꺼짐'; }
 function stage() {
@@ -133,13 +133,13 @@ function stage() {
   inputs = []; heldBits = 0; sent = false; intro = 0; hitstop = 0; endWait = 0;
   const g = ARCADE_GAMES[run.kind];
   root.innerHTML = `<section class="game-shell ${run.kind}">
-    <div class="game-top"><div><b>${g.name}</b><span>${run.stage + 1} / 3 구간</span></div><div class="row">${button(soundLabel(), 'sound', 'aria-pressed="' + prefs.sound + '"')}${button('쉬기', 'pause')}</div></div>
+    <div class="game-top"><div><b>${g.name}</b><span>${run.stage + 1} / 3</span></div><div class="row">${button('설정 · 일시정지', 'pause')}</div></div>
     <div class="board"><canvas id="game-canvas" tabindex="0" aria-label="${g.name} 게임 화면"></canvas>
       <div class="overlay" id="play-overlay">${startPanel()}</div></div>
     ${run.kind === 'bubble'
       ? '<div class="controls"><div class="pad"><button class="control" data-bit="1" aria-label="왼쪽으로">◀</button><button class="control" data-bit="2" aria-label="오른쪽으로">▶</button></div><button class="control jump" data-bit="4">점프</button></div>'
-      : '<p class="drag-hint">화면 어디든 누른 채 끌면 움직여요 · 공격은 자동</p>'}
-    ${demo ? '<p class="play-note">체험 중이에요. 기록과 포인트는 저장되지 않아요.</p>' : ''}
+      : '<p class="drag-hint">끌어서 이동 · 자동 공격</p>'}
+
   </section>`;
   renderer = new ArcadeRenderer(document.getElementById('game-canvas'), sprites);
   renderer.reset(sim);
@@ -149,18 +149,18 @@ function stage() {
 }
 function startPanel() {
   const [a, b] = HOW[run.kind];
-  return `<h2>${run.stage === 0 ? ARCADE_GAMES[run.kind].name : `${run.stage + 1}번째 구간`}</h2><p>${a}<br>${b}</p>
+  return `<h2>${run.stage + 1} / 3 구간</h2><p>${a}<br>${b}</p>
     ${run.boost ? '<p class="boost">정답 보너스: 처음 6초 동안 빠르게 발사!</p>' : ''}
-    <div class="row center">${button(run.stage === 0 ? '시작' : '이어서 시작', 'resume', '', true)}${button('목록으로', 'leave')}</div>
+    <div class="row center">${button(run.stage === 0 ? '시작' : '시작', 'resume', '', true)}${button('게임 목록', 'leave')}</div>
     <label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.75" ${speed === 0.75 ? 'selected' : ''}>천천히</option></select></label>`;
 }
 function pausePanel() {
-  return `<h2>잠시 멈췄어요</h2>
+  return `<h2>일시정지</h2>
     <div class="row center">${button('이어서 플레이', 'resume', '', true)}</div>
     <div class="row center">${button(soundLabel(), 'sound', 'aria-pressed="' + prefs.sound + '"')}${button(prefs.music ? '음악 켜짐' : '음악 꺼짐', 'music', 'aria-pressed="' + prefs.music + '"')}</div>
     <label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.75" ${speed === 0.75 ? 'selected' : ''}>천천히</option></select></label>
     <p class="muted">${HOW[run.kind][0]}</p>
-    <div class="row center">${button('목록으로', 'leave')}</div>`;
+    <div class="row center">${button('게임 목록', 'leave')}</div>`;
 }
 
 const toWorld = (c, e) => { const r = c.getBoundingClientRect(); return { x: ((e.clientX - r.left) * W) / r.width, y: ((e.clientY - r.top) * H) / r.height }; };
@@ -264,14 +264,14 @@ async function submit() {
     pending = null;
     renderRun();
   } catch (e) {
-    o.innerHTML = `<h2>기록을 보내지 못했어요</h2><p>${esc(e.message)}</p><div class="row center">${button('같은 기록 다시 보내기', 'retry', '', true)}${button('목록으로', 'leave')}</div>`;
+    o.innerHTML = `<h2>기록을 보내지 못했어요</h2><p>${esc(e.message)}</p><div class="row center">${button('같은 기록 다시 보내기', 'retry', '', true)}${button('게임 목록', 'leave')}</div>`;
   }
 }
 
 // ================================================================= 퀴즈 · 해설 · 결과
 function question() {
   const q = run.question;
-  root.innerHTML = `<section class="section question"><span class="chip">${esc(q.preset)} · ${run.stage + 1} / 3</span><h2>${esc(q.text)}</h2><p class="muted">게임은 멈춰 있어요. 천천히 골라 보세요.</p><div class="answers">${q.options.map((o, i) => button(esc(o), 'answer', `data-choice="${i}"`)).join('')}</div>${button('모르겠어요 · 해설 보기', 'answer', 'data-choice="-1"')}<p class="muted">정답이면 10P가 보상에 더해지고, 다음 구간 처음 6초 동안 빠르게 발사해요.</p></section>`;
+  root.innerHTML = `<section class="section question"><span class="chip">${esc(q.preset)} · ${run.stage + 1} / 3</span><h2>${esc(q.text)}</h2><p class="muted">시간 제한 없음</p><div class="answers">${q.options.map((o, i) => button(esc(o), 'answer', `data-choice="${i}"`)).join('')}</div>${button('건너뛰기', 'answer', 'data-choice="-1"')}<p class="muted">정답: +10P · 다음 구간 공격 강화 6초</p></section>`;
   root.querySelector('h2').tabIndex = -1; root.querySelector('h2').focus();
 }
 async function answer(choice) {
@@ -282,7 +282,7 @@ async function answer(choice) {
 }
 function review() {
   const f = run.feedback, last = run.stage === 2 || run.gameOver;
-  root.innerHTML = `<section class="section question"><span class="chip ${f.correct ? 'good' : ''}">${f.correct ? '정답이에요' : '하나 배웠어요'}</span><h2>${esc(f.answer)}</h2><p class="feedback">${esc(f.explain)}</p>${button(last ? '결과 보기' : '다음 구간으로', 'next', '', true)}<p class="muted">${run.gameOver ? '체력을 모두 잃어서 이번 판은 여기까지예요.' : f.correct ? '다음 구간 처음 6초 동안 빠르게 발사해요.' : '틀려도 얻은 점수는 줄지 않아요.'}</p></section>`;
+  root.innerHTML = `<section class="section question"><span class="chip ${f.correct ? 'good' : ''}">${f.correct ? '정답' : '정답 확인'}</span><h2>${esc(f.answer)}</h2><p class="feedback">${esc(f.explain)}</p>${button(last ? '결과 보기' : '다음 구간으로', 'next', '', true)}<p class="muted">${run.gameOver ? '체력을 모두 잃어서 이번 판은 여기까지예요.' : f.correct ? '다음 구간 처음 6초 동안 빠르게 발사해요.' : '틀려도 얻은 점수는 줄지 않아요.'}</p></section>`;
 }
 async function next() {
   if (demo) { if (run.stage === 2 || run.gameOver) { run.score += run.correct * 200; run.phase = 'done'; } else { run.stage++; run.seed = (run.seed + 0x9e3779b9) >>> 0; run.phase = 'playing'; } }
@@ -296,7 +296,7 @@ function result() {
 
 // ================================================================= 관리자: 퀴즈 주제
 async function adminHome() {
-  stop();
+  document.body.classList.remove('is-playing'); stop();
   if (!API.getAdminKey()) { root.innerHTML = `<section class="section question"><h1>아케이드 문제 관리</h1><p>운영자 키로 로그인하세요.</p><form id="admin-login"><label>운영자 키 <input id="admin-key" type="password" required autocomplete="current-password"></label><button class="button primary" type="submit">로그인</button></form><p><a href="#">아케이드로</a></p></section>`; return; }
   try { adminData = await adm('arcadeOverview'); renderAdmin(); }
   catch (e) { tell(e.message); if (e.status === 403) { API.setAdminKey(null); adminHome(); } else root.innerHTML = `<section class="section"><h1>아케이드 문제 관리</h1><p>${esc(e.message)}</p>${button('다시 연결', 'home', '', true)}</section>`; }
@@ -320,7 +320,7 @@ root.addEventListener('click', (e) => {
     return;
   }
   perform(async () => {
-    if (a === 'home' || a === 'leave') { if (a === 'leave' && run?.phase === 'playing' && sim?.frame > 0 && !confirm('목록으로 돌아갈까요? 이 구간은 처음부터 다시 해야 해요.')) return; await home(); }
+    if (a === 'home' || a === 'leave') { if (a === 'leave' && run?.phase === 'playing' && sim?.frame > 0 && !confirm('게임 목록 돌아갈까요? 이 구간은 처음부터 다시 해야 해요.')) return; await home(); }
     if (a === 'start') await start(b.dataset.kind);
     if (a === 'restore') { demo = false; run = state.run; renderRun(); }
     if (a === 'answer') await answer(+b.dataset.choice);
