@@ -1,4 +1,5 @@
-import {loadArtImage} from './character-art.js?v=cast9';
+import {showOpening} from './opening-story.js?v=quest10';
+import {loadArtImage} from './character-art.js?v=quest10';
 import {TEAMS} from './config.js';
 import {petGrowthMarkup} from './pet-growth.js?v=growth1';
 import {levelInfo} from './game.js';
@@ -9,7 +10,7 @@ import * as API from './api.js';
 import {loadLookQuick} from './player-look.js?v=look1';
 import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=story5';
 import {ExpeditionEngine} from './expedition-engine.js?v=growth1';
-import {ExpeditionRenderer} from './expedition-renderer.js?v=cast9';
+import {ExpeditionRenderer} from './expedition-renderer.js?v=quest10';
 import {ExpeditionAudio} from './expedition-audio.js?v=story5';
 
 const $=id=>document.getElementById(id);
@@ -22,6 +23,7 @@ function comfortControls(){return `<div class="comfort-controls"><label>전투 �
 function playHelp(done){const wasPlaying=engine?.phase==='playing';if(wasPlaying)engine.pause();helpPage=0;helpReturn=done||(()=>{if(wasPlaying)engine?.resume();});paintHelp();}
 function paintHelp(){const steps=[['1. 이동만 해 보세요','PC는 방향키 또는 WASD, 휴대폰은 화면을 누른 채 원하는 방향으로 밀어요. 왼쪽 방향 버튼을 눌러도 됩니다.','가까운 적은 자동 공격해요. 자동 기술을 켜면 스킬과 펫도 알아서 도와줍니다.'],['2. 붉은 표시를 피하고, 보석을 모아요','적과 붉은 원·길에서 조금 떨어져 보세요. 적이 남긴 보석에 가까이 가면 자동으로 모이고 레벨이 올라요.','어려우면 오른쪽 위 ‘쉬기’에서 난이도와 속도를 즉시 낮추세요. 더 느리게 해도 보상이 줄지 않아요.'],['3. 문제는 서두르지 않아도 돼요','문제가 나오면 전투가 완전히 멈춥니다. 힌트를 보고 다시 답하거나 해설을 보고 넘어갈 수 있어요.','전투 중 ‘방법’에서 이 안내를 다시 볼 수 있어요. 이미 받은 지식 보상은 쓰러져도 남아요.']][helpPage];dialog(`<div class="eyebrow">처음 플레이 안내 · ${helpPage+1} / 3</div><h2>${steps[0]}</h2><p class="help-lead">${steps[1]}</p><div class="hint">${steps[2]}</div>${helpPage===0?comfortControls():''}<div class="dialog-actions"><button class="secondary" data-action="helpPrev" ${helpPage===0?'disabled':''}>이전</button><button class="primary" data-action="helpNext">${helpPage===2?'준비됐어요 · 시작':'다음'}</button><button class="plain" data-action="helpDone">안내 닫기</button></div>`);}
 function endHelp(){const done=helpReturn;helpReturn=null;helpSeen=true;closeDialog();done?.();}
+let storyTimer=0;
 let story=null,storyDirector=new StoryDirector(),storyRead=[];
 try{const saved=JSON.parse(localStorage.getItem('expedition-story-read')||'[]');if(Array.isArray(saved))storyRead=saved.filter(x=>ZONES.some(z=>z.id===x.zone)&&['intro','trail','boss','seal','win','rest'].includes(x.beat));}catch{}
 let busy=false,frame=0,lastFrame=0,hudTime=0,noticeTimer,keys=new Set(),pad={x:0,y:0},stick=null;
@@ -42,15 +44,15 @@ function showStory(beat,done,storyZone=zone){
   audio.update(false);keys.clear();pad={x:0,y:0};stick=null;
   story={pages:storyPages(storyZone,beat,profile?.name),index:0,done,paused,zone:storyZone};
   if(!storyRead.some(x=>x.zone===storyZone&&x.beat===beat)){storyRead.push({zone:storyZone,beat});try{localStorage.setItem('expedition-story-read',JSON.stringify(storyRead));}catch{}}
-  paintStory();
+  paintStory();clearInterval(storyTimer);storyTimer=setInterval(()=>{if(!story||story.hold||document.hidden)return;story.elapsed=(story.elapsed||0)+.25;const seconds=Math.max(6,story.pages[story.index].text.length*.09);if(story.elapsed>=seconds){if(story.index+1<story.pages.length){story.index++;paintStory();}else endStory();}},250);
 }
 function paintStory(){
- const p=story.pages[story.index],z=zoneById(story.zone);
- dialog(`<div class="story-scene" style="--story-color:${z.color}"><div class="story-art" aria-hidden="true"><div class="story-orbit"></div><img src="assets/avatars/${esc(profile?.avatar||'a05')}.png" alt=""><img class="story-enemy" src="assets/bosses/${z.boss}.png" alt=""></div><div class="story-topline"><span>${z.name} · 액션 이야기</span><span>${story.index+1} / ${story.pages.length}</span></div><h2 id="storyTitle">${esc(p.title)}</h2><div class="story-speaker">${esc(p.speaker)}</div><p class="story-prose">${esc(p.text)}</p><div class="dialog-actions"><button class="secondary" data-action="storyBack" ${story.index===0?'disabled':''}>앞 장면</button><button class="primary" data-action="storyNext">${story.index+1<story.pages.length?'다음 장면':'이어서 진행'}</button><button class="plain" data-action="storySkip">이 장면 건너뛰기</button></div></div>`);
+ story.elapsed=0;const p=story.pages[story.index],z=zoneById(story.zone);
+ dialog(`<div class="story-scene" style="--story-color:${z.color}"><div class="story-art" aria-hidden="true"><div class="story-orbit"></div><img src="assets/avatars/${esc(profile?.avatar||'a05')}.png" alt=""><img class="story-enemy" src="assets/bosses/${z.boss}.png" alt=""></div><div class="story-topline"><span>${z.name} · 액션 이야기</span><span>${story.index+1} / ${story.pages.length}</span></div><h2 id="storyTitle">${esc(p.title)}</h2><div class="story-speaker">${esc(p.speaker)}</div><p class="story-prose">${esc(p.text)}</p><div class="dialog-actions"><button class="secondary" data-action="storyPause">${story.hold?'계속':'멈춤'}</button><button class="plain" data-action="storySkip">건너뛰기</button></div></div>`);
  $('dialog').querySelector('[role="dialog"]').setAttribute('aria-labelledby','storyTitle');
- $('dialog').querySelector('[data-action=storyNext]').focus({preventScroll:true});
+ $('dialog').querySelector('[data-action=storyPause]').focus({preventScroll:true});
 }
-function endStory(){const current=story;if(!current)return;story=null;closeDialog();if(current.paused)engine?.resume();lastFrame=performance.now();current.done?.();}
+function endStory(){clearInterval(storyTimer);const current=story;if(!current)return;story=null;closeDialog();if(current.paused)engine?.resume();lastFrame=performance.now();current.done?.();}
 function storyJournal(){dialog(`<div class="eyebrow">STORY JOURNAL</div><h2>지나온 이야기</h2><p>이 기기에서 만난 장면입니다. 다시 읽어도 경험치와 보상은 바뀌지 않아요.</p><div class="story-journal">${storyRead.length?storyRead.map((r,i)=>`<button class="secondary" data-story-replay="${i}">${zoneById(r.zone).name} · ${storyPages(r.zone,r.beat,profile?.name)[0].title}</button>`).join(''):'<p>원정을 출발하면 첫 이야기가 펼쳐집니다.</p>'}</div><div class="dialog-actions"><button class="primary" data-action="close">돌아가기</button></div>`);}
 function closeDialog(){$('expedition').inert=false;$('dialog').hidden=true;$('dialog').innerHTML='';$('arena')?.focus({preventScroll:true});}
 async function request(type,params={}){const {result}=await API.act(type,params);if(!result?.ok)throw new Error(result?.reason||'원정 서버 응답을 확인하지 못했어요. 서버 업데이트가 필요할 수 있어요.');if(result.profile)profile=result.profile;return result;}
@@ -197,7 +199,7 @@ async function finish(afterStory=false){
 
 document.addEventListener('click',async e=>{
   const el=e.target.closest('button');if(!el||el.disabled)return;
-  if(story){if(el.dataset.action==='storyNext'){if(story.index+1<story.pages.length){story.index++;paintStory();}else endStory();}else if(el.dataset.action==='storyBack'&&story.index>0){story.index--;paintStory();}else if(el.dataset.action==='storySkip')endStory();return;}
+  if(story){if(el.dataset.action==='storyPause'){story.hold=!story.hold;el.textContent=story.hold?'계속':'멈춤';return;}if(el.dataset.action==='storyNext'){if(story.index+1<story.pages.length){story.index++;paintStory();}else endStory();}else if(el.dataset.action==='storyBack'&&story.index>0){story.index--;paintStory();}else if(el.dataset.action==='storySkip')endStory();return;}
   if(el.dataset.storyReplay!==undefined){const r=storyRead[Number(el.dataset.storyReplay)];if(r)showStory(r.beat,storyJournal,r.zone);return;}
   if(el.dataset.training){startTraining(el.dataset.training);return;}
   if(el.dataset.zone){zone=el.dataset.zone;renderLobby();return;}
@@ -262,9 +264,9 @@ async function boot(){
     profile={name:look.name||'체험 대원',avatar:look.avatar,level:1,charm:null,weapon:'blade'};zone='code';
     document.addEventListener('pointerdown',()=>audio.unlock(),{once:true});
     document.addEventListener('keydown',()=>audio.unlock(),{once:true});
-    await startTraining('blade',true);return;
+    await startTraining('blade',true);engine.pause();$('expedition').inert=true;await showOpening();$('expedition').inert=false;keys.clear();engine.resume();lastFrame=performance.now();return;
   }
-  try{state=await API.fetchState();user=state.users?.[state.me];if(!user){login();return;}const r=await request('expeditionLibrary');profile=r.profile;renderLobby();}
+  try{state=await API.fetchState();user=state.users?.[state.me];if(!user){login();await showOpening();return;}const r=await request('expeditionLibrary');profile=r.profile;renderLobby();await showOpening();}
   catch(e){$('expedition').innerHTML=header()+`<section class="login-card"><h1>연결을 확인해 주세요.</h1><p>${esc(e.message)}</p><button class="primary" id="retryBoot">다시 연결</button><p><a href="index.html#/home">공동 원정으로</a></p></section>`;$('retryBoot').onclick=boot;}
 }
 boot();

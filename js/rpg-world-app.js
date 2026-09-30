@@ -3,7 +3,7 @@ import * as API from './api.js';
 import {REGIONS,EQUIPMENT,PET_ROLES,PET_NAMES,fresh,stats,startAdventure,travel,fight,equip} from './rpg-rules.js?v=rpg1';
 import {STORIES} from './rpg-story.js?v=story4';
 import {cachedLook,loadLook} from './player-look.js?v=look1';
-import {Sprites} from './arcade-render.js?v=cast9';
+import {Sprites} from './arcade-render.js?v=quest10';
 import {ArcadeAudio} from './arcade-audio.js?v=arcade2';
 import {mountScene} from './rpg-scene.js?v=art8';
 import {worldMap,placesFor} from './rpg-world-map.js?v=art8';

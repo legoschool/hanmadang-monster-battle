@@ -1,4 +1,4 @@
-import {loadArtImage} from './character-art.js?v=cast9';
+import {loadArtImage} from './character-art.js?v=quest10';
 import {drawWalker} from './rpg-walk.js?v=art8';
 // 아케이드 그리기: 배경·캐릭터 동작·효과·점수판. 규칙(arcade-engine.js)은 건드리지 않고 상태를 읽어 그리기만 한다.
 // 효과(입자·흔들림)는 화면에서만 쓰는 것이라 Math.random을 써도 된다.
