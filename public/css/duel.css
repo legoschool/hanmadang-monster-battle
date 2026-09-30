@@ -6,3 +6,6 @@ body{background:#101e31;color:#f1f5fb}main{max-width:980px;margin:0 auto;padding
  .fight .arena canvas { object-fit:contain; }
  .controls-help { display:none; }
 }
+
+/* Keep the fighters large on portrait screens without stretching the stage. */
+@media(max-width:600px) and (orientation:portrait){.fight .arena{width:min(100%,calc((100svh - 174px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * .941176));aspect-ratio:16/17;}}
