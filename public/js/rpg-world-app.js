@@ -1,12 +1,12 @@
-import {BOSS_ART,bossSprite} from './rpg-art.js?v=walk7';
+import {BOSS_ART,bossSprite} from './rpg-art.js?v=art8';
 import * as API from './api.js';
 import {REGIONS,EQUIPMENT,PET_ROLES,PET_NAMES,fresh,stats,startAdventure,travel,fight,equip} from './rpg-rules.js?v=rpg1';
 import {STORIES} from './rpg-story.js?v=story4';
 import {cachedLook,loadLook} from './player-look.js?v=look1';
 import {Sprites} from './arcade-render.js?v=mobile3';
 import {ArcadeAudio} from './arcade-audio.js?v=arcade2';
-import {mountScene} from './rpg-scene.js?v=walk7';
-import {worldMap,PLACES} from './rpg-world-map.js?v=walk7';
+import {mountScene} from './rpg-scene.js?v=art8';
+import {worldMap,placesFor} from './rpg-world-map.js?v=art8';
 import {DEMO_DECKS} from './rpg-demo.js?v=world6';
 const root=document.getElementById('rpg'),demo=!API.getToken(),sprites=new Sprites(),audio=new ArcadeAudio();
 let profile=fresh(),look=cachedLook(),wallet=0,mode='camp',panel='',busy=false,effect=null,pending=null,sound=true,map=null,stopBattle=()=>{},pos=null,positionRegion=-1,battleActive=false,tipTimer=0;
@@ -22,7 +22,7 @@ function toast(text){const t=document.getElementById('rpg-status');t.textContent
 for(const art of BOSS_ART)sprites.load(art.id,art.src);
 function header(){const r=profile.run;return `<header class="world-header"><a href="index.html#/home"><img src="assets/brand/gdeal.svg" alt="G-DEAL"></a><strong>아카이브 원정</strong><div class="header-actions">${btn(sound?'소리 켬':'소리 끔','sound','aria-pressed="'+sound+'"')}${btn('지역','camp')}${btn('장비','gear')}</div></header><div class="player-strip"><span><img src="${esc(look.avatarSrc)}" alt="">${esc(look.name||'탐험가')} <b>Lv.${stats(profile).level}</b></span><span class="pet-strip"><img src="${esc(look.petSrc)}" alt="">${esc(look.petName)} <b>성장 ${Math.min(6,1+Math.floor(profile.bond/3))}</b></span><span>${r&&live()?'체력 '+r.hp+'/'+r.maxHp:demo?'체험':wallet+' P'}</span></div>`;}
 function storyName(r){return r.boss?STORIES[r.region].bossName:STORIES[r.region].enemyName;}
-function targetFor(r){const index=r.phase==='intro'?1:r.phase==='fork'?3:['shrine','question','review'].includes(r.phase)?5:r.phase==='complete'?6:r.boss?6:r.node===3?4:2;return {...PLACES[index],index,name:r.phase==='intro'?'중계기 조사':r.phase==='fork'?'보급 선택':['shrine','question','review'].includes(r.phase)?'원본 기록 확인':r.phase==='complete'?'구역 복구 완료':storyName(r)};}
+function targetFor(r){const index=r.phase==='intro'?1:r.phase==='fork'?3:['shrine','question','review'].includes(r.phase)?5:r.phase==='complete'?6:r.boss?6:r.node===3?4:2;return {...placesFor(r.region)[index],index,name:r.phase==='intro'?'중계기 조사':r.phase==='fork'?'보급 선택':['shrine','question','review'].includes(r.phase)?'원본 기록 확인':r.phase==='complete'?'구역 복구 완료':storyName(r)};}
 function stopViews(){if(map){pos=map.position();map.stop();map=null;}stopBattle();stopBattle=()=>{};}
 function paint(){stopViews();const r=profile.run;root.innerHTML=header();root.setAttribute('aria-busy',String(busy));
  if(mode==='camp'){root.insertAdjacentHTML('beforeend',`<section class="world-select"><div class="campaign-heading"><span>공동 기록 복구 작전</span><h1>끊어진 연결을 되찾으세요.</h1><p>오류가 경상디지털교육자연합의 활동 기록을 가렸습니다. 펫과 현장을 탐색하고 원인을 해결하세요.</p></div>${live()?`<div class="resume-row">${btn('이어서 탐색','resume','','primary resume')}${btn('귀환','retreat')}</div>`:''}<div class="world-regions">${REGIONS.map((a,i)=>`<button class="region-tile region-${i}" data-action="start" data-region="${i}" ${live()||i>0&&!profile.cleared.includes(i-1)?'disabled':''}><span class="region-number">0${i+1}</span><img src="${BOSS_ART[i].src}" alt=""><span class="region-copy"><b>${a.name}</b><small>${i>0&&!profile.cleared.includes(i-1)?'이전 지역 복구 필요':profile.cleared.includes(i)?'복구 완료 · 다시 탐색':STORIES[i].goal}</small></span></button>`).join('')}</div><details><summary>조작·저장</summary><p>맵의 목적지를 터치하거나 방향키로 이동합니다. ‘목표로 이동’ 버튼으로도 걸어갈 수 있습니다. 적과 만나면 상황을 읽고 대응을 선택하세요.</p><p>${demo?'체험은 저장·포인트 지급이 없습니다.':'전투·지역 진행·장비는 자동 저장됩니다.'} 지역 완료 포인트는 하루 한 번, 기존 게임과 합쳐 하루 200P까지입니다.</p></details>${demo?'<a class="join-link" href="index.html?join=1&mode=join">참여 · 기록 저장</a>':''}</section>`);return;}
