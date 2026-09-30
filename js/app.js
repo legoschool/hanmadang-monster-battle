@@ -3,7 +3,7 @@ import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, MODES, SERVER_READY, spriteOf
 import * as G from './game.js';
 import * as API from './api.js';
 import { rememberLook } from './player-look.js?v=look1';
-import * as V from './views.js?v=duel1';
+import * as V from './views.js?v=rpg1';
 import { esc, num, icon, openModal, updateModal, closeModal, modalOpen, toast, floatText, bump, confetti, wait, timeLeft, now, setServerNow } from './ui.js';
 
 const POLL_MS = 12000;

@@ -445,7 +445,7 @@ export function renderHome(state, ui) {
     <details class="guide-fold"><summary>참여 방법 · 가이드북 보기</summary><guide-cards data-key="home"></guide-cards></details>
     <a class="expedition-entry" href="lounge.html"><img src="assets/icons/luckybox.png" alt=""><div><small>게임 기록과 포인트를 선물로</small><strong>플레이 라운지 · 선물 응모</strong><span>퀴즈 · 기억력 · 숫자 탐색 · 포인트 배분</span></div><b aria-hidden="true">→</b></a>
   <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><strong>G-DEAL 액션</strong><span>8개 지역 · 이야기와 보스 전투</span></div><b aria-hidden="true">→</b></a>
-<a class="expedition-entry" href="duel.html" style="background:linear-gradient(120deg,#333b62,#644b63)"><img src="assets/monsters/antro/antro.png" alt=""><div><strong>G-DEAL 대전</strong><span>컴퓨터 상대 · 아바타와 펫 1대1 대전</span></div><b aria-hidden="true">→</b></a>
+<a class="expedition-entry" href="rpg.html" style="background:linear-gradient(120deg,#333b62,#644b63)"><img src="assets/monsters/antro/antro.png" alt=""><div><strong>G-DEAL RPG</strong><span>턴제 전투 · 지역 탐험 · 장비 수집</span></div><b aria-hidden="true">→</b></a>
 <a class="expedition-entry" href="arcade.html" style="background:linear-gradient(120deg,#293963,#345c67)"><img src="assets/monsters/koalbot/koalbot.png" alt=""><div><strong>G-DEAL 아케이드</strong><span>버블 정원 · 별빛 비행대 · 영어·수학·역사 등 6종 퀴즈</span></div><b aria-hidden="true">→</b></a>
     ${weekBanner(state, t)}
     ${golden ? `
@@ -847,7 +847,7 @@ export function renderPlay(state, ui) {
   ${pageHead('도전 · 뽑기', `운과 배짱으로 원정을 도와요. 럭키박스는 하루에 ${RULES.luckyPerDay}번, 보스 가위바위보는 ${RULES.rpsPerDay}번! 날마다 다시 채워져요.`)}
   <a class="expedition-entry" href="lounge.html"><img src="assets/icons/luckybox.png" alt=""><div><small>게임 기록과 포인트를 선물로</small><strong>플레이 라운지 · 선물 응모</strong><span>퀴즈 · 기억력 · 숫자 탐색 · 포인트 배분</span></div><b aria-hidden="true">→</b></a>
   <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><strong>G-DEAL 액션</strong><span>8개 지역 · 이야기와 보스 전투</span></div><b aria-hidden="true">→</b></a>
-<a class="expedition-entry" href="duel.html" style="background:linear-gradient(120deg,#333b62,#644b63)"><img src="assets/monsters/antro/antro.png" alt=""><div><strong>G-DEAL 대전</strong><span>컴퓨터 상대 · 아바타와 펫 1대1 대전</span></div><b aria-hidden="true">→</b></a>
+<a class="expedition-entry" href="rpg.html" style="background:linear-gradient(120deg,#333b62,#644b63)"><img src="assets/monsters/antro/antro.png" alt=""><div><strong>G-DEAL RPG</strong><span>턴제 전투 · 지역 탐험 · 장비 수집</span></div><b aria-hidden="true">→</b></a>
 <a class="expedition-entry" href="arcade.html" style="background:linear-gradient(120deg,#293963,#345c67)"><img src="assets/monsters/koalbot/koalbot.png" alt=""><div><strong>G-DEAL 아케이드</strong><span>버블 정원 · 별빛 비행대 · 영어·수학·역사 등 6종 퀴즈</span></div><b aria-hidden="true">→</b></a>
   <div class="play">
     <section class="card play-card">
@@ -1438,7 +1438,7 @@ export function renderAdmin(state, ui) {
       </div>
     </section>
 
-    <section class="card"><h2>퀴즈 프리셋</h2><p>영어 단어·수학·역사·과학·일반·디지털 상식 중 아케이드·대전에 사용할 주제를 선택하고 문제를 미리 봅니다.</p><a class="btn btn--primary" href="arcade.html#admin">프리셋 선택 · 문제 미리보기</a></section>
+    <section class="card"><h2>퀴즈 프리셋</h2><p>영어 단어·수학·역사·과학·일반·디지털 상식 중 아케이드·RPG에 사용할 주제를 선택하고 문제를 미리 봅니다.</p><a class="btn btn--primary" href="arcade.html#admin">프리셋 선택 · 문제 미리보기</a></section>
     <details class="card"><summary>기존 AI 주간 미션 설정</summary>
       ${secHead('문제 수준', `<span class="sec-note">지금 ${esc(LEVELS[ov.quizLevel || 'adult'].label)}</span>`)}
       <p class="sec-desc">행사 전체에 하나로 정해요. 참가자는 고르지 않고, 문제는 사람마다 순서가 섞여서 나가요. 바꾸면 이번 ${P.round} 문제가 모두에게 새로 열려요(받은 포인트는 그대로).</p>
