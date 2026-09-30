@@ -1,7 +1,7 @@
 import {makeEnvironment} from './expedition-environment.js?v=pet1';
 const backgrounds=new Map();
 const clamp=n=>Math.max(0,Math.min(1,n));
-export function mountScene(canvas,{sprites,region,run,weapon,getEffect,onFrame}){
+export function mountScene(canvas,{sprites,region,run,enemyImage=run.enemy?.image,weapon,getEffect,onFrame}){
  canvas.width=1100;canvas.height=688;const c=canvas.getContext('2d');let raf,last=0,stopped=false;
  const calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
  if(!backgrounds.has(region.biome))backgrounds.set(region.biome,makeEnvironment({id:region.biome}));
@@ -22,7 +22,7 @@ export function mountScene(canvas,{sprites,region,run,weapon,getEffect,onFrame})
  const dead=fx?.kind==='vanish';
  sprite('hero',270+(fx?.kind==='attack'?motion*190:hitHero?-motion*20:0),490,222,{angle:fx?.kind==='attack'?motion*.12:0,flash:!calm&&hitHero&&impact&&t<.5});
  sprite('pet',450+(fx?.kind==='burst'?motion*290:0),482+idle-(fx&&['assist','beam','burst'].includes(fx.kind)?motion*38:0),155,{angle:fx?.kind==='burst'?motion*.22:0});
- if(phase==='battle'){if(boss)ring(835,482,125,'#dc85dc',.35);sprite(run.enemy.image,835+(hitEnemy&&impact?Math.sin(now*.08)*12:hitHero?-motion*255:0),480,run.boss?295:235,{flash:!calm&&hitEnemy&&impact&&t<.48,alpha:dead?1-t:1,scale:dead?1-t*.25:1});}
+ if(phase==='battle'){if(boss)ring(835,482,125,'#dc85dc',.35);sprite(enemyImage,835+(hitEnemy&&impact?Math.sin(now*.08)*12:hitHero?-motion*255:0),480,run.boss?295:235,{flash:!calm&&hitEnemy&&impact&&t<.48,alpha:dead?1-t:1,scale:dead?1-t*.25:1});}
  if(fx){const k=fx.kind;
  if(k==='attack'){
    if(weapon==='wand'||weapon==='orbit'){beam(390,325,825,355,t,'#c5afff');if(impact)ring(825,350,80*t,'#e0bdff',1-t);}
