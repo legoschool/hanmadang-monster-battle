@@ -83,8 +83,8 @@ export class ExpeditionRenderer{
       const attack=this.fx.findLast(f=>f.kind==='attack'),swing=attack?Math.sin(attack.age/.42*Math.PI)*.6:0;
       c.save();if(e.inv>0)c.globalAlpha=.8;
       const dx=e.x-(this.lastHero?.x??e.x),dy=e.y-(this.lastHero?.y??e.y);this.walkDistance=(this.walkDistance||0)+Math.hypot(dx,dy);if(moving)this.walkDirection=Math.abs(dx)>Math.abs(dy)?dx<0?'left':'right':dy<0?'up':'down';drawWalker(c,null,0,15,86,{distance:this.walkDistance,walking:moving,direction:this.walkDirection||'down'});
-      const a=engine.weapon==='orbit'?this.clock*2.4:e.face+swing;
-      c.save();c.rotate(a+Math.PI/4);c.translate(36,0);const item=this.image(gearImage(engine.weapon));if(item.complete&&item.naturalWidth)c.drawImage(item,-29,-38,62,62);c.restore();
+      const item=this.image(gearImage(engine.weapon));
+      if(item.complete&&item.naturalWidth){c.save();if(engine.weapon==='orbit'){const spin=this.clock*2.2;c.translate(Math.cos(spin)*39,-22+Math.sin(spin)*16);c.rotate(spin);c.drawImage(item,-24,-24,48,48);}else{const phase=attack?clamp(attack.age/.42,0,1):0;const sweep=attack?-.85+2.15*Math.sin(phase*Math.PI/2):-.28;c.translate(13,-21);c.rotate(e.face+Math.PI/2+sweep);const h=engine.weapon==='blade'?76:82,w=h*item.naturalWidth/item.naturalHeight;c.shadowColor=COLORS[engine.weapon];c.shadowBlur=attack?12:2;c.drawImage(item,-w/2,-h*.87,w,h);}c.restore();}
       if(this.profile.charm){const item=this.image(gearImage(this.profile.charm)),boots=this.profile.charm==='boots';if(item.complete&&item.naturalWidth)c.drawImage(item,boots?-17:-43,boots?7:-14,boots?34:32,boots?34:32);}
       c.restore();if(e.inv>0){c.strokeStyle='#bfffee88';c.lineWidth=2;circle(c,0,-16,48);c.stroke();}
       c.font='bold 11px system-ui';c.textAlign='center';c.fillStyle='#e5f7e7';c.fillText(this.profile.name,0,-77);
@@ -101,8 +101,19 @@ export class ExpeditionRenderer{
   }
   runes(c,x,y,r,angle,color,alpha){c.save();c.translate(x,y);c.rotate(angle);c.globalAlpha=alpha;c.strokeStyle=color;c.lineWidth=2;circle(c,0,0,r);c.stroke();circle(c,0,0,r*.92);c.stroke();for(let i=0;i<12;i++){c.save();c.rotate(i*TAU/12);c.beginPath();c.moveTo(r*.97,-8);c.lineTo(r*1.05,0);c.lineTo(r*.97,8);c.stroke();c.restore();}c.restore();}
   slash(c,x,y,r,angle,color,alpha,progress){
-    c.save();c.translate(x,y);c.rotate(angle);c.globalAlpha=alpha;c.globalCompositeOperation='lighter';
-    const end=-1.7+progress*3.4,start=end-1.8;for(const [width,opacity] of [[44,.13],[25,.35],[8,.9]]){c.globalAlpha=alpha*opacity;c.strokeStyle=color;c.lineWidth=width;c.beginPath();c.arc(0,0,r,start,end);c.stroke();}c.globalAlpha=alpha;c.strokeStyle='#fffbea';c.lineWidth=3;c.beginPath();c.arc(0,0,r+5,end-.9,end);c.stroke();c.restore();
+    c.save();c.translate(x,y-16);c.rotate(angle);c.globalCompositeOperation='lighter';c.globalAlpha=alpha;
+    const sweep=-1.25+progress*2.5,front=sweep+.5,back=sweep-1.2;
+    const gradient=c.createRadialGradient(0,0,r*.35,0,0,r);gradient.addColorStop(0,'#8edfff00');gradient.addColorStop(.6,color+'65');gradient.addColorStop(.88,'#fff4cb');gradient.addColorStop(1,'#ffffff');c.fillStyle=gradient;
+    c.beginPath();c.arc(0,0,r,back,front);c.quadraticCurveTo(Math.cos(front)*r*.4,Math.sin(front)*r*.4,Math.cos(back)*r*.45,Math.sin(back)*r*.45);c.closePath();c.fill();
+    c.strokeStyle='#fffce6';c.lineWidth=2;c.beginPath();c.arc(0,0,r,back+.3,front);c.stroke();
+    for(let i=0;i<8;i++){const a=back+i*.19,len=8+(i%3)*5,rr=r*(.75+progress*.5);c.save();c.translate(Math.cos(a)*rr,Math.sin(a)*rr);c.rotate(a+.4);c.fillStyle=i%2?color:'#fff7d7';c.beginPath();c.moveTo(len,0);c.lineTo(0,2);c.lineTo(-len*.4,0);c.lineTo(0,-2);c.fill();c.restore();}c.restore();
+  }
+  spell(c,f,t,color){
+    if(this.calm)return;const k=1-t,spread=Math.sin(Math.min(1,t*1.6)*Math.PI/2),r=(f.radius||170)*spread;c.save();c.translate(f.x,f.y);c.globalCompositeOperation='lighter';c.globalAlpha=k*.8;
+    if(f.weapon==='wand'){for(let i=0;i<10;i++){const a=i*TAU/10;c.save();c.rotate(a);c.strokeStyle=i%2?'#c0f5ff':'#72c6ff';c.lineWidth=3;c.beginPath();c.moveTo(20,0);c.lineTo(r*.36,11);c.lineTo(r*.53,-9);c.lineTo(r,0);c.stroke();c.fillStyle='#e2ffff';c.beginPath();c.moveTo(r+14,0);c.lineTo(r,6);c.lineTo(r-5,0);c.lineTo(r,-6);c.fill();c.restore();}}
+    else if(f.weapon==='orbit'){for(let i=0;i<9;i++){const a=i*TAU/9+f.age*2;c.save();c.translate(Math.cos(a)*r,Math.sin(a)*r*.7);c.rotate(a+f.age*3);c.fillStyle=i%2?'#f0c5ff':'#958bff';c.beginPath();c.moveTo(0,-18*k);c.lineTo(7*k,0);c.lineTo(0,18*k);c.lineTo(-7*k,0);c.fill();c.restore();}}
+    else{for(let i=0;i<5;i++){c.save();c.rotate(f.angle-.8+i*.4);const len=r*(.8+i%2*.2);c.fillStyle='#ffde8580';c.beginPath();c.moveTo(25,-3);c.lineTo(len,-9*k);c.lineTo(len+40*k,0);c.lineTo(len,9*k);c.lineTo(25,3);c.fill();c.restore();}}
+    c.restore();
   }
   drawEffect(c,f,engine){
     const t=f.age/f.duration,k=1-t,color=COLORS[f.weapon]||'#a6ffe0',ease=1-Math.pow(1-t,3);
@@ -111,7 +122,7 @@ export class ExpeditionRenderer{
       this.light(c,f.x,f.y,55,f.color,k*.7);
     }else if(f.kind==='petSkill'){
       c.strokeStyle=f.color;c.lineWidth=4;c.globalAlpha=k;
-      for(const target of f.targets||[]){c.beginPath();c.moveTo(f.x,f.y-18);c.quadraticCurveTo((f.x+target.x)/2,f.y-70,target.x,target.y);c.stroke();this.light(c,target.x,target.y,100,f.color,k*.7);}
+      for(const target of f.targets||[]){c.beginPath();c.moveTo(f.x,f.y-18);c.quadraticCurveTo((f.x+target.x)/2,f.y-70,target.x,target.y);c.stroke();c.save();c.lineWidth=1.5;c.strokeStyle='#f5ffff';c.stroke();c.translate(target.x,target.y);c.rotate(f.age*4);c.fillStyle='#edffff';c.beginPath();c.moveTo(0,-16*k);c.lineTo(5*k,0);c.lineTo(0,16*k);c.lineTo(-5*k,0);c.fill();c.restore();this.light(c,target.x,target.y,100,f.color,k*.7);}
       const h=engine.hero;if(f.type==='heal'||f.type==='guard'){this.runes(c,h.x,h.y,45+ease*35,f.age,f.color,k);for(let i=0;i<5;i++){c.fillStyle=f.color;c.fillRect(h.x-40+i*20,h.y-ease*65-(i%2)*15,3,12);c.fillRect(h.x-44+i*20,h.y-ease*65+4-(i%2)*15,11,3);}}
       else this.runes(c,f.x,f.y,30+ease*(f.type==='burst'?150:65),f.age,f.color,k*.7);
     }else if(f.kind==='attack'){
@@ -119,6 +130,7 @@ export class ExpeditionRenderer{
       else if(f.weapon==='orbit'){this.runes(c,f.x,f.y,70+ease*80,this.clock*2,color,k);this.light(c,f.x,f.y,240,color,k*.2);}
       else this.light(c,f.x+Math.cos(f.angle)*36,f.y+Math.sin(f.angle)*36,130,color,k*.65);
     }else if(f.kind==='skill'){
+      this.spell(c,f,t,color);
       const r=f.radius*clamp(f.age/.55,0,1);this.light(c,f.x,f.y,Math.max(10,r*2.4),color,k*.5);
       this.runes(c,f.x,f.y,Math.max(8,r),f.age*.4,color,k*.8);
       if(f.weapon==='blade'){this.slash(c,f.x,f.y,Math.max(10,r),f.angle,color,k,clamp(f.age/.55,0,1));this.slash(c,f.x,f.y,Math.max(10,r*.86),f.angle+Math.PI,color,k,clamp(f.age/.55,0,1));}
