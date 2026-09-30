@@ -1,17 +1,19 @@
+import {drawWalker} from './rpg-walk.js?v=art8';
 import {makeEnvironment} from './expedition-environment.js?v=pet1';
 const backgrounds=new Map();
+const atlas=new Image();atlas.src='assets/rpg/regions.png?v=art8';
 const clamp=n=>Math.max(0,Math.min(1,n));
 export function mountScene(canvas,{sprites,region,run,enemyImage=run.enemy?.image,weapon,getEffect,onFrame}){
  canvas.width=1100;canvas.height=688;const c=canvas.getContext('2d');let raf,last=0,stopped=false;
  const calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
  if(!backgrounds.has(region.biome))backgrounds.set(region.biome,makeEnvironment({id:region.biome}));
- function sprite(name,x,y,h,{alpha=1,angle=0,flash=false,scale=1}={}){const e=sprites.get(name);if(!e)return;c.save();c.globalAlpha=alpha;c.translate(x,y);c.fillStyle='#00152270';c.beginPath();c.ellipse(0,7,h*.3,16,0,0,7);c.fill();c.rotate(angle);c.scale(scale,scale);c.imageSmoothingEnabled=false;c.drawImage(flash?e.white:e.base,-e.w/e.h*h/2,-h,e.w/e.h*h,h);c.restore();}
+ function sprite(name,x,y,h,{alpha=1,angle=0,flash=false,scale=1}={}){const e=sprites.get(name);if(!e)return;c.save();c.globalAlpha=alpha;c.translate(x,y);c.fillStyle='#00152270';c.beginPath();c.ellipse(0,7,h*.3,16,0,0,7);c.fill();c.rotate(angle);c.scale(scale,scale);c.imageSmoothingEnabled=false;if(name==='hero'){drawWalker(c,e,0,0,h,{direction:'right'});}else c.drawImage(flash?e.white:e.base,-e.w/e.h*h/2,-h,e.w/e.h*h,h);c.restore();}
  function ring(x,y,size,color,alpha=1){c.save();c.globalAlpha=alpha;c.strokeStyle=color;c.lineWidth=7;c.shadowColor=color;c.shadowBlur=18;c.beginPath();c.ellipse(x,y,size,size*.63,0,0,7);c.stroke();c.restore();}
  function sparks(x,y,t,color,count=22){c.save();c.fillStyle=color;c.shadowColor=color;c.shadowBlur=10;for(let i=0;i<count;i++){const a=i*2.399,dist=(35+i%5*13)*t*2;c.globalAlpha=1-t;c.fillRect(x+Math.cos(a)*dist,y+Math.sin(a)*dist-t*55,5+i%3*3,5+i%3*3);}c.restore();}
  function label(text,x,y,color='#fff2b6',size=56){c.save();c.font=`900 ${size}px system-ui`;c.textAlign='center';c.lineWidth=9;c.strokeStyle='#13252e';c.strokeText(text,x,y);c.fillStyle=color;c.fillText(text,x,y);c.restore();}
  function beam(x,y,toX,toY,t,color){c.save();c.strokeStyle=color;c.lineWidth=12;c.shadowColor=color;c.shadowBlur=20;c.beginPath();c.moveTo(x,y);c.lineTo(x+(toX-x)*clamp(t*2.5),y+(toY-y)*clamp(t*2.5));c.stroke();c.lineWidth=4;c.strokeStyle='#fff';c.stroke();c.restore();}
  function frame(now){if(stopped)return;raf=requestAnimationFrame(frame);if(document.hidden||now-last<25)return;last=now;onFrame?.(now);const fx=getEffect(),t=fx?clamp((now-fx.at)/fx.duration):0,impact=fx&&t>.34&&t<.9,hitEnemy=fx&&['attack','beam','burst','assist'].includes(fx.kind),hitHero=fx?.kind==='counter';
- c.save();c.drawImage(backgrounds.get(region.biome),0,0,1100,800,0,0,1100,688);const shade=c.createLinearGradient(0,0,0,688);shade.addColorStop(0,'#02142688');shade.addColorStop(.5,'#04182011');shade.addColorStop(1,'#061b2cbc');c.fillStyle=shade;c.fillRect(0,0,1100,688);
+ c.save();if(atlas.complete&&atlas.naturalWidth){const part=atlas.naturalWidth/3;c.drawImage(atlas,run.region*part,atlas.naturalHeight*.28,part,atlas.naturalHeight*.43,0,0,1100,688);}else c.drawImage(backgrounds.get(region.biome),0,0,1100,800,0,0,1100,688);const shade=c.createLinearGradient(0,0,0,688);shade.addColorStop(0,'#02142688');shade.addColorStop(.5,'#04182011');shade.addColorStop(1,'#061b2cbc');c.fillStyle=shade;c.fillRect(0,0,1100,688);
  // Slow environmental motes keep the scenery alive between turns.
  for(let i=0;i<24;i++){const x=(i*173+now*.012)%1100,y=115+(i*71)%390+Math.sin(now/1100+i)*12;c.globalAlpha=.2+(.5+.5*Math.sin(now/750+i))*.4;c.fillStyle=region.id==='harbor'?'#a3e6ff':'#deefab';c.fillRect(x,y,i%3+2,i%3+2);}c.globalAlpha=1;
  const phase=run.phase,portal=['intro','shrine','complete','review'].includes(phase),boss=run.boss&&phase==='battle';
