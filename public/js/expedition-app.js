@@ -3,7 +3,7 @@ import {petGrowthMarkup} from './pet-growth.js?v=growth1';
 import {levelInfo} from './game.js';
 import {companionSpec} from './expedition-companions.js?v=growth1';
 import {BIOMES} from './expedition-environment.js?v=pet1';
-import {storyPages,StoryDirector} from './expedition-story.js?v=story5';
+import {storyPages,StoryDirector,CHAPTERS} from './expedition-story.js?v=action1';
 import * as API from './api.js';
 import {loadLookQuick} from './player-look.js?v=look1';
 import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=story5';
@@ -45,7 +45,7 @@ function showStory(beat,done,storyZone=zone){
 }
 function paintStory(){
  const p=story.pages[story.index],z=zoneById(story.zone);
- dialog(`<div class="story-scene" style="--story-color:${z.color}"><div class="story-art" aria-hidden="true"><div class="story-orbit"></div><img src="assets/avatars/${esc(profile?.avatar||'a05')}.png" alt=""><img class="story-enemy" src="assets/bosses/${z.boss}.png" alt=""></div><div class="story-topline"><span>${z.name} · 원정 이야기</span><span>${story.index+1} / ${story.pages.length}</span></div><h2 id="storyTitle">${esc(p.title)}</h2><div class="story-speaker">${esc(p.speaker)}</div><p class="story-prose">${esc(p.text)}</p><p class="story-time">읽는 동안 전투와 제한 시간이 멈춥니다. 준비되면 넘겨 주세요.</p><div class="dialog-actions"><button class="secondary" data-action="storyBack" ${story.index===0?'disabled':''}>앞 장면</button><button class="primary" data-action="storyNext">${story.index+1<story.pages.length?'다음 장면':'이어서 진행'}</button><button class="plain" data-action="storySkip">이 장면 건너뛰기</button></div></div>`);
+ dialog(`<div class="story-scene" style="--story-color:${z.color}"><div class="story-art" aria-hidden="true"><div class="story-orbit"></div><img src="assets/avatars/${esc(profile?.avatar||'a05')}.png" alt=""><img class="story-enemy" src="assets/bosses/${z.boss}.png" alt=""></div><div class="story-topline"><span>${z.name} · 액션 이야기</span><span>${story.index+1} / ${story.pages.length}</span></div><h2 id="storyTitle">${esc(p.title)}</h2><div class="story-speaker">${esc(p.speaker)}</div><p class="story-prose">${esc(p.text)}</p><div class="dialog-actions"><button class="secondary" data-action="storyBack" ${story.index===0?'disabled':''}>앞 장면</button><button class="primary" data-action="storyNext">${story.index+1<story.pages.length?'다음 장면':'이어서 진행'}</button><button class="plain" data-action="storySkip">이 장면 건너뛰기</button></div></div>`);
  $('dialog').querySelector('[role="dialog"]').setAttribute('aria-labelledby','storyTitle');
  $('dialog').querySelector('[data-action=storyNext]').focus({preventScroll:true});
 }
@@ -56,9 +56,9 @@ async function request(type,params={}){const {result}=await API.act(type,params)
 let demoTeam=null;
 function petSpec(){const team=TEAMS.find(t=>t.id===(user?.teamId||demoTeam))||TEAMS[0];return companionSpec(team,user?levelInfo(state?.teams?.[team.id]?.exp||0).level:3);}
 function petCard(){const p=petSpec();return '<div class="companion-profile"><img src="'+p.image+'" alt="'+p.monsterName+'"><div><b>동행 펫 · '+p.monsterName+'</b><span>Lv.'+p.level+' · '+p.stage+' 단계</span><small>'+p.skillName+' · 자동 공격 + 합동 기술</small><small>'+(user?'Lv.1 새싹 → Lv.3 동료 → Lv.7 수호. 먹이와 배움으로 함께 키워요.':'체험에서는 Lv.3 펫이 함께해요.')+'</small></div></div>'+(user?'<details class=pet-growth-more><summary>펫 성장과 전투 효과 보기</summary>'+petGrowthMarkup(TEAMS.find(t=>t.id===user.teamId)||TEAMS[0],state?.teams?.[user.teamId]?.exp||0)+'</details>':'');}
-function header(){return `<header class="top"><div class="brand"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>몬스터 원정대</span></div><a href="index.html#/home">공동 원정으로 돌아가기 ↗</a></header>`;}
+function header(){return `<header class="top"><div class="brand"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>G-DEAL 액션</span></div><a href="index.html#/home">홈</a></header>`;}
 function login(message='공동 원정에서 커뮤니티와 아바타를 고르면 이곳에서도 같은 대원으로 이어집니다.'){
-  $('expedition').innerHTML=header()+`<section class="login-card"><span class="eyebrow">G-DEAL KNOWLEDGE QUEST</span><h1>내 아바타로 떠나는<br>지식의 숲</h1><p>${esc(message)}</p><a class="primary" href="index.html#/home">원정대에 참여하기</a><p class="muted">참여한 뒤 홈의 ‘지식의 숲’에서 돌아오세요.</p><button class="secondary" data-action="guestTraining">가입 없이 전투 체험</button><p class="muted">체험에서는 이름이나 플레이 기록을 서버에 저장하지 않습니다.</p></section>`;
+  $('expedition').innerHTML=header()+`<section class="login-card"><h1>G-DEAL 액션</h1><p>${esc(message)}</p><a class="primary" href="index.html#/home">원정대에 참여하기</a><p class="muted">참여한 뒤 홈의 ‘G-DEAL 액션’에서 돌아오세요.</p><button class="secondary" data-action="guestTraining">가입 없이 전투 체험</button><p class="muted">체험에서는 이름이나 플레이 기록을 서버에 저장하지 않습니다.</p></section>`;
 }
 function renderLobby(){
   story=null;cancelAnimationFrame(frame);engine=null;renderer=null;training=false;endingRemaining=-1;view='lobby';audio.update(false);run=null;pending=null;closeDialog();
@@ -66,8 +66,8 @@ function renderLobby(){
   const z=zoneById(zone),lv=profile.level,weapon=gearById(profile.weapon),charm=gearById(profile.charm);
   const spots=[[18,38],[37,25],[64,22],[84,37],[82,68],[62,78],[35,78],[16,68]];
   $('expedition').innerHTML=header()+`<section class="lobby">
-    <div class="intro"><div><div class="eyebrow">EXPEDITION 01 / LEARN · EXPLORE · GROW</div><h1>아는 만큼, 더 멀리.</h1><p>숲을 달리고, 버그를 물리치고, 배운 것으로 장비를 키워요.<br>한 문제씩 쌓은 힘이 우리 커뮤니티에도 전해집니다.</p></div><span class="season-tag">${ZONES.length}개 지역 · ${profile.total}문제 · 내 속도로</span></div>
-    <div class="lobby-grid"><div class="map-card"><div class="map-scene"><span class="map-label">THE KNOWLEDGE FOREST</span>
+    <div class="intro"><div><h1>G-DEAL 액션</h1><p>여덟 지역의 한마당 기록을 회수하세요.</p></div><span class="season-tag">${ZONES.length}개 지역 · ${profile.total}문제 · 내 속도로</span></div>
+    <p class="chapter-status">이 기기 회수 기록: ${new Set(storyRead.filter(r=>r.beat==='win').map(r=>r.zone)).size} / 8 · ${esc(CHAPTERS.find(c=>c[0]===zone)?.[1]||'')}</p><div class="lobby-grid"><div class="map-card"><div class="map-scene"><span class="map-label">한마당 기록 지도</span>
       <svg class="map-path" viewBox="0 0 800 270" aria-hidden="true"><path d="M88 98 Q80 35 220 30 T600 63 Q760 110 665 194 T248 205 Q32 210 88 98" fill="none" stroke="#b9b58055" stroke-width="17"/><path d="M88 98 Q80 35 220 30 T600 63 Q760 110 665 194 T248 205 Q32 210 88 98" fill="none" stroke="#a8b18d" stroke-width="1.5" stroke-dasharray="4 9"/></svg>
       ${[5,24,46,70,93].map((x,i)=>`<i class="map-tree" style="left:${x}%;top:${i%2?58:4}%;opacity:.55"></i>`).join('')}
       <img class="map-hero" src="assets/avatars/${esc(profile.avatar)}.png" alt="내 원정대 아바타">
@@ -77,7 +77,7 @@ function renderLobby(){
       <h2>${esc(profile.name)}</h2>${petCard()}<button class="plain" data-action="customize">이름 · 모습 바꾸기</button><p class="muted">${esc(weapon.name)}${charm?' · '+esc(charm.name):' · 첫 장비와 함께 출발'}</p><div class="hero-level"><b>Lv.${lv} ${explorerTitle(lv)}</b><span>${profile.xp%60} / 60 XP</span></div><div class="bar"><i style="width:${profile.xp%60/60*100}%"></i></div><p class="muted">새 정답 3개마다 개인 레벨 +1<br>배운 문제 ${profile.mastered.length} / ${profile.total}</p>
       <div class="gear-mini"><button data-action="gear">내 장비 ${profile.owned.length}종</button><button data-action="library">지식 도감 · 복습</button></div></aside></div>
     <details class="play-options"><summary>난이도·속도·게임 설정</summary><div class="options-row"><label>문제 꾸러미 <select id="questionTheme">${Object.entries(THEMES).map(([id,label])=>`<option value="${id}" ${theme===id?'selected':''}>${label}</option>`).join('')}</select></label><label>진행 <select id="mode"><option value="survival" ${mode==='survival'?'selected':''}>숲 탐험 · 2분 30초 뒤 보스</option><option value="boss" ${mode==='boss'?'selected':''}>보스 도전 · 바로 전투</option><option value="study" ${mode==='study'?'selected':''}>지식 탐구 · 전투 없이 문제 풀기</option></select></label>${comfortControls()}<label>문제 출제 간격 <select id="questionPace">${[60,45,30].map(n=>`<option value="${n}" ${questionGap===n?'selected':''}>${n===60?'전투 중심 · 추천':n===45?'균형':'학습 자주'} · 최소 ${n}초</option>`).join('')}</select></label><button class="plain" data-action="guide">게임 방법</button><button class="secondary" data-action="settings">소리 · 화면 효과</button><button class="secondary" data-action="trainingMenu">장비 체험 훈련장</button><button class="secondary" data-action="storyJournal">이야기 다시 읽기</button></div>
-    <div class="section-head"><h2>오늘은 어디로 갈까요?</h2><span>모든 지역이 처음부터 열려 있어요</span></div><div class="zones">${ZONES.map((x,i)=>{const p=profile.zones.find(v=>v.id===x.id);return `<button class="zone ${x.id===zone?'active':''}" data-zone="${x.id}" style="--zone:${x.color}" aria-pressed="${x.id===zone}"><span class="zone-number">REGION ${String(i+1).padStart(2,'0')}</span><i class="zone-dot"></i><b>${x.topic}</b><span>${x.name} · ${p.learned} / ${p.total}</span></button>`;}).join('')}</div>
+    <div class="section-head"><h2>지역 선택</h2><span>모든 지역이 처음부터 열려 있어요</span></div><div class="zones">${ZONES.map((x,i)=>{const p=profile.zones.find(v=>v.id===x.id);return `<button class="zone ${x.id===zone?'active':''}" data-zone="${x.id}" style="--zone:${x.color}" aria-pressed="${x.id===zone}"><span class="zone-number">REGION ${String(i+1).padStart(2,'0')}</span><i class="zone-dot"></i><b>${x.topic}</b><span>${x.name} · ${p.learned} / ${p.total}</span></button>`;}).join('')}</div>
     <p class="pace-note">출제 간격은 실제 전투 시간 기준이며 보스 봉인 문제에도 적용돼요. 첫 문제는 20초 이후, 보석 레벨업은 기다리지 않고 공격력 +6% · 체력 8 회복을 받아요. 지식 탐구는 원하는 속도로 다음 문제를 풉니다. 전투 난이도는 문제 자체의 난이도를 바꾸지 않아요.</p></details><div class="controls-note"><kbd>WASD</kbd> / 방향키 이동 · <kbd>Space</kbd> 공격 · <kbd>E</kbd> 스킬 · <kbd>Shift</kbd> 돌진 · <kbd>Esc</kbd> 쉬기<br>휴대폰은 화면을 드래그하거나 방향 버튼으로 이동해요. 공격은 자동으로도 나갑니다.</div>
     <footer class="lobby-foot"><span>처음 맞힌 문제: 개인 경험치 20 + 먹이 1 + 5P + 커뮤니티 경험치 10<br>복습도 전투 강화는 그대로. 접속하지 않은 날의 개인 경험치는 줄지 않아요.</span><a href="index.html#/crew">우리 커뮤니티 보기 ↗</a></footer>
   </section>`;
@@ -157,7 +157,7 @@ function hud(){
 }
 function pause(){if(!engine||engine.phase!=='playing')return;engine.pause();dialog(`<div class="eyebrow">TAKE YOUR TIME</div><h2>잠깐 쉬어가요.</h2><p>전투 시간과 적의 움직임이 멈췄습니다.<br>이번 원정 ${engine.kills}마리 처치 · 전투 Lv.${engine.rank}<br>내 영구 레벨 Lv.${profile.level} · 배운 문제 ${profile.mastered?.length||0}개</p>${comfortControls()}<label><input type="checkbox" id="soundSetting" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><br><label><input type="checkbox" id="calm" ${calmEffects?'checked':''}> 화면 흔들림 · 입자 효과 줄이기</label><br><label><input type="checkbox" id="auto" ${auto?'checked':''}> 자동 공격</label><div class="dialog-actions"><button class="primary" data-action="resume">계속하기</button>${training?'<button class="secondary" data-action="trainingMenu">다른 지역 · 무기 체험</button>':''}<button class="secondary" data-action="finish">${training?'체험 마치기':'기록하고 로비로'}</button></div>`);}
 async function showQuestion(afterStory=false){
-  if(!afterStory&&engine?.quizReason==='seal'&&storyDirector.take('seal')){showStory('seal',()=>showQuestion(true));return;}
+
   keys.clear();pad={x:0,y:0};stick=null;
   try{
     if(!pending){dialog('<p>다음 문제를 불러오고 있어요.</p>');const r=await request('expeditionNext',{runId:run});pending=r.question;}

@@ -81,14 +81,28 @@ export const REGION_STORIES = {
     "모아가 젖은 관찰 일지를 말렸다. “오늘 본 수치는 남았어요. 다음에는 같은 자리에서 다시 재요.”"
   ]
 };
+export const CHAPTERS = [
+ ['code','행사 안내 기록','길을 반복시키는 버그 군주가 첫 기록을 숨겼다.','되찾은 안내 기록에 공방으로 향하는 전송 흔적이 남아 있다.'],
+ ['vibe','제작 기록','글리치 기사가 한마당 도구를 멈췄다. 시험 기록을 되찾아 통로를 연다.','공방의 장치가 작동한다. 다음 기록은 전원이 끊긴 회로 계곡으로 옮겨졌다.'],
+ ['computer','보관 기록','버그 군주가 저장 창고의 연결을 끊었다. 창고를 지키는 적을 물리친다.','저장 상자가 열렸다. 봉투에 연결의 항구 주소가 적혀 있다.'],
+ ['web','연락 기록','크라켄이 커뮤니티를 잇는 항로를 막았다. 연락 기록을 회수한다.','연락망이 돌아왔다. 기억의 유적에서 사라진 기록의 원본을 찾았다는 신호가 온다.'],
+ ['history','원본 기록','파수꾼이 사건의 순서를 바꿨다. 원본을 지키는 파수꾼을 돌파한다.','원본과 사본의 차이가 드러났다. 가짜 기록은 추론의 정원에서 만들어졌다.'],
+ ['ai','검증 기록','환영의 마법사가 가짜 기록을 늘리고 있다. 환영을 걷어 내고 근거를 확보한다.','마법사의 환영이 사라졌다. 누군가 성채의 접근 권한까지 바꾼 흔적이 보인다.'],
+ ['safety','접근 기록','파수꾼이 대원을 흉내 내며 성채를 점거했다. 기록실의 접근 권한을 되찾는다.','기록실이 열린다. 마지막 전송 위치는 데이터 호수다.'],
+ ['data','최종 전송 기록','크라켄이 마지막 기록을 가로챘다. 호수의 보스를 물리쳐 전송을 복구한다.','마지막 전송이 복구됐다. 흩어진 기록은 G-DEAL 한마당 준비 화면으로 돌아간다.']
+];
 export function storyPages(zone,beat,name='대원') {
  const s=REGION_STORIES[zone]||REGION_STORIES.code;
- const page=(title,text,speaker='길잡이 모아')=>({title,text,speaker});
- if(beat==='intro')return [page('기록이 끊긴 날',`지식의 숲에서 여덟 지역을 잇던 기록이 흩어졌다. 길잡이 모아가 ${name}에게 빈 수첩을 건넸다. “서둘러 답하지 않아도 돼요. 확인한 것부터 한 줄씩 모아요.”`,'원정의 기록'),page(s[0],s[1],'원정의 기록'),page('함께 찾을 단서',s[2])];
- return [page(({trail:'길 위의 발견',boss:'길을 막은 수호자',seal:'봉인에 남은 질문',win:'다시 이어진 길',rest:'오늘 남긴 기록'})[beat],s[({trail:3,boss:4,seal:5,win:6,rest:7})[beat]],beat==='boss'?'수호자의 등장':'길잡이 모아')];
+ const i=Math.max(0,CHAPTERS.findIndex(c=>c[0]===zone)),c=CHAPTERS[i];
+ const page=(title,text,speaker='모아')=>({title,text,speaker});
+ if(beat==='intro')return [page('G-DEAL · 사라진 한마당 기록',`한마당을 준비하던 날, 여덟 지역에 보관한 커뮤니티 기록이 흩어졌다. ${name}와 동행 펫이 마지막 전송 흔적을 따라 나선다.`,'사건 기록'),page(`${i+1}장 · ${s[0]}`,c[2]),page('이번 임무',`${c[1]} 회수. 동행 펫과 지역의 보스를 물리치세요. 붉은 공격 표시를 피하고, 봉인 문제는 전투가 멈춘 뒤 확인합니다.`)];
+ if(beat==='win')return [page(`${c[1]} 회수`,c[3],'회수 기록'),page(i===7?'마지막 기록':'다음 지역',i===7?'아직 회수하지 않은 지역의 기록은 지역 선택에서 이어서 찾을 수 있습니다.':`${CHAPTERS[i+1][1]}의 위치가 확인됐다. 지역 선택에서 다음 이야기를 이어갈 수 있습니다.`)];
+ if(beat==='rest')return [page('임무 중단',`${c[1]}은 아직 보스가 지키고 있다. 획득한 경험치와 장비는 유지된다. 다시 출발하면 같은 지역에 도전할 수 있다.`)];
+ return [page(({trail:'발견한 단서',boss:'보스 등장',seal:'기록의 봉인'})[beat],s[({trail:3,boss:4,seal:5})[beat]])];
 }
 export class StoryDirector {
  constructor(){this.seen=new Set();}
  take(beat){if(this.seen.has(beat))return false;this.seen.add(beat);return true;}
- due(engine){if(engine.phase!=='playing')return null;if(engine.boss&&!this.seen.has('boss'))return 'boss';if(!engine.boss&&engine.time>=45&&!this.seen.has('trail'))return 'trail';return null;}
+ // Long story cards appear before and after combat, never as timed interruptions.
+ due(){return null;}
 }
