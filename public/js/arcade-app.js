@@ -2,7 +2,7 @@
 // 점수와 보상은 서버가 입력 기록을 똑같이 다시 돌려서 정한다(arcade-engine.js 공유).
 import * as API from './api.js';
 import { ARCADE_GAMES, createArcade, stepArcade, SAMPLE, ARCADE_VERSION, W, H } from './arcade-engine.js?v=arcade2';
-import { ArcadeRenderer, Sprites, SPRITE_SOURCES } from './arcade-render.js?v=mobile3';
+import { ArcadeRenderer, Sprites, SPRITE_SOURCES } from './arcade-render.js?v=cast9';
 import { ArcadeAudio } from './arcade-audio.js?v=arcade2';
 import { cachedLook, loadLook } from './player-look.js?v=look1';
 

@@ -1,3 +1,5 @@
+import {loadArtImage} from './character-art.js?v=cast9';
+import {drawWalker} from './rpg-walk.js?v=art8';
 // 아케이드 그리기: 배경·캐릭터 동작·효과·점수판. 규칙(arcade-engine.js)은 건드리지 않고 상태를 읽어 그리기만 한다.
 // 효과(입자·흔들림)는 화면에서만 쓰는 것이라 Math.random을 써도 된다.
 import { W, H, BUBBLE_LAYOUTS, SPACE_BOSSES, MAX_HP, STAGE_FRAMES } from './arcade-engine.js?v=arcade2';
@@ -47,7 +49,7 @@ export class Sprites {
       };
       Object.assign(entry, { ready: true, w, h, base: make(null), white: make('#ffffff'), red: make('rgba(255,50,50,.55)'), dark: make('rgba(10,10,30,.55)') });
     };
-    img.src = src;
+    loadArtImage(img,src);
   }
   get(name) { const e = this.map.get(name); return e?.ready ? e : null; }
 }
@@ -150,23 +152,12 @@ export class ArcadeRenderer {
     ctx.restore();
   }
 
-  // 분리된 팔·다리를 회전시켜 이동, 점프, 발사 자세를 만든다.
+  // 이동 거리와 방향에 맞춰 전신 걷기 프레임을 선택한다.
   avatar(x, y, height, {flip = false, moving = false, airborne = false, firing = false, rot = 0, alpha = 1} = {}) {
-    const e = this.sprites.get('hero');
-    if (!e) return this.sprite('hero', x, y, height, {anchor: 'feet', flip, alpha});
-    const ctx = this.ctx, w = e.w * height / e.h, h = height;
-    const stride = moving ? Math.sin(this.t / 4) : 0;
-    ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(flip ? -1 : 1, 1);
-    const part = (l, top, width, high, px, py, angle = 0, dy = 0) => {
-      ctx.save(); ctx.translate((px - .5) * w, (py - 1) * h + dy); ctx.rotate(angle);
-      ctx.drawImage(e.base, l * e.w, top * e.h, width * e.w, high * e.h, (l - px) * w, (top - py) * h, width * w, high * h); ctx.restore();
-    };
-    part(0, .76, .5, .24, .38, .76, airborne ? -.35 : stride * .42, airborne ? -3 : 0);
-    part(.5, .76, .5, .24, .62, .76, airborne ? .5 : -stride * .42, airborne ? -2 : 0);
-    part(.24, .48, .52, .28, .5, .48);
-    part(0, .48, .24, .28, .24, .5, airborne ? .65 : -stride * .45);
-    part(.76, .48, .24, .28, .76, .5, firing ? -1.05 : airborne ? -.65 : stride * .45);
-    part(0, 0, 1, .48, .5, .48, Math.sin(this.t / 35) * .015);
+    const ctx=this.ctx,delta=this.avatarLastX===undefined?0:Math.abs(x-this.avatarLastX);this.avatarLastX=x;
+    this.walkDistance=(this.walkDistance||0)+(moving?delta:0);
+    ctx.save();ctx.globalAlpha*=alpha;ctx.translate(x,y);ctx.rotate(rot);
+    drawWalker(ctx,this.sprites.get('hero'),0,0,height,{distance:this.walkDistance,walking:moving&&!airborne,direction:flip?'left':'right'});
     ctx.restore();
   }
 

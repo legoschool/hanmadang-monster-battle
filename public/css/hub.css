@@ -28,3 +28,4 @@
 @media(prefers-reduced-motion:reduce){.hero-party img{animation:none}.hub-actions>a{transition:none}}
 
 .hub-actions>.hub-demo,.hub-actions>#showGuide{display:flex;flex-direction:row;align-items:center;justify-content:center;min-height:48px;padding:10px 12px;line-height:1.4}.hub-actions>.hub-demo strong,.hub-actions>#showGuide strong{display:block;min-height:0;font-weight:700;line-height:1.4;text-align:center}
+.hero-party{border:0;border-radius:0;gap:14px;padding:0}.hero-party img{width:90px;height:112px;image-rendering:auto}.community-pair img,.friendly-friends img{image-rendering:auto}@media(max-width:700px){.hero-party{position:static;margin-top:12px;gap:12px}.hero-party img{width:64px;height:80px}.hero-party img:nth-child(3){display:block}}

@@ -1,3 +1,4 @@
+import {loadArtImage} from './character-art.js?v=cast9';
 import {TEAMS} from './config.js';
 import {petGrowthMarkup} from './pet-growth.js?v=growth1';
 import {levelInfo} from './game.js';
@@ -8,7 +9,7 @@ import * as API from './api.js';
 import {loadLookQuick} from './player-look.js?v=look1';
 import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=story5';
 import {ExpeditionEngine} from './expedition-engine.js?v=growth1';
-import {ExpeditionRenderer} from './expedition-renderer.js?v=pet1';
+import {ExpeditionRenderer} from './expedition-renderer.js?v=cast9';
 import {ExpeditionAudio} from './expedition-audio.js?v=story5';
 
 const $=id=>document.getElementById(id);
@@ -33,7 +34,7 @@ const audio=new ExpeditionAudio();audio.configure(preferences);
 function savePreferences(){calmEffects=!!preferences.calm;audio.configure(preferences);if(renderer){renderer.calm=calmEffects;renderer.quality=preferences.quality;}try{localStorage.setItem('expedition-presentation',JSON.stringify(preferences));}catch{}}
 
 const assets=new Map();
-function img(path){if(!assets.has(path)){const i=new Image();i.src=path;assets.set(path,i);}return assets.get(path);}
+function img(path){if(!assets.has(path)){const i=new Image();loadArtImage(i,path);assets.set(path,i);}return assets.get(path);}
 function notice(text){$('notice').textContent=text;$('notice').style.display='block';clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').style.display='none',3800);}
 function dialog(html){$('expedition').inert=true;$('dialog').hidden=false;$('dialog').innerHTML=`<div class="modal-cover"><section class="dialog-card" role="dialog" aria-modal="true">${html}</section></div>`;keys.clear();pad={x:0,y:0};stick=null;$('dialog').querySelector('input,button,a')?.focus({preventScroll:true});}
 function showStory(beat,done,storyZone=zone){
