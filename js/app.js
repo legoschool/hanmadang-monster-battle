@@ -3,7 +3,7 @@ import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, MODES, SERVER_READY, spriteOf
 import * as G from './game.js';
 import * as API from './api.js';
 import { rememberLook } from './player-look.js?v=look1';
-import * as V from './views.js?v=rpg1';
+import * as V from './views.js?v=season1';
 import { esc, num, icon, openModal, updateModal, closeModal, modalOpen, toast, floatText, bump, confetti, wait, timeLeft, now, setServerNow } from './ui.js';
 
 const POLL_MS = 12000;
@@ -1005,6 +1005,27 @@ const actions = {
     if (!confirm(`${el.dataset.name}님을 내보낼까요? 이 참가자의 가방과 기록이 지워져요.`)) return;
     await adminCall('removeUser', { userId: el.dataset.user });
   },
+  'admin-season-start': async () => {
+    const start = fromKstInput($('seasonStart')?.value);
+    const end = G.eventDefaultMs();
+    if (!Number.isFinite(start) || start >= end) return toast('<span>시작 시각을 현장 결전 전으로 골라 주세요</span>', 'warn');
+    const sch = { start, end };
+    const typed = prompt(`정규 시즌을 시작할까요?\n\n시작: ${G.weekDates(sch, 1).start}\n간격: ${G.paceFor(sch).label}마다 (${EVENT.weeks}회차)\n현장 결전: ${G.eventDateLabel(sch)}\n\n`
+      + '대원 계정·포인트·아이템과 지식의 숲·RPG·아케이드·라운지 기록은 남고, 보스·커뮤니티 경험치·시상과 개인 시즌 기록은 0부터 시작해요.\n'
+      + '계속하려면 "시즌 시작"이라고 적어 주세요.');
+    if (typed?.trim() !== '시즌 시작') return;
+    const res = await adminCall('seasonStart', { start, end, confirm: '시즌 시작' });
+    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
+    else if (res) {
+      ui.seasonStart = null;
+      ui.schedDraft = null;
+      ui.schedGap = null;
+      ui.adminPrizes = null;
+      ui.seenRounds = 0;
+      ui.seenPrizes = new Set();
+      toast('<span><b>정규 시즌을 시작했어요</b></span>', 'good');
+    }
+  },
   'admin-reset': async () => {
     const typed = prompt('모든 참가자와 기록을 지워요. 계속하려면 "초기화"라고 적어 주세요.');
     if (typed !== '초기화') return;
@@ -1054,6 +1075,7 @@ document.addEventListener('input', (e) => {
   }
   if (t.dataset.prizeName !== undefined) editablePrizes()[Number(t.dataset.prizeName)].name = t.value;
   if (t.id === 'schedStart') ui.schedDraft = { ...(ui.schedDraft || {}), start: t.value };
+  if (t.id === 'seasonStart') ui.seasonStart = t.value;
   if (t.id === 'nickname') ui.nickname = t.value;
   if (t.id === 'hintQ') ui.hintQ = t.value;
   if (t.id === 'hintA') ui.hintA = t.value;
@@ -1064,6 +1086,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.dataset.prizeAward !== undefined) editablePrizes()[Number(t.dataset.prizeAward)].award = t.value;
+  if (t.id === 'seasonStart') render();   // 시작 시각을 바꾸면 회차 간격 요약을 다시 계산한다
 });
 
 window.addEventListener('hashchange', onRouteChange);
