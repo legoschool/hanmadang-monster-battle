@@ -267,6 +267,10 @@ export const isFree = (state) => (state?.mode || 'free') !== 'season';   // 기�
 export function setMode(state, mode) {
   const v = mode === 'season' ? 'season' : 'free';
   if ((state.mode || 'free') === v) return { ok: false, reason: '이미 그 모드예요' };
+  // 프리 모드에 남아 있던 일정이 이미 끝났으면, 바꾸는 순간 사전 원정이 모두 끝나고 결전으로 넘어가 버린다
+  if (v === 'season' && scheduleOf(state).end <= Date.now()) {
+    return { ok: false, reason: '저장된 일정의 현장 결전 시각이 이미 지났어요. "정규 시즌 시작"에서 날짜를 정해 시작해 주세요.' };
+  }
   state.mode = v;
   if (v === 'free') {
     if (!isPlayWeek(state.week)) state.week = 1;              // 모집 기간·결전이면 1회차부터
@@ -913,7 +917,7 @@ export function crewRanking(state, mode) {
 }
 
 // ---------------------------------------------------------------- 랭킹 보드
-// 개인 기록 랭킹 (프리 모드·정규 시즌 상관없이 계속 쌓인다)
+// 개인 기록 랭킹 (프리 모드에서 쌓인 기록은 "정규 시즌 시작" 때 지난 기록으로 넘기고 0부터 다시 쌓는다)
 export const RANK_KEYS = {
   dmg:    { label: '보스 피해', unit: '',   get: (u) => u.totalDmg || 0 },
   correct:{ label: '맞힌 문제', unit: '개', get: (u) => u.totalCorrect || 0 },
@@ -1101,6 +1105,35 @@ export function syncWeek(state, now = Date.now()) {
   let changed = false;
   while (state.week < target && advanceWeek(state).ok) changed = true;
   return changed;
+}
+
+// ---------------------------------------------------------------- 정규 시즌 시작
+// 전체 초기화와 달리 대원 계정(닉네임·힌트·아바타·커뮤니티), 포인트·아이템, 지식의 숲·RPG·아케이드·라운지 기록은 남긴다.
+// 보스·커뮤니티 경험치·시상, 그리고 현장 상(지식왕·에이스·꾸준상)을 정하는 개인 기록만 0부터 다시 쌓는다.
+const SEASON_RESET = ['food', 'premium', 'totalPoints', 'totalDmg', 'totalCorrect', 'visitedWeeks', 'bossRewards', 'cards',
+  'onTime', 'clears', 'laps', 'weekly', 'daily'];
+export function startSeason(state, start, end, now = Date.now()) {
+  const a = Math.round(Number(start));
+  const b = Math.round(Number(end));
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return { ok: false, reason: '시작과 끝 날짜를 넣어 주세요' };
+  if (b <= a) return { ok: false, reason: '끝 날짜는 시작 날짜보다 뒤여야 해요' };
+  if ((b - a) / EVENT.weeks < MIN) return { ok: false, reason: `시작과 끝 사이가 너무 짧아요 (적어도 ${EVENT.weeks}분)` };
+  const sch = { start: a, end: b, quick: (b - a) / EVENT.weeks < DAY };
+  if (weekForTime(sch, now) > 1) return { ok: false, reason: '시작 시각이 이미 한 회차 넘게 지났어요. 지금이나 앞으로의 시각을 골라 주세요' };
+
+  const archived = Object.keys(state.users).length ? archiveSeason(state, isFree(state) ? 'free' : 'season') : null;
+  for (const u of Object.values(state.users)) {
+    const blank = newUser(u);
+    for (const k of SEASON_RESET) u[k] = blank[k];
+    u.expeditionPaid = [];               // 지식의 숲 커뮤니티 보상은 시즌마다 문제마다 한 번 (개인 성장은 그대로)
+  }
+  for (const t of TEAMS) state.teams[t.id] = newTeam(t.id, 0);
+  Object.assign(state, { mode: 'season', lap: 1, week: 0, schedule: sch, bosses: {}, hits: [], awards: {}, final: null, goldenUntil: 0, feed: [] });
+  delete state.bossAdjust;               // 미리 해 보기·프리 모드 성적으로 정해진 자동 조절은 버린다
+  state.prizes = state.prizes.map((p) => ({ ...p, winner: null, openedAt: 0 }));
+  pushFeed(state, 'crown', `정규 시즌: ${weekDates(sch, 1).start} 시작 → ${eventDateLabel(sch)} 현장 결전. ${paceFor(sch).label}마다 새 ${paceFor(sch).round}가 열려요!`);
+  syncWeek(state, now);
+  return { ok: true, week: state.week, archived: !!archived };
 }
 
 // ---------------------------------------------------------------- 최종 결전 (12/19 현장)

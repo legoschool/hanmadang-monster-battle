@@ -9,7 +9,7 @@ import {
   personalRanking, RANK_KEYS,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
-  scheduleOf, paceOf, roundLength, paceKeyFor, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor, teamSkill, isFree,
+  scheduleOf, normalizeSchedule, periodLabel, paceOf, roundLength, paceKeyFor, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor, teamSkill, isFree,
 } from './game.js';
 import { cardsForWeek, CARD_SETS, CARDS_TOTAL, cardAt } from './cards.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
@@ -44,6 +44,9 @@ export const NAV = [
 
 const secHead = (title, extra = '') => `<div class="sec-head"><h2>${title}</h2>${extra}</div>`;
 const eventDateLabelDefault = () => eventDateLabel({ end: eventDefaultMs() });
+// 참가자 화면에 보여 줄 일정. 프리 모드는 날짜가 흐르지 않으니, 예전에 해 본 미리 해 보기 일정이 남아 있어도 실제 결전 날을 보여 준다
+const shownSchedule = (state) => (isFree(state) ? normalizeSchedule(null) : scheduleOf(state));
+const seasonDefaultStart = () => normalizeSchedule(null).start;   // 결전 4주 전 (11월 21일 0시)
 const pillLink = (href, label = '더보기') => `<a class="pill-link" href="${href}">${label} <span aria-hidden="true">→</span></a>`;
 const pageHead = (title, sub) => `<header class="page-head"><h1>${title}</h1><p>${sub}</p></header>`;
 // 결전까지 남은 시간: 실제 일정은 D-88, 미리 해 보기는 1초마다 줄어드는 시계
@@ -72,7 +75,7 @@ function feedIcon(item) {
 export function renderShellParts(state) {
   const u = me(state);
   const t = teamById(u.teamId);
-  const S = scheduleOf(state);
+  const S = shownSchedule(state);
   const P = paceOf(state);
   let day;
   if (state.week < 1) day = `<b>원정대 모집 중</b><span class="day-chip__mid"> · ${weekDates(S, 1).start} 출발</span>`;
@@ -109,7 +112,7 @@ export function renderAvatarGrid(selected, action) {
 }
 
 export function renderOnboarding(state, ui) {
-  const S = scheduleOf(state);
+  const S = shownSchedule(state);
   const P = paceOf(state);
   const crew = Object.values(state.users);
   return `
@@ -287,7 +290,7 @@ function effectChips(state, teamId) {
 
 // 원정 지도: 4주 보스 + 현장 결전
 export function journeyMap(state, u = null) {
-  const S = scheduleOf(state);
+  const S = shownSchedule(state);
   const P = paceOf(state);
   const nodes = BOSSES.map((b) => {
     const rec = state.bosses[b.week];
@@ -295,7 +298,7 @@ export function journeyMap(state, u = null) {
     if (rec?.defeatedAt) status = 'win';
     else if (rec?.escaped || (b.week < state.week && state.week > 0)) status = 'lost';
     else if (b.week === state.week) status = 'now';
-    const label = { win: '격파 · 봉인', lost: '놓침', now: '원정 중', future: weekDates(S, b.week).start.replace(/\(.\)/, '') }[status];
+    const label = { win: '격파 · 봉인', lost: '놓침', now: '원정 중', future: isFree(state) ? '대기' : weekDates(S, b.week).start.replace(/\(.\)/, '') }[status];
     const visited = u?.visitedWeeks.includes(b.week);
     return `
       <li class="journey__node is-${status}" style="--boss:${b.color}">
@@ -415,7 +418,7 @@ export function renderHome(state, ui) {
   const prevAward = state.awards[state.week - 1];
   const liveKing = play ? knowledgeKing(state) : null;
   const liveAce = play ? weeklyAce(state) : null;
-  const S = scheduleOf(state);
+  const S = shownSchedule(state);
   const P = paceOf(state);
   const finalDay = state.week >= FINAL_WEEK || clockNow() >= eventStart(S);
   const golden = (state.goldenUntil || 0) > clockNow();
@@ -585,7 +588,7 @@ export function renderHome(state, ui) {
 
 // 이번 주 안내 띠: 원정대 모집 / N주차 / 결전의 날
 function weekBanner(state, t) {
-  const S = scheduleOf(state);
+  const S = shownSchedule(state);
   const P = paceOf(state);
   const paceBadge = S.quick ? `<span class="pace-badge">미리 해 보기 · ${P.label}마다 새 ${P.round}</span>` : '';
   if (state.week < 1) {
@@ -609,7 +612,7 @@ function weekBanner(state, t) {
       <div>
         <span class="eyebrow">결전의 날</span>${paceBadge}
         <h2>${eventDateLabel(S)} 대마왕 글리치와 최종 결전</h2>
-        <p>한 달 동안 함께 키운 몬스터 9마리와 원정대 모두가 힘을 합쳐요. 결전 화면에서 응원 버튼을 기다려 주세요!</p>
+        <p>한 달 동안 함께 키운 몬스터 ${TEAMS.length}마리와 원정대 모두가 힘을 합쳐요. 결전 화면에서 응원 버튼을 기다려 주세요!</p>
       </div>
     </section>`;
   }
@@ -619,7 +622,7 @@ function weekBanner(state, t) {
     <section class="card week-banner">
       <span class="week-banner__no">${state.week}<small>${P.round}</small></span>
       <div>
-        <span class="eyebrow">${dates.start} ~ ${dates.end}</span>${paceBadge}
+        <span class="eyebrow">${isFree(state) ? '프리 모드' : `${dates.start} ~ ${dates.end}`}</span>${paceBadge}
         <h2>「${esc(state.weekInfo?.title || '')}」 ${P.series}</h2>
         <p>${P.now} 퀴즈 주제: <b>${esc(state.weekInfo?.theme || '')}</b> · ${P.now} 안에 언제든 몰아서 해도 돼요.</p>
         ${roundLength(S) >= 3 * DAY_MS ? '' : `<p class="week-banner__next">${state.week < EVENT.weeks ? `다음 ${P.round}` : '결전'}까지 <time data-until="${next}" data-refresh>${timeLeft(next)}</time></p>`}
@@ -629,7 +632,7 @@ function weekBanner(state, t) {
 
 // ================================================================ 이번 주 미션
 export function renderMission(state, ui) {
-  const S = scheduleOf(state);
+  const S = shownSchedule(state);
   const P = paceOf(state);
   const u = me(state);
   const d = weekly(state, u);
@@ -701,7 +704,7 @@ function aiCards(state, ui, u) {
   const set = cardsForWeek(state.week);
   if (!set || !c || !c.total) return '';
   const P = paceOf(state);
-  const every = byDay(scheduleOf(state)) ? '매일' : P.every;   // 이틀 넘는 회차면 날마다 열린다
+  const every = byDay(shownSchedule(state)) ? '매일' : P.every;   // 이틀 넘는 회차면 날마다 열린다
   const read = new Set(c.read || []);
   const left = c.open - c.readCount;
   const collected = (c.read || []).length;
@@ -737,7 +740,7 @@ function aiCards(state, ui, u) {
 
   return `
     <section class="card ai-cards">
-      ${secHead('오늘의 AI 한 조각', `<span class="sec-note">${every} 한 장씩 열려요 · 읽으면 먹이 ${RULES.card.food}개 + ${RULES.card.points}P</span>`)}
+      ${secHead('오늘의 AI 한 조각', `<span class="sec-note">${isFree(state) ? '모두 열려 있어요' : `${every} 한 장씩 열려요`} · 읽으면 먹이 ${RULES.card.food}개 + ${RULES.card.points}P</span>`)}
       <p class="sec-desc">${esc(theme)} — 컴퓨터 기초부터 AI까지, 알아 두면 힘이 되는 이야기예요. 못 본 카드는 사라지지 않으니 <b>웹툰처럼 몰아서</b> 봐도 되고, 그날 열린 카드를 그날 보면 <b>+${RULES.card.onTimePoints}P</b>와 꾸준 점수를 더 받아요.</p>
       <div class="ai-cards__bar">
         <span class="ai-cards__count">모은 카드 <b>${num(collected)}</b> / ${num(totalAll)}장</span>
@@ -823,7 +826,7 @@ function renderQuiz(state, ui, u, d, qs) {
 const HAND_NAMES = { rock: '바위', scissors: '가위', paper: '보' };
 
 export function renderPlay(state, ui) {
-  const S = scheduleOf(state);
+  const S = shownSchedule(state);
   const P = paceOf(state);
   const u = me(state);
   const d = weekly(state, u);
@@ -1057,7 +1060,7 @@ export function renderCheerPicker(state) {
 
 // ================================================================ 원정대
 export function renderCrew(state, ui) {
-  const S = scheduleOf(state);
+  const S = shownSchedule(state);
   const P = paceOf(state);
   const u = me(state);
   const tab = ui.crewTab || 'alliance';
@@ -1135,7 +1138,7 @@ export function renderCrew(state, ui) {
     body = `
       <p class="sec-desc">${isFree(state)
         ? `프리 모드에서도 기록은 그대로 쌓여요. 지금 <b>${state.lap || 1}바퀴째</b>를 돌고 있어요.`
-        : '정규 시즌과 프리 모드에서 쌓은 기록을 모두 합쳐서 보여 줘요.'}</p>
+        : '이번 정규 시즌 기록이에요. 프리 모드 기록은 아래 지난 기록에 있어요.'}</p>
       <div class="board-keys">
         ${Object.entries(RANK_KEYS).map(([k, v]) => `
           <button class="btn btn--soft btn--sm ${k === key ? 'is-active' : ''}" data-action="board-key" data-key="${k}">${esc(v.label)}</button>`).join('')}
@@ -1161,7 +1164,7 @@ export function renderCrew(state, ui) {
             ${x.top?.length ? `<div class="season-card__rows"><span class="season-team">최고 대원 <b>${esc(x.top[0].name)}</b> <i>${num(x.top[0].score)}</i></span>
               ${x.king ? `<span class="season-team">지식왕 <b>${esc(x.king.name)}</b> <i>${num(x.king.score)}문제</i></span>` : ''}</div>` : ''}
           </li>`).join('')}
-      </ul>` : '<p class="sec-desc">아직 끝난 시즌이 없어요. 한 바퀴를 완주하거나 운영자가 전체 초기화를 하면 그때의 기록이 여기 남아요.</p>'}`;
+      </ul>` : '<p class="sec-desc">아직 끝난 시즌이 없어요. 한 바퀴를 완주하거나 정규 시즌이 시작되면 그때의 기록이 여기 남아요.</p>'}`;
   } else {
     const weeks = Object.keys(state.awards).map(Number).sort((a, b) => b - a);
     const liveKing = play ? knowledgeKing(state) : null;
@@ -1244,7 +1247,7 @@ export function renderFinal(state, ui) {
   const hp = Math.max(0, f.maxHp - f.dmg);
   const open = cheerOpen(state, clockNow());
   const won = !!state.final?.wonAt;
-  const S = scheduleOf(state);
+  const S = shownSchedule(state);
   const P = paceOf(state);
 
   const seals = BOSSES.map((b) => {
@@ -1307,7 +1310,7 @@ export function renderFinal(state, ui) {
         ${secHead('결전은 이렇게 해요')}
         <ol class="final-steps">
           <li><b>1. 응원 타임</b><span>사회자가 “응원 타임!”을 외치면 30초 동안 폰의 응원 버튼을 마구 눌러요.</span></li>
-          <li><b>2. 공격!</b><span>봉인 조각이 빛나고, 몬스터 9마리가 레벨만큼 세게 차례로 공격해요. 마지막에 응원 에너지가 터져요.</span></li>
+          <li><b>2. 공격!</b><span>봉인 조각이 빛나고, 몬스터 ${TEAMS.length}마리가 레벨만큼 세게 차례로 공격해요. 마지막에 응원 에너지가 터져요.</span></li>
           <li><b>3. 한 번 더!</b><span>한 번에 안 쓰러지면 다시 응원하고 공격해요. 피해는 계속 쌓이니 결국 반드시 이겨요.</span></li>
         </ol>
         <ul class="final-lineup">
@@ -1480,6 +1483,25 @@ export function renderAdmin(state, ui) {
     </section>
 
     <section class="card">
+      ${secHead('정규 시즌 시작')}
+      <p class="sec-desc">대원 계정·아바타·포인트·아이템과 지식의 숲·RPG·아케이드·라운지 기록은 그대로 두고, 보스·커뮤니티 경험치·시상과 개인 시즌 기록(먹이, 보스 피해, 맞힌 문제, AI 카드)을 0부터 다시 쌓아요. 지금까지의 기록은 랭킹 보드의 지난 기록에 남아요.</p>
+      <div class="admin-sched">
+        <label class="admin-sched__field"><span>시작</span>
+          <input type="datetime-local" id="seasonStart" value="${ui.seasonStart ?? kstInput(seasonDefaultStart())}">
+        </label>
+      </div>
+      <p class="admin-sched__sum">${(() => {
+        const start = fromKstInputView(ui.seasonStart ?? kstInput(seasonDefaultStart()));
+        const end = eventDefaultMs();
+        if (!Number.isFinite(start) || start >= end) return '시작 시각을 현장 결전 전으로 골라 주세요.';
+        return `<b>${whenText(start)}</b> 시작, ${periodLabel((end - start) / EVENT.weeks)}마다 ${EVENT.weeks}회차 → <b>${eventDateLabelDefault()}</b> 현장 결전`;
+      })()}</p>
+      <div class="admin-golden">
+        <button class="btn btn--primary" data-action="admin-season-start">정규 시즌 시작</button>
+      </div>
+    </section>
+
+    <section class="card">
       ${secHead('진행 방식', `<span class="sec-note">지금 ${S.quick ? `미리 해 보기 · 회차 ${P.label}` : `회차 ${P.label}`}</span>`)}
       <p class="sec-desc">한 번만 누르면 시작 시각과 회차 길이가 한꺼번에 맞춰져요. 수업 시간에 짧게 해 보거나, 4주 프로젝트로 길게 할 수 있어요.</p>
       <div class="mode-pick">
@@ -1488,7 +1510,7 @@ export function renderAdmin(state, ui) {
             <b>${m.label}</b><span>${m.sub}</span>
           </button>`).join('')}
       </div>
-      <p class="sec-desc admin-pace__note">짧은 방식은 보스 체력이 낮아져 적은 인원으로도 해 볼 수 있어요. 끝나면 맨 아래 “전체 초기화”를 누르면 기본 일정과 샘플 상품으로 돌아가요.</p>
+      <p class="sec-desc admin-pace__note">짧은 방식은 보스 체력이 낮아져 적은 인원으로도 해 볼 수 있어요. 끝나면 “프리 모드”로 돌리거나 “정규 시즌 시작”을 누르세요. 대원 계정은 그대로 남아요.</p>
     </section>
 
     <section class="card">
@@ -1524,7 +1546,7 @@ export function renderAdmin(state, ui) {
       <div class="admin-golden">
         ${Object.entries(PACES).map(([k, q]) => `<button class="btn btn--soft" data-action="admin-pace" data-pace="${k}">${q.label}마다</button>`).join('')}
       </div>
-      <p class="sec-desc admin-pace__note">미리 해 보기가 끝나면 맨 아래 “전체 초기화”를 누르세요. “지금 바로 시작 → ${eventDateLabelDefault()} 결전” 일정과 샘플 상품으로 돌아가요.</p>
+      <p class="sec-desc admin-pace__note">미리 해 보기가 끝나면 “프리 모드”로 돌리거나 “정규 시즌 시작”을 누르세요. 대원 계정은 그대로 남아요.</p>
     </section>
 
     <section class="card">
@@ -1611,7 +1633,7 @@ export function renderAdmin(state, ui) {
 
     <section class="card admin-danger">
       ${secHead('전체 초기화')}
-      <p class="sec-desc">모든 참가자와 기록이 지워져요. 리허설이 끝난 뒤 본 행사 전에만 쓰세요.</p>
+      <p class="sec-desc">모든 대원 계정과 기록이 지워져요. 계정을 남기고 새로 시작하려면 “정규 시즌 시작”을 쓰세요.</p>
       <button class="btn btn--danger" data-action="admin-reset">전체 초기화</button>
       <button class="btn btn--soft" data-action="admin-logout">운영자 화면 나가기</button>
     </section>
