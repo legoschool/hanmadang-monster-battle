@@ -1,0 +1,61 @@
+{
+  "version": "cinema1",
+  "audio": "assets/audio/opening-cinema1.mp3",
+  "scenes": [
+    {
+      "id": "signal",
+      "speaker": "긴급 수신",
+      "title": "기록실에서 온 구조 신호",
+      "text": "잠깐. 기록실에서 구조 신호가 들어왔습니다.",
+      "voice": "male",
+      "start": 0,
+      "end": 5.018
+    },
+    {
+      "id": "breach",
+      "speaker": "연결 두절",
+      "title": "글리치가 침입했다",
+      "text": "글리치가 기록을 삼키고 있어요. 연결이 끊기기 전에, 안으로 들어가야 합니다.",
+      "voice": "male",
+      "start": 5.018,
+      "end": 12.1
+    },
+    {
+      "id": "pet",
+      "speaker": "동행 펫",
+      "title": "아직 신호가 남아 있어",
+      "text": "여기예요! 아직 원본 신호가 남아 있어요. 제가 길을 찾을게요. 함께 가요!",
+      "voice": "female",
+      "start": 12.1,
+      "end": 20.814
+    },
+    {
+      "id": "fight",
+      "speaker": "원정대",
+      "title": "우리가 길을 연다",
+      "text": "앞을 막는 적은 우리가 맡죠. 피하고, 맞서고, 펫과 함께 길을 여세요!",
+      "voice": "male",
+      "start": 20.814,
+      "end": 28.16
+    },
+    {
+      "id": "truth",
+      "speaker": "동행 펫",
+      "title": "진짜 기록을 찾아라",
+      "text": "잠깐! 저 기록은 가짜예요. 질문을 풀고 근거를 찾아야, 진짜 기록이 돌아옵니다.",
+      "voice": "female",
+      "start": 28.16,
+      "end": 37.09
+    },
+    {
+      "id": "depart",
+      "speaker": "첫 임무",
+      "title": "코드의 숲으로",
+      "text": "첫 목적지는 코드의 숲. 버그 군주가 기다리고 있어요. 준비됐죠? 원정대, 출발!",
+      "voice": "male",
+      "start": 37.09,
+      "end": 46.618
+    }
+  ],
+  "duration": 46.618
+}

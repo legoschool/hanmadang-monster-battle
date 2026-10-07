@@ -14,6 +14,7 @@ export class ExpeditionEngine {
     this.setDifficulty(difficulty||(gentle?'gentle':'standard'));
     this.pet=makeCompanion(companion,this.hero);
     if(mode==='boss') this.spawnBoss();
+    else if(cinematic&&mode==='survival'){for(let i=0;i<3;i++)this.spawn(220+i*22);this.spawnCd=2;this.emit('wave',{count:3});}
   }
   setDifficulty(value){
     const levels={beginner:{hp:220,speed:.6,damage:.5,spawn:1.7,cap:18},gentle:{hp:150,speed:.8,damage:1,spawn:1,cap:38},standard:{hp:100,speed:1,damage:1,spawn:1,cap:38}};
@@ -80,14 +81,15 @@ export class ExpeditionEngine {
     h.inv=Math.max(h.inv,0.5);
   }
   petSkill(){return castCompanion(this);}
-  hit(e,n,source='hero'){if(e.hp<=0||e.shield)return;if(this.pet){this.pet.charge=Math.min(100,this.pet.charge+(source==='pet'?2:1));if(source==='pet')this.pet.dealt+=Math.min(e.hp,n);}e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&n>this.hero.damage*1.8)this.hitStop=Math.max(this.hitStop,.05);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
+  hit(e,n,source='hero'){if(e.hp<=0||e.shield)return;if(this.pet){this.pet.charge=Math.min(100,this.pet.charge+(source==='pet'?2:1));if(source==='pet')this.pet.dealt+=Math.min(e.hp,n);}e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,targetId:e.id,angle:Math.atan2(e.y-this.hero.y,e.x-this.hero.x),damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&(source==='hero'||n>this.hero.damage*1.8))this.hitStop=Math.max(this.hitStop,n>this.hero.damage*1.8?.055:.025);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
   hurt(n){const h=this.hero;if(this.phase!=='playing'||h.inv>0)return;n*=this.difficultyStats.damage;if(this.pet?.guard>0){this.pet.blocked=(this.pet.blocked||0)+Math.min(h.hp,n)-Math.min(h.hp,n*.55);n*=.55;}h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
     this.texts.push({x:h.x,y:h.y-26,text:`-${n}`,ttl:0.7,color:'#ffa49e'});if(h.hp<=0){this.phase='lost';this.event='end';this.emit('defeat');}}
-  spawn(){
-    const angle=this.random()*Math.PI*2,dist=330+this.random()*80,h=this.hero;
+  spawn(distance=null){
+    const angle=this.random()*Math.PI*2,dist=distance??(this.cinematic?260+this.random()*65:330+this.random()*80),h=this.hero;
     const x=Math.max(32,Math.min(this.width-32,h.x+Math.cos(angle)*dist)),y=Math.max(32,Math.min(this.height-32,h.y+Math.sin(angle)*dist));
     const kind=this.random()>0.7?'ghost':'slime',hp=kind==='ghost'?55:35;
-    this.enemies.push({id:++this.seq,x,y,hp,maxHp:hp,r:kind==='ghost'?26:24,kind,flash:0,speed:(kind==='ghost'?72:48)*this.difficultyStats.speed*(1+this.time/300)});
+    this.enemies.push({id:++this.seq,x,y,hp,maxHp:hp,r:kind==='ghost'?26:24,kind,flash:0,arrival:this.cinematic?.5:0,speed:(kind==='ghost'?72:48)*this.difficultyStats.speed*(1+this.time/300)});
+    if(this.cinematic)this.emit('spawn',{x,y});
   }
   spawnBoss(){
     this.bossMade=true;this.boss={id:'boss',x:this.hero.x,y:Math.max(150,this.hero.y-120),hp:900,maxHp:900,r:65,kind:'boss',speed:30,attack:2.4,nextSeal:0.72,shield:false,flash:0};
@@ -108,7 +110,7 @@ export class ExpeditionEngine {
     this.spawnCd-=dt;if(this.spawnCd<=0&&this.enemies.length<this.difficultyStats.cap){this.spawn();this.spawnCd=Math.max(0.45,1.3-this.time/230)*(this.boss?2.4:1)*this.difficultyStats.spawn;}
     if(!this.bossMade&&this.time>=150)this.spawnBoss();
     for(const e of this.enemies){
-      e.flash=Math.max(0,e.flash-dt);if(e.hp<=0)continue;const d=this.dist(e,h)||1;
+      e.flash=Math.max(0,e.flash-dt);if(e.hp<=0)continue;if(e.arrival>0){e.arrival=Math.max(0,e.arrival-dt);continue;}const d=this.dist(e,h)||1;
       e.x+=(h.x-e.x)/d*e.speed*dt;e.y+=(h.y-e.y)/d*e.speed*dt;
       if(d<e.r+h.r)this.hurt(this.gentle?8:13);
     }
@@ -143,7 +145,7 @@ export class ExpeditionEngine {
     this.hazards=this.hazards.filter(z=>z.ttl>0);
     for(const e of this.enemies.filter(e=>e.hp<=0)){
       this.kills++;this.drops.push({x:e.x,y:e.y,kind:'gem',v:3});
-      this.emit('kill',{x:e.x,y:e.y});this.combo++;this.comboTime=5;this.bestCombo=Math.max(this.bestCombo,this.combo);if(this.combo%5===0)this.emit('combo',{count:this.combo});this.burst(e.x,e.y,'#bcf997',16);
+      this.emit('kill',{x:e.x,y:e.y,enemyKind:e.kind,angle:Math.atan2(e.y-h.y,e.x-h.x)});this.combo++;this.comboTime=5;this.bestCombo=Math.max(this.bestCombo,this.combo);if(this.combo%5===0)this.emit('combo',{count:this.combo});this.burst(e.x,e.y,'#bcf997',16);
       if(this.kills%7===0)this.drops.push({x:e.x+15,y:e.y,kind:'heal',v:22});
     }
     this.enemies=this.enemies.filter(e=>e.hp>0);
