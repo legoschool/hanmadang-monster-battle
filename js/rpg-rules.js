@@ -15,15 +15,17 @@ function battle(p,boss=false){const r=p.run,region=REGIONS[r.region];r.phase='ba
 export function travel(p,action){const r=p.run;if(!r)throw Error('지역을 선택해주세요.');
  if(r.phase==='intro'&&action==='go'){r.node=1;battle(p);return;}
  if(r.phase==='victory'&&action==='go'){if(r.node===1){r.node=2;r.phase='fork';}else if(r.node===3){r.node=4;r.phase='shrine';}return;}
- if(r.phase==='fork'&&['rest','chest'].includes(action)){if(action==='rest'){r.hp=r.maxHp;r.choice='샘에서 체력을 모두 회복했다.';}else{r.potions=Math.min(5,r.potions+2);r.choice='상자에서 회복약 2개를 얻었다.';}r.node=3;battle(p);log(r,r.choice);return;}
+ if(r.phase==='fork'&&['rest','chest'].includes(action)){if(action==='rest'){r.hp=r.maxHp;r.choice='샘에서 체력을 모두 회복했다.';}else{r.hp=Math.max(1,r.hp-20);r.relic=true;r.potions=Math.min(5,r.potions+1);r.choice='함정 피해 20 · 번개 인장 획득. 공격할 때 추가 피해 8, 회복약 1개.';}r.node=3;battle(p);log(r,r.choice);return;}
  if(['shrine','review'].includes(r.phase)&&action==='go'){r.node=5;battle(p,true);return;}
  throw Error('현재 화면의 선택지를 눌러주세요.');}
 export function fight(p,action){const r=p.run;if(r?.phase!=='battle')throw Error('전투 중에만 사용할 수 있어요.');if(!['attack','guard','pet','potion'].includes(action))throw Error('행동을 선택해주세요.');if(action==='pet'&&r.charge<100)throw Error('펫 게이지가 부족해요.');if(action==='potion'&&r.potions<=0)throw Error('회복약이 없어요.');const st=stats(p),e=r.enemy;let dmg=0,blocked=action==='guard';r.lastAction=action;r.turn++;
- if(action==='attack'){dmg=st.attack;log(r,'공격 · '+dmg+' 피해');}
+ if(action==='attack'){dmg=st.attack+(r.relic?8:0);if(r.riposte){dmg*=2;r.riposte=false;log(r,'방어 성공 후 반격 · 피해 2배');}if(p.weapon==='orbit')r.charge=Math.min(100,r.charge+15);log(r,'공격 · '+dmg+' 피해');}
  if(action==='guard'){r.charge=Math.min(100,r.charge+16);log(r,'방어 · 이번 공격 피해 감소');}
  if(action==='potion'){r.potions--;const healed=Math.min(45,r.maxHp-r.hp);r.hp+=healed;log(r,'회복약 · 체력 +'+healed);}
  if(action==='pet'){r.charge=0;const role=PET_ROLES[r.pet];if(role==='heal'){const h=Math.min(42,r.maxHp-r.hp);r.hp+=h;log(r,'펫 회복 · 체력 +'+h);}else if(role==='guard'){r.guard=3;log(r,'펫 보호막 · 3턴 피해 감소');}else{dmg=st.attack+20;log(r,'펫 기술 · '+dmg+' 피해');}}
- if(e.intent==='guard')dmg=Math.ceil(dmg*.55);e.hp=Math.max(0,e.hp-dmg-st.pet);log(r,'펫 보조 공격 · '+st.pet+' 피해');r.charge=Math.min(100,r.charge+27);
+ if(e.intent==='guard'&&!(action==='attack'&&p.weapon==='wand'))dmg=Math.ceil(dmg*.55);e.hp=Math.max(0,e.hp-dmg-st.pet);log(r,'펫 보조 공격 · '+st.pet+' 피해');r.charge=Math.min(100,r.charge+27);
  if(e.hp<=0){p.xp+=r.boss?40:20;p.bond++;r.phase=r.boss?'complete':'victory';r.gained=r.boss?40:20;if(r.boss){if(!p.cleared.includes(r.region))p.cleared.push(r.region);const loot=REGIONS[r.region].loot;r.newLoot=!p.owned.includes(loot);if(r.newLoot)p.owned.push(loot);r.loot=loot;}log(r,'전투 승리');return;}
- let hit=Math.max(1,(e.intent==='heavy'?27:e.intent==='guard'?0:13)+r.region*4-st.defense);if(e.intent==='guard')hit=0;if(blocked)hit=Math.ceil(hit*.25);if(r.guard>0){hit=Math.ceil(hit*.5);r.guard--;}r.hp=Math.max(0,r.hp-hit);log(r,e.intent==='guard'?'상대가 방어했다.':'상대 공격 · '+hit+' 피해');if(r.hp<=0){r.phase='defeated';log(r,'탐험 중단 · 얻은 경험치 유지');return;}e.intent=r.turn%3===1?'heavy':r.turn%3===2?'guard':'attack';}
+ let hit=Math.max(1,(e.intent==='heavy'?27:e.intent==='guard'?0:13)+r.region*4-st.defense);if(e.intent==='guard')hit=0;if(blocked){hit=Math.ceil(hit*.25);if(e.intent==='heavy'){r.riposte=true;log(r,'강공격 방어 성공 · 다음 공격 2배');}}if(r.guard>0){hit=Math.ceil(hit*.5);r.guard--;}r.lastHurt=e.intent==='heavy'?'적의 강공격':'적의 일반 공격';r.hp=Math.max(0,r.hp-hit);log(r,e.intent==='guard'?'상대가 방어했다.':'상대 공격 · '+hit+' 피해');if(r.hp<=0){r.phase='defeated';log(r,'탐험 중단 · 얻은 경험치 유지');return;}e.intent=r.turn%3===1?'heavy':r.turn%3===2?'guard':'attack';}
 export function equip(p,id){const item=EQUIPMENT[id];if(!item||!p.owned.includes(id))throw Error('보유하지 않은 장비예요.');if(p.run&&!['complete','defeated'].includes(p.run.phase))throw Error('탐험을 마친 뒤 장비를 바꿀 수 있어요.');p[item.slot]=id;}
+
+export const EQUIPMENT_EFFECTS={blade:'기본 검격. 강공격을 방어하면 다음 공격 피해 2배.',wand:'공격으로 적의 방어를 관통합니다.',orbit:'공격할 때 펫 게이지 15 추가 충전.',shield:'받는 피해 3 감소.'};

@@ -1,7 +1,7 @@
 // 아케이드 화면: 게임 목록, 플레이(시작·조작·일시정지·소리), 구간 사이 퀴즈, 결과, 관리자 문제 설정.
 // 점수와 보상은 서버가 입력 기록을 똑같이 다시 돌려서 정한다(arcade-engine.js 공유).
 import * as API from './api.js';
-import { ARCADE_GAMES, createArcade, stepArcade, SAMPLE, ARCADE_VERSION, W, H } from './arcade-engine.js?v=arcade2';
+import { ARCADE_GAMES, createArcade, stepArcade, SAMPLE, ARCADE_VERSION, W, H } from './arcade-engine.js?v=combat1';
 import { ArcadeRenderer, Sprites, SPRITE_SOURCES } from './arcade-render.js?v=quest10';
 import { ArcadeAudio } from './arcade-audio.js?v=arcade2';
 import { cachedLook, loadLook } from './player-look.js?v=look1';
@@ -12,6 +12,10 @@ const root = document.getElementById('arcade-root'), status = document.getElemen
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const button = (text, act, extra = '', primary = false) => `<button class="button ${primary ? 'primary' : ''}" data-act="${act}" ${extra}>${text}</button>`;
 
+let attackQueued=false;
+const pointerBits=new Map(),keyBits=new Set();
+const syncBits=()=>{bits=0;for(const bit of pointerBits.values())bits|=bit;for(const key of keyBits)bits|=keyBit(key);};
+function clearControls(){attackQueued=false;pointerBits.clear();keyBits.clear();bits=0;root.querySelectorAll('[data-bit]').forEach(b=>b.classList.remove('active'));}
 let state = null, adminData = null, run = null, sim = null, renderer = null, inputs = [], bits = 0, heldBits = 0;
 let frameId = 0, last = 0, acc = 0, paused = true, busy = false, demo = false, speed = 1, noticeTimer = 0, pending = null;
 let preview = 'english', sent = false, drag = null, intro = 0, hitstop = 0, endWait = 0, previews = [];
@@ -35,14 +39,14 @@ const demoQuestions = [
   { text: '훈민정음을 창제한 왕은?', options: ['정조', '태조', '세종'], answer: 2, explain: '세종은 백성이 쉽게 쓸 수 있는 훈민정음을 창제했습니다.', preset: '역사 상식' },
 ];
 const HOW = {
-  bubble: ['좌우 버튼으로 이동 · 점프', '방울 속 적에 닿으면 처치 · 공격은 자동'],
-  space: ['화면을 끌어 이동 · 공격은 자동', '적의 탄을 피하고 P를 모으세요.'],
+  bubble: ['좌우 버튼으로 이동 · 점프', '공격 버튼 길게 누르기 · 갇힌 적에 닿으면 연쇄 폭발'],
+  space: ['화면을 끌어 이동 · 공격 버튼 길게 누르기', '둥근 적 또는 7번째 처치에서 P 획득 · 탄환 1 → 2 → 3 → 5발'],
 };
 
 function tell(text) { status.textContent = text; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => (status.textContent = ''), 6000); }
 async function action(type, params = {}) { const { result } = await API.act(type, params); if (!result?.ok) throw Error(result?.reason || '처리하지 못했어요.'); return result; }
 async function adm(type, params = {}) { const { result } = await API.admin(type, params); if (!result?.ok) throw Error(result?.reason || '설정을 불러오지 못했어요.'); return result; }
-function stop() { cancelAnimationFrame(frameId); paused = true; bits = 0; drag = null; stopPreviews(); }
+function stop() { cancelAnimationFrame(frameId); paused = true; clearControls(); drag = null; stopPreviews(); }
 
 // ================================================================= 게임 목록
 async function home() {
@@ -86,7 +90,7 @@ function botBits(s) {
     let b = 0;
     if (target) { if (target.x < p.x - 20) b |= 1; else if (target.x > p.x + 20) b |= 2; if (target.y < p.y - 60 && s.frame % 40 < 4) b |= 4; }
     else b = s.frame % 120 < 60 ? 1 : 2;
-    return b;
+    return b|16;
   }
   const target = s.boss && !s.boss.dead ? s.boss : s.enemies[0];
   let b = 0;
@@ -95,7 +99,7 @@ function botBits(s) {
   const danger = s.foes.find((f) => Math.abs(f.x - p.x) < 26 && f.y < p.y && p.y - f.y < 120);
   if (danger) b = (b & ~3) | (danger.x < p.x ? 2 : 1);
   if (p.y < 520) b |= 8;
-  return b;
+  return b|16;
 }
 function startPreviews() {
   stopPreviews();
@@ -139,8 +143,8 @@ function stage() {
     <div class="board"><canvas id="game-canvas" tabindex="0" aria-label="${g.name} 게임 화면"></canvas>
       <div class="overlay" id="play-overlay">${startPanel()}</div></div>
     ${run.kind === 'bubble'
-      ? '<div class="controls"><div class="pad"><button class="control" data-bit="1" aria-label="왼쪽으로">◀</button><button class="control" data-bit="2" aria-label="오른쪽으로">▶</button></div><button class="control jump" data-bit="4">점프</button></div>'
-      : '<p class="drag-hint">끌어서 이동 · 자동 공격</p>'}
+      ? '<div class="controls"><div class="pad"><button class="control" data-bit="1" aria-label="왼쪽으로">◀</button><button class="control" data-bit="2" aria-label="오른쪽으로">▶</button></div><div class="pad"><button class="control jump" data-bit="4">점프<small>W / ↑</small></button><button class="control attack" data-bit="16">공격<small>길게 · Space / J</small></button></div></div><p class="combat-coach" id="combatCoach">공격으로 가두고 점프해서 연쇄 폭발</p>'
+      : '<div class="controls"><span>화면 밀기로 이동</span><button class="control attack" data-bit="16">공격<small>길게 · Space / J</small></button></div><p class="combat-coach" id="combatCoach">공격 버튼을 누르면서 다른 손으로 이동</p>'}
 
   </section>`;
   renderer = new ArcadeRenderer(document.getElementById('game-canvas'), sprites);
@@ -169,8 +173,8 @@ const toWorld = (c, e) => { const r = c.getBoundingClientRect(); return { x: ((e
 function wireControls() {
   root.querySelectorAll('[data-bit]').forEach((b) => {
     const bit = +b.dataset.bit;
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); bits |= bit; b.classList.add('active'); });
-    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(type, () => { bits &= ~bit; b.classList.remove('active'); });
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); if(paused)return;if(bit===16)attackQueued=true;pointerBits.set(e.pointerId,bit);syncBits(); b.classList.add('active'); });
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(type, (e) => { pointerBits.delete(e.pointerId);syncBits();b.classList.toggle('active',[...pointerBits.values()].includes(bit)); });
     b.addEventListener('contextmenu', (e) => e.preventDefault());
   });
   const c = document.getElementById('game-canvas');
@@ -181,14 +185,13 @@ function wireControls() {
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) c.addEventListener(type, () => (drag = null));
   } else {
     // 버블 정원: 화면을 톡 치면 점프
-    c.addEventListener('pointerdown', (e) => { if (paused) return; e.preventDefault(); bits |= 16; });
-    for (const type of ['pointerup', 'pointercancel', 'pointerleave']) c.addEventListener(type, () => (bits &= ~16));
+    c.addEventListener('pointerdown', (e) => { if (paused) return; e.preventDefault(); pointerBits.set(e.pointerId,4);syncBits(); });
+    for (const type of ['pointerup', 'pointercancel', 'pointerleave']) c.addEventListener(type, (e) => {pointerBits.delete(e.pointerId);syncBits();});
   }
 }
 
 function currentBits() {
-  let b = bits & 15;
-  if (bits & 16) b |= 4;
+  let b = (bits & 31)|(attackQueued?16:0);attackQueued=false;
   if (run.kind === 'space' && drag) {
     b &= ~15;
     const dx = drag.tx - sim.p.x, dy = drag.ty - sim.p.y;
@@ -203,7 +206,7 @@ async function resume() {
   speed = Number(document.getElementById('play-speed')?.value || speed);
   await audio.unlock();
   savePrefs();
-  paused = false; bits = 0; drag = null;
+  paused = false; clearControls(); drag = null;
   document.getElementById('play-overlay').hidden = true;
   if (sim.frame === 0 && intro <= 0) { intro = 1.5; audio.play('count'); }
   last = performance.now(); acc = 0;
@@ -247,6 +250,8 @@ function tick(time) {
   }
   renderer.update();
   draw();
+  const canvas=document.getElementById('game-canvas');canvas.dataset.attacks=sim.attacks||0;canvas.dataset.heroX=Math.round(sim.p.x);canvas.dataset.phase=paused?'paused':'playing';
+  const coach=document.getElementById('combatCoach');if(coach)coach.textContent=sim.kind==='bubble'?`최고 연쇄 ${sim.chainBest} · 공격으로 가두기 → 점프로 터뜨리기`:`무기 ${sim.power}단계 · P는 둥근 적 / 7번째 처치에서 획득`;
   if (sim.done) {
     // 쓰러졌을 때는 장면을 조금 더 보여 준 뒤 기록을 보낸다
     if (!endWait) endWait = time + (sim.hp <= 0 ? 1400 : 250);
@@ -261,7 +266,7 @@ async function submit() {
   o.hidden = false;
   o.innerHTML = `<h2>${sim.cleared ? '구간 클리어!' : sim.hp <= 0 ? '쓰러졌어요' : '시간 종료'}</h2><p class="stage-score">${sim.score.toLocaleString()}점 · 처치 ${sim.kills}</p><p class="muted">기록을 확인하고 있어요.</p>`;
   try {
-    if (demo) { run.score += sim.score; run.kills += sim.kills; run.gameOver = sim.hp <= 0; run.phase = 'question'; run.question = demoQuestions[run.stage]; }
+    if (demo) { run.score += sim.score; run.kills += sim.kills; run.summary={power:sim.power||0,chain:sim.chainBest||0,attacks:sim.attacks||0,hp:sim.hp};run.gameOver = sim.hp <= 0; run.phase = 'question'; run.question = demoQuestions[run.stage]; }
     else run = (await action('arcadeSubmit', pending)).run;
     pending = null;
     renderRun();
@@ -293,7 +298,7 @@ async function next() {
 }
 function result() {
   audio.play('victory');
-  root.innerHTML = `<section class="section question result"><span class="chip">${demo ? '체험 완료' : '플레이 완료'}</span><h1>${ARCADE_GAMES[run.kind].name}</h1><div class="result-score">${run.score.toLocaleString()}점</div><p>처치 ${run.kills} · 퀴즈 정답 ${run.correct}개</p><h2>${demo ? '체험 포인트는 저장되지 않아요' : run.paid ? `+${run.paid}P 받았어요` : '포인트 추가 없음'}</h2><p class="muted">${demo ? '참여하면 내 기록과 포인트를 남길 수 있어요.' : run.paid ? '선물 응모에 쓸 수 있어요.' : '오늘 보상을 이미 받았거나, 하루 한도·날짜 변경·처치 조건에 해당해요. 기록은 반영됐어요.'}</p><div class="row center">${button('다시 플레이', 'start', `data-kind="${run.kind}"`, true)}${button('게임 목록', 'home')}<a class="button" href="${demo ? 'index.html?join=1&mode=join' : 'lounge.html#gifts'}">${demo ? '참여하기' : '선물 응모'}</a></div></section>`;
+  root.innerHTML = `<section class="section question result"><span class="chip">${demo ? '체험 완료' : '플레이 완료'}</span><h1>${ARCADE_GAMES[run.kind].name}</h1><div class="result-score">${run.score.toLocaleString()}점</div><p>처치 ${run.kills} · 퀴즈 정답 ${run.correct}개</p><p>${run.kind==='bubble'?'마지막 구간 최고 연쇄 '+(run.summary?.chain||0):'마지막 무기 '+(run.summary?.power||1)+'단계'} · 공격 ${run.summary?.attacks||0}회</p><p>${run.gameOver?'적과 탄환에 맞아 체력이 소진됐습니다.':'구간 종료'}</p><h2>${demo ? '체험 포인트는 저장되지 않아요' : run.paid ? `+${run.paid}P 받았어요` : '포인트 추가 없음'}</h2><p class="muted">${demo ? '참여하면 내 기록과 포인트를 남길 수 있어요.' : run.paid ? '선물 응모에 쓸 수 있어요.' : '오늘 보상을 이미 받았거나, 하루 한도·날짜 변경·처치 조건에 해당해요. 기록은 반영됐어요.'}</p><div class="row center">${button('다시 플레이', 'start', `data-kind="${run.kind}"`, true)}${button('게임 목록', 'home')}<a class="button" href="${demo ? 'index.html?join=1&mode=join' : 'lounge.html#gifts'}">${demo ? '참여하기' : '선물 응모'}</a></div></section>`;
 }
 
 // ================================================================= 관리자: 퀴즈 주제
@@ -339,15 +344,15 @@ root.addEventListener('submit', (e) => {
 });
 root.addEventListener('change', (e) => { if (e.target.id === 'preset-preview') { preview = e.target.value; renderPreview(); } });
 
-const keyBit = (k) => ({ arrowleft: 1, a: 1, arrowright: 2, d: 2, arrowup: 4, w: 4, ' ': 4, arrowdown: 8, s: 8 }[k] || 0);
+const keyBit = (k) => ({ arrowleft: 1, a: 1, arrowright: 2, d: 2, arrowup: 4, w: 4, ' ': 16, j:16, arrowdown: 8, s: 8 }[k] || 0);
 window.addEventListener('keydown', (e) => {
   if (!sim || run?.phase !== 'playing') return;
   const k = e.key.toLowerCase();
   if (k === 'escape' || k === 'p') { if (paused) resume(); else pause(); return; }
   if (paused) { if ((k === 'enter' || k === ' ') && !document.getElementById('play-overlay').hidden && document.activeElement?.tagName !== 'BUTTON' && document.activeElement?.tagName !== 'SELECT') { e.preventDefault(); resume(); } return; }
-  const bit = keyBit(k); if (bit) { e.preventDefault(); bits |= bit; }
+  const bit = keyBit(k); if (bit) { e.preventDefault();if(bit===16&&!e.repeat)attackQueued=true;keyBits.add(k);syncBits(); }
 });
-window.addEventListener('keyup', (e) => (bits &= ~keyBit(e.key.toLowerCase())));
+window.addEventListener('keyup', (e) => {keyBits.delete(e.key.toLowerCase());syncBits();});
 window.addEventListener('blur', pause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 window.addEventListener('hashchange', () => { stop(); home(); });

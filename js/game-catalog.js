@@ -1,8 +1,8 @@
 export const GAMES = [
- {id:'action',name:'보스 돌파',category:'action',tag:'액션',image:'action.png',description:'검·지팡이·궤도를 골라 펫과 보스에 맞서세요.',controls:'방향키 / 화면 밀기 · 자동 공격',length:'보스 전투',url:'expedition.html?demo=1',member:'expedition.html'},
+ {id:'action',name:'보스 돌파',category:'action',tag:'액션',image:'action.png',description:'검·지팡이·궤도를 골라 펫과 보스에 맞서세요.',controls:'방향키 / 화면 밀기 · 공격 버튼 길게',length:'보스 전투',url:'expedition.html?demo=1',member:'expedition.html'},
  {id:'rpg',name:'아카이브 원정',category:'adventure',tag:'탐험 RPG',image:'rpg.png',description:'지도를 탐험하고 상황을 판단해 적을 물리치세요.',controls:'목적지 터치 · 선택지로 전투',length:'시간 제한 없음',url:'rpg.html?demo=1',member:'rpg.html'},
- {id:'bubble',name:'버블 정원',category:'arcade',tag:'점프 액션',image:'bubble.png',description:'방울에 갇힌 적을 터뜨리며 세 구간을 통과하세요.',controls:'좌우 이동 · 점프 · 자동 공격',length:'3구간',url:'arcade.html?demo=1&game=bubble',member:'arcade.html?game=bubble'},
- {id:'space',name:'별빛 비행대',category:'arcade',tag:'슈팅',image:'space.png',description:'적의 탄을 피하고 강화 아이템을 모으세요.',controls:'방향키 / 드래그 · 자동 발사',length:'3구간',url:'arcade.html?demo=1&game=space',member:'arcade.html?game=space'},
+ {id:'bubble',name:'버블 정원',category:'arcade',tag:'점프 액션',image:'bubble.png',description:'방울에 갇힌 적을 터뜨리며 세 구간을 통과하세요.',controls:'좌우 이동 · 점프 · 공격 버튼 길게',length:'3구간',url:'arcade.html?demo=1&game=bubble',member:'arcade.html?game=bubble'},
+ {id:'space',name:'별빛 비행대',category:'arcade',tag:'슈팅',image:'space.png',description:'적의 탄을 피하고 강화 아이템을 모으세요.',controls:'방향키 / 드래그 · 공격 버튼 길게',length:'3구간',url:'arcade.html?demo=1&game=space',member:'arcade.html?game=space'},
 ];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const mount=document.getElementById('gameCatalog');

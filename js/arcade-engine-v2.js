@@ -1,7 +1,7 @@
 // 아케이드 두 게임의 규칙. 화면과 서버(보상 검증)가 같은 코드를 60Hz로 똑같이 돌린다.
 // 기기마다 결과가 같아야 하므로 Math.sin·cos·atan2 같은 함수는 쓰지 않는다(사칙연산·sqrt·정수 난수만 사용).
 // s.events 는 그 프레임에 일어난 일(소리·효과용)이며 규칙에는 영향을 주지 않는다.
-export const ARCADE_VERSION = 3;
+export const ARCADE_VERSION = 2;
 export const ARCADE_GAMES = {
   bubble: { name: '버블 정원', description: '방울로 벌레를 가두고 뛰어올라 터뜨려요. 붙어 있는 방울은 한꺼번에 터져요.' },
   space: { name: '별빛 비행대', description: '화면을 끌어 날아다니며 벌레 편대와 보스를 물리쳐요.' },
@@ -87,7 +87,6 @@ export function stepArcade(s, bits) {
   if (s.done) return;
   s.events = [];
   s.frame++;
-  if((bits&16)&&!(s.prevBits&16))s.p.attackBuffer=12;else s.p.attackBuffer=Math.max(0,(s.p.attackBuffer||0)-1);
   s.boost = Math.max(0, s.boost - 1);
   if (s.kind === 'bubble') stepBubble(s, bits);
   else stepSpace(s, bits);
@@ -123,7 +122,7 @@ const JUMP_V = -11.2, GRAVITY = 0.48, TRAP_TIME = 420, POP_R = 46;
 
 function initBubble(s) {
   s.layout = BUBBLE_LAYOUTS[s.stage % 3];
-  s.p = { x: 240, y: 604, vx: 0, vy: 0, dir: 1, ground: true, coyote: 0, buffer: 0, inv: 0, fire: 0, petFire: 300 };
+  s.p = { x: 240, y: 604, vx: 0, vy: 0, dir: 1, ground: true, coyote: 0, buffer: 0, inv: 0, fire: 30, petFire: 300 };
   s.bubbles = []; s.enemies = []; s.items = []; s.spits = [];
   s.wave = -1; s.waveCount = BUBBLE_WAVES[s.stage % 3].length; s.queue = []; s.nextWave = 30; s.spawnT = 0;
   s.chainBest = 0;
@@ -181,15 +180,14 @@ function stepBubble(s, bits) {
   p.buffer--;
   if (fall(s, p)) emit(s, 'land', p.x, p.y);
 
-  // ---- 공격 입력 방울 발사
-  if (--p.fire <= 0 && !s.endAt && ((bits & 16)||p.attackBuffer>0)) {
-    p.attackBuffer=0;
+  // ---- 자동 방울 발사
+  if (--p.fire <= 0 && !s.endAt) {
     p.fire = s.boost ? 10 : 20;
     s.bubbles.push({ id: ++s.seq, x: p.x + p.dir * 22, y: p.y - 26, vx: p.dir * 8, vy: 0, age: 0, r: 15, big: false, gold: !!s.boost });
-    s.attacks=(s.attacks||0)+1;emit(s, 'blow', p.x + p.dir * 22, p.y - 26);
+    emit(s, 'blow', p.x + p.dir * 22, p.y - 26);
   }
   // ---- 펫의 큰 방울 (7초마다)
-  if (--p.petFire <= 0 && !s.endAt && (bits & 16)) {
+  if (--p.petFire <= 0 && !s.endAt) {
     p.petFire = 420;
     s.bubbles.push({ id: ++s.seq, x: p.x - p.dir * 26, y: p.y - 46, vx: p.dir * 6.2, vy: 0, age: -18, r: 26, big: true, gold: false });
     emit(s, 'pet', p.x - p.dir * 26, p.y - 46);
@@ -447,19 +445,18 @@ function stepSpace(s, bits) {
   p.y = clamp(p.y + dy * speed, 150, 612);
   p.px += (p.x - 40 - p.px) * 0.12; p.py += (p.y + 16 - p.py) * 0.12;
 
-  // ---- 공격 입력 발사 (파워 1~4단계)
-  if (--p.fire <= 0 && !s.endAt && ((bits & 16)||p.attackBuffer>0)) {
-    p.attackBuffer=0;
+  // ---- 자동 발사 (파워 1~4단계)
+  if (--p.fire <= 0 && !s.endAt) {
     p.fire = s.boost ? 4 : 7;
     const L = s.power, add = (x, vx) => s.shots.push({ x: p.x + x, y: p.y - 26, vx, vy: -12, dmg: 1 });
     if (L === 1) add(0, 0);
     if (L === 2) { add(-8, 0); add(8, 0); }
     if (L === 3) { add(0, 0); add(-10, -2.2); add(10, 2.2); }
     if (L >= 4) { add(-8, 0); add(8, 0); add(-12, -2.6); add(12, 2.6); add(0, 0); }
-    s.attacks=(s.attacks||0)+1;emit(s, 'shoot', p.x, p.y - 26, { power: L });
+    emit(s, 'shoot', p.x, p.y - 26, { power: L });
   }
   // ---- 펫 유도탄
-  if (--p.petFire <= 0 && !s.endAt && (bits & 16)) {
+  if (--p.petFire <= 0 && !s.endAt) {
     p.petFire = 24;
     s.stars.push({ x: p.px, y: p.py - 10, vx: 0, vy: -7, life: 90 });
     emit(s, 'petShot', p.px, p.py - 10);
