@@ -2050,3 +2050,29 @@ img { max-width: 100%; }
   .team-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .team-pick__item img { width: 56px; height: 56px; }
 }
+
+/* 게임 입구: 넓은 화면 4칸, 좁은 화면 2×2. 타일 아래 칩으로 얻는 것(보스 피해·포인트·선물 응모)을 보여 준다 */
+.play-hub { grid-column: 1 / -1; }
+.play-hub__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.play-tile {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 12px; row-gap: 2px; align-items: center;
+  padding: 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--card);
+  color: var(--ink); text-decoration: none; transition: border-color 0.15s, transform 0.15s;
+}
+.play-tile:hover { border-color: var(--green); transform: translateY(-1px); }
+.play-tile:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+.play-tile img { grid-row: 1 / span 3; width: 48px; height: 48px; object-fit: contain; }
+.play-tile b { font-size: 16px; font-weight: 800; }
+.play-tile small { font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.play-tile__gain { justify-self: start; margin-top: 4px; padding: 2px 8px; border-radius: var(--pill); font-size: 11px; font-weight: 700; }
+.play-tile__gain--boss { background: var(--green-50); color: var(--green-700); }
+.play-tile__gain--point { background: var(--gold-50); color: var(--gold-700); }
+.play-tile__gain--gift { background: #f3efff; color: #6a4fc2; }
+@media (max-width: 900px) { .play-hub__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .play-hub { padding: 16px; }
+  .play-hub__grid { gap: 8px; }
+  .play-tile { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+  .play-tile img { grid-row: auto; width: 36px; height: 36px; margin-bottom: 4px; }
+  .play-tile small { white-space: normal; }
+}

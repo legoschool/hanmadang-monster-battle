@@ -5,11 +5,11 @@ import {
   spriteOf, bossImgOf, avatarOf,
 } from './config.js';
 import {
-  teamById, bossOf, levelInfo, weekly, daily, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
+  teamById, bossOf, levelInfo, weekly, daily, kstDay, allianceList, crewRanking, knowledgeKing, weeklyAce, hasCrown,
   personalRanking, RANK_KEYS,
   bossInfo, finalPreview, cheerOpen, canOpenPrize, prizeWinnerName, teamMembers, HANDS, GIFT_KINDS, josa,
   FINAL_WEEK, isPlayWeek, weekDates, eventDateLabel, untilEventLabel, eventStart, roundStart,
-  scheduleOf, normalizeSchedule, periodLabel, paceOf, roundLength, paceKeyFor, eventDefaultMs, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor, teamSkill, isFree,
+  scheduleOf, defaultSchedule, periodLabel, paceOf, roundLength, paceKeyFor, killLabel, bossPower, roundDays, byDay, cardFor, cardThemeFor, teamSkill, isFree,
 } from './game.js';
 import { cardsForWeek, CARD_SETS, CARDS_TOTAL, cardAt } from './cards.js';
 import { esc, num, icon, monsterImg, timeLeft, timeAgo, now as clockNow } from './ui.js';
@@ -43,10 +43,8 @@ export const NAV = [
 ];
 
 const secHead = (title, extra = '') => `<div class="sec-head"><h2>${title}</h2>${extra}</div>`;
-const eventDateLabelDefault = () => eventDateLabel({ end: eventDefaultMs() });
-// 참가자 화면에 보여 줄 일정. 프리 모드는 날짜가 흐르지 않으니, 예전에 해 본 미리 해 보기 일정이 남아 있어도 실제 결전 날을 보여 준다
-const shownSchedule = (state) => (isFree(state) ? normalizeSchedule(null) : scheduleOf(state));
-const seasonDefaultStart = () => normalizeSchedule(null).start;   // 결전 4주 전 (11월 21일 0시)
+// 최종 결전 날짜. 프리 모드는 날짜가 흐르지 않으니, 예전에 해 본 미리 해 보기 일정이 남아 있어도 날짜를 보여 주지 않는다
+const finalWhen = (state) => (isFree(state) ? '' : eventDateLabel(scheduleOf(state)));
 const pillLink = (href, label = '더보기') => `<a class="pill-link" href="${href}">${label} <span aria-hidden="true">→</span></a>`;
 const pageHead = (title, sub) => `<header class="page-head"><h1>${title}</h1><p>${sub}</p></header>`;
 // 결전까지 남은 시간: 실제 일정은 D-88, 미리 해 보기는 1초마다 줄어드는 시계
@@ -75,7 +73,7 @@ function feedIcon(item) {
 export function renderShellParts(state) {
   const u = me(state);
   const t = teamById(u.teamId);
-  const S = shownSchedule(state);
+  const S = scheduleOf(state);
   const P = paceOf(state);
   let day;
   if (state.week < 1) day = `<b>원정대 모집 중</b><span class="day-chip__mid"> · ${weekDates(S, 1).start} 출발</span>`;
@@ -112,19 +110,18 @@ export function renderAvatarGrid(selected, action) {
 }
 
 export function renderOnboarding(state, ui) {
-  const S = shownSchedule(state);
+  const S = scheduleOf(state);
   const P = paceOf(state);
   const crew = Object.values(state.users);
   return `
   <div class="onboard">
     ${ui.startMode ? `<header class="onboard__direct"><a href="index.html">← G-DEAL 메인</a><strong>G-DEAL · ${ui.startMode === 'resume' ? '이어서 플레이' : '새 대원 등록'}</strong><button class="btn btn--soft btn--sm" data-action="${ui.startMode === 'resume' ? 'start-join' : 'start-resume'}">${ui.startMode === 'resume' ? '처음 참여하기' : '기존 계정으로 로그인'}</button></header>` : `<section class="onboard__start"><h1>G-DEAL 원정대</h1><div class="onboard__choices"><button data-action="start-join"><strong>처음 참여하기 →</strong></button><button data-action="start-resume"><strong>이어서 플레이 →</strong></button></div></section>`}
     <section class="onboard__hero">
-      <span class="eyebrow">${EVENT.name}</span>
       <img class="onboard__logo" src="assets/brand/gdeal.svg" alt="G-DEAL" width="240" height="40">
       <h1>몬스터 <em>원정대</em></h1>
       <p class="onboard__slogan">${EVENT.slogan}</p>
       <p>${TEAMS.length}개 커뮤니티 몬스터가 한 팀이 되어 차례로 나타나는 보스를 함께 물리치고,<br class="br-desktop">
-        ${eventDateLabel(S)} 한마당 현장에서 대마왕 글리치와 최종 결전을 벌여요.</p>
+        ${finalWhen(state) ? `${finalWhen(state)}에` : '마지막에'} 대마왕 글리치와 최종 결전을 벌여요.</p>
       <div class="parade parade--roll" aria-hidden="true">
         ${TEAMS.map((t, i) => `
           <figure style="--d:${(i * 0.18).toFixed(2)}s">
@@ -242,7 +239,7 @@ export function renderOnboarding(state, ui) {
             ? '프리 모드예요. 카드와 퀴즈가 처음부터 모두 열려 있어서 마음껏 몰아서 볼 수 있어요.'
             : `${byDay(S) ? '날마다' : '조금씩'} AI·디지털 지식 카드와 퀴즈가 새로 열려요. 못 본 건 사라지지 않으니 웹툰처럼 몰아서 봐도 돼요.`],
         ['seal', '다 함께 보스 물리치기', '먹이·퀴즈·가위바위보가 모두 보스 공격이 돼요. 보스는 회복하며 버티니 여럿이 꾸준히 모여야 쓰러져요.'],
-        ['mystery', '12월 19일 최종 결전', '모두 힘을 모아 마지막 보스 대마왕 글리치를 물리치면 보상이 있어요!'],
+        ['mystery', `${finalWhen(state) || '마지막 날'} 최종 결전`, '모두 힘을 모아 마지막 보스 대마왕 글리치를 물리치면 보상이 있어요!'],
       ].map(([ic, title, text], i) => `
         <div class="how__item">
           ${icon(ic, 48)}
@@ -288,9 +285,9 @@ function effectChips(state, teamId) {
   return chips.join('');
 }
 
-// 원정 지도: 4주 보스 + 현장 결전
+// 원정 지도: 보스 4마리 + 최종 결전
 export function journeyMap(state, u = null) {
-  const S = shownSchedule(state);
+  const S = scheduleOf(state);
   const P = paceOf(state);
   const nodes = BOSSES.map((b) => {
     const rec = state.bosses[b.week];
@@ -317,7 +314,7 @@ export function journeyMap(state, u = null) {
         <li class="journey__node journey__node--final is-${won ? 'win' : state.week >= FINAL_WEEK ? 'now' : 'future'}" style="--boss:${FINAL_BOSS.color}">
           <span class="journey__img">${bossImg(FINAL_BOSS.id, 56)}</span>
           <b>${esc(FINAL_BOSS.name)}</b>
-          <small>${won ? '승리!' : eventDateLabel(S).replace(/\(.\)/, '') + ' 결전'}</small>
+          <small>${won ? '승리!' : finalWhen(state) ? `${finalWhen(state).replace(/\(.\)/, '')} 결전` : '최종 결전'}</small>
         </li>
       </ol>
     </section>`;
@@ -418,9 +415,9 @@ export function renderHome(state, ui) {
   const prevAward = state.awards[state.week - 1];
   const liveKing = play ? knowledgeKing(state) : null;
   const liveAce = play ? weeklyAce(state) : null;
-  const S = shownSchedule(state);
+  const S = scheduleOf(state);
   const P = paceOf(state);
-  const finalDay = state.week >= FINAL_WEEK || clockNow() >= eventStart(S);
+  const finalDay = state.week >= FINAL_WEEK || (!isFree(state) && clockNow() >= eventStart(S));
   const golden = (state.goldenUntil || 0) > clockNow();
   const visited = u.visitedWeeks.includes(state.week);
   const alliance = allianceList(state);
@@ -445,11 +442,7 @@ export function renderHome(state, ui) {
 
   return `
   <div class="home">
-    <details class="guide-fold"><summary>참여 방법 · 가이드북 보기</summary><guide-cards data-key="home"></guide-cards></details>
-    <a class="expedition-entry" href="lounge.html"><img src="assets/icons/luckybox.png" alt=""><div><small>게임 기록과 포인트를 선물로</small><strong>플레이 라운지 · 선물 응모</strong><span>퀴즈 · 기억력 · 숫자 탐색 · 포인트 배분</span></div><b aria-hidden="true">→</b></a>
-  <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><strong>G-DEAL 액션</strong><span>8개 지역 · 이야기와 보스 전투</span></div><b aria-hidden="true">→</b></a>
-<a class="expedition-entry" href="rpg.html" style="background:linear-gradient(120deg,#333b62,#644b63)"><img src="assets/monsters/antro/antro.png" alt=""><div><strong>G-DEAL RPG</strong><span>턴제 전투 · 지역 탐험 · 장비 수집</span></div><b aria-hidden="true">→</b></a>
-<a class="expedition-entry" href="arcade.html" style="background:linear-gradient(120deg,#293963,#345c67)"><img src="assets/monsters/koalbot/koalbot.png" alt=""><div><strong>G-DEAL 아케이드</strong><span>버블 정원 · 별빛 비행대 · 영어·수학·역사 등 6종 퀴즈</span></div><b aria-hidden="true">→</b></a>
+    <details class="guide-fold"><summary>참여 방법</summary><guide-cards data-key="home"></guide-cards></details>
     ${weekBanner(state, t)}
     ${golden ? `
     <section class="golden-banner" role="status">
@@ -457,6 +450,7 @@ export function renderHome(state, ui) {
       <div><b>골든타임!</b> 지금 먹이를 주면 경험치와 보스 피해가 ${RULES.golden.multiplier}배예요</div>
       <time data-until="${state.goldenUntil}">${timeLeft(state.goldenUntil)}</time>
     </section>` : ''}
+    ${playHub(state, u)}
     ${journeyMap(state, u)}
     ${play || state.week >= FINAL_WEEK ? arena(state, u, ui) : ''}
 
@@ -515,7 +509,7 @@ export function renderHome(state, ui) {
         <p class="todo__note"><b>오늘</b> 표시가 붙은 것은 날마다 새로 채워져요. 자주 들를수록 우리 팀이 쑥쑥 자라요. 퀴즈는 ${P.now} 안에 언제든 풀면 돼요.</p>`
         : `<p class="todo__locked">${state.week < 1
           ? `${weekDates(S, 1).start}에 1${P.round} 원정이 시작돼요. 지금은 우리 커뮤니티 친구들을 원정대로 불러 주세요!`
-          : '사전 원정은 모두 끝났어요. 현장에서 다 함께 대마왕 글리치를 물리쳐요!'}</p>`}
+          : '원정 회차가 모두 끝났어요. 다 함께 대마왕 글리치를 물리쳐요!'}</p>`}
       </section>
 
       <section class="card honor">
@@ -572,11 +566,11 @@ export function renderHome(state, ui) {
 
     <a class="card t-banner" href="#/final">
       <div class="t-banner__text">
-        <span class="eyebrow">${!finalDay ? eventCountdown(S) : 'TODAY'}</span>
-        <h2>${eventDateLabel(S)} 대마왕 글리치와 최종 결전</h2>
+        <span class="eyebrow">${finalDay ? 'TODAY' : isFree(state) ? '프리 모드' : eventCountdown(S)}</span>
+        <h2>${finalWhen(state) ? `${finalWhen(state)} ` : ''}대마왕 글리치와 최종 결전</h2>
         <p>${!finalDay
           ? `지금까지 봉인 조각 ${seals}/4. 현장 상품 “?” 상자 ${state.prizes.length}개가 기다리고 있어요!`
-          : '오늘 한마당 현장에서 다 함께 글리치를 물리쳐요. 응원 버튼을 준비하세요!'}</p>
+          : '오늘 다 함께 글리치를 물리쳐요. 응원 버튼을 준비하세요!'}</p>
       </div>
       <div class="t-banner__mons" aria-hidden="true">
         ${bossImg(FINAL_BOSS.id, 72)}
@@ -586,11 +580,36 @@ export function renderHome(state, ui) {
   </div>`;
 }
 
+// 게임 입구: 게임마다 무엇을 얻는지 보여 준다. 액션만 보스 피해가 있고, RPG·아케이드·라운지 게임 포인트는 하루 한도를 함께 쓴다
+const GAME_POINTS_PER_DAY = 200;
+function playHub(state, u) {
+  const today = u.lounge?.day === kstDay(clockNow()) ? u.lounge.gamePoints || 0 : 0;
+  const games = [
+    { href: 'expedition.html', img: `assets/avatars/${esc(u.avatar)}.png`, name: '액션', kind: '지역 탐험 · 보스 전투', gain: '보스 피해 · 포인트', tone: 'boss' },
+    { href: 'rpg.html', img: 'assets/monsters/antro/antro.png', name: 'RPG', kind: '턴제 모험', gain: '포인트', tone: 'point' },
+    { href: 'arcade.html', img: 'assets/monsters/koalbot/koalbot.png', name: '아케이드', kind: '버블 정원 · 별빛 비행대', gain: '포인트', tone: 'point' },
+    { href: 'lounge.html', img: 'assets/icons/luckybox.png', name: '라운지', kind: '미니게임 · 선물 응모', gain: '포인트로 선물 응모', tone: 'gift' },
+  ];
+  return `
+    <section class="card play-hub">
+      ${secHead('게임', `<span class="sec-note">오늘 게임 포인트 <b>${num(today)}</b>/${GAME_POINTS_PER_DAY}P</span>`)}
+      <div class="play-hub__grid">
+        ${games.map((g) => `
+        <a class="play-tile" href="${g.href}">
+          <img class="px" src="${g.img}" alt="" width="48" height="48">
+          <b>${g.name}</b>
+          <small>${g.kind}</small>
+          <span class="play-tile__gain play-tile__gain--${g.tone}">${g.gain}</span>
+        </a>`).join('')}
+      </div>
+    </section>`;
+}
+
 // 이번 주 안내 띠: 원정대 모집 / N주차 / 결전의 날
 function weekBanner(state, t) {
-  const S = shownSchedule(state);
+  const S = scheduleOf(state);
   const P = paceOf(state);
-  const paceBadge = S.quick ? `<span class="pace-badge">미리 해 보기 · ${P.label}마다 새 ${P.round}</span>` : '';
+  const paceBadge = S.quick && !isFree(state) ? `<span class="pace-badge">미리 해 보기 · ${P.label}마다 새 ${P.round}</span>` : '';
   if (state.week < 1) {
     const crew = Object.values(state.users);
     return `
@@ -599,7 +618,7 @@ function weekBanner(state, t) {
       <div>
         <span class="eyebrow">원정대 모집 중</span>${paceBadge}
         <h2>${weekDates(S, 1).start}, 1${P.round} 원정 출발!</h2>
-        <p>보스 4마리를 한 마리씩 차례로 물리치고, ${eventDateLabel(S)} 현장에서 대마왕 글리치와 최종 결전을 해요.
+        <p>보스 4마리를 한 마리씩 차례로 물리치고, ${eventDateLabel(S)}에 대마왕 글리치와 최종 결전을 해요.
           지금 원정대 <b>${num(crew.length)}명</b>, ${esc(t.community)}에서 <b>${crew.filter((u) => u.teamId === t.id).length}명</b>이 모였어요.</p>
         <div class="crew-wall crew-wall--sm">${crew.slice(-24).reverse().map((u) => face(u, 28)).join('')}</div>
       </div>
@@ -612,7 +631,7 @@ function weekBanner(state, t) {
       <div>
         <span class="eyebrow">결전의 날</span>${paceBadge}
         <h2>${eventDateLabel(S)} 대마왕 글리치와 최종 결전</h2>
-        <p>한 달 동안 함께 키운 몬스터 ${TEAMS.length}마리와 원정대 모두가 힘을 합쳐요. 결전 화면에서 응원 버튼을 기다려 주세요!</p>
+        <p>시즌 동안 함께 키운 몬스터 ${TEAMS.length}마리와 원정대 모두가 힘을 합쳐요. 결전 화면에서 응원 버튼을 기다려 주세요!</p>
       </div>
     </section>`;
   }
@@ -632,7 +651,7 @@ function weekBanner(state, t) {
 
 // ================================================================ 이번 주 미션
 export function renderMission(state, ui) {
-  const S = shownSchedule(state);
+  const S = scheduleOf(state);
   const P = paceOf(state);
   const u = me(state);
   const d = weekly(state, u);
@@ -643,7 +662,7 @@ export function renderMission(state, ui) {
 
   let attendMsg;
   if (state.week < 1) attendMsg = `${weekDates(S, 1).start}에 1${P.round} 원정이 시작돼요. 그때 첫 방문 보너스를 받을 수 있어요.`;
-  else if (state.week >= FINAL_WEEK) attendMsg = '사전 원정이 모두 끝났어요. 현장에서 만나요!';
+  else if (state.week >= FINAL_WEEK) attendMsg = '원정 회차가 모두 끝났어요. 최종 결전에서 만나요!';
   else attendMsg = visited
     ? `${icon('food', 24)} ${state.week}${P.round} 첫 방문 보너스로 먹이 ${RULES.weeklyVisitFood}개를 받았어요.`
     : `${P.now} 첫 방문 보너스를 받아요.`;
@@ -704,7 +723,7 @@ function aiCards(state, ui, u) {
   const set = cardsForWeek(state.week);
   if (!set || !c || !c.total) return '';
   const P = paceOf(state);
-  const every = byDay(shownSchedule(state)) ? '매일' : P.every;   // 이틀 넘는 회차면 날마다 열린다
+  const every = byDay(scheduleOf(state)) ? '매일' : P.every;   // 이틀 넘는 회차면 날마다 열린다
   const read = new Set(c.read || []);
   const left = c.open - c.readCount;
   const collected = (c.read || []).length;
@@ -746,7 +765,7 @@ function aiCards(state, ui, u) {
         <span class="ai-cards__count">모은 카드 <b>${num(collected)}</b> / ${num(totalAll)}장</span>
         <span class="goal__bar"><span style="width:${pct(collected, totalAll)}%"></span></span>
       </div>
-      <p class="ai-cards__steady">${icon('seal', 18)}제때 읽기 <b>${num(c.onTime || 0)}</b>회 — 가장 많은 대원이 현장에서 <b>꾸준상</b>을 받아요</p>
+      <p class="ai-cards__steady">${icon('seal', 18)}제때 읽기 <b>${num(c.onTime || 0)}</b>회 — 가장 많은 대원이 최종 결전에서 <b>꾸준상</b>을 받아요</p>
       ${missedNow + pastLeft > 0 ? `<p class="ai-cards__new">${icon('premium', 20)}안 읽은 카드 <b>${missedNow + pastLeft}장</b>${pastLeft ? ` (지난 회차 ${pastLeft}장 포함)` : ''} — 지금 몰아 보기 좋아요!</p>` : ''}
       <ul class="ai-cards__list">${list}</ul>
       ${c.nextAt ? `<p class="ai-cards__next">다음 카드는 <time data-refresh="${c.nextAt}">${timeLeft(c.nextAt)}</time> 뒤에 열려요.</p>` : '<p class="ai-cards__next">이번 회차 카드가 모두 열렸어요.</p>'}
@@ -826,7 +845,7 @@ function renderQuiz(state, ui, u, d, qs) {
 const HAND_NAMES = { rock: '바위', scissors: '가위', paper: '보' };
 
 export function renderPlay(state, ui) {
-  const S = shownSchedule(state);
+  const S = scheduleOf(state);
   const P = paceOf(state);
   const u = me(state);
   const d = weekly(state, u);
@@ -840,7 +859,7 @@ export function renderPlay(state, ui) {
     <details class="odds"><summary>확률 보기</summary>
       <ul>${rows.map(([label, w]) => `<li><span>${label}</span><b>${w}%</b></li>`).join('')}</ul>
     </details>`;
-  const locked = state.week < 1 ? `${weekDates(S, 1).start}에 열려요` : '사전 원정이 끝났어요';
+  const locked = state.week < 1 ? `${weekDates(S, 1).start}에 열려요` : '원정 회차가 끝났어요';
 
   let bossLine = '내 손을 읽을 수 있을까?';
   if (lastRps === 'win') bossLine = rpsLeft ? '크윽… 한 판 더 붙자!' : '크윽… 내일 보자!';
@@ -848,10 +867,7 @@ export function renderPlay(state, ui) {
 
   return `
   ${pageHead('도전 · 뽑기', `운과 배짱으로 원정을 도와요. 럭키박스는 하루에 ${RULES.luckyPerDay}번, 보스 가위바위보는 ${RULES.rpsPerDay}번! 날마다 다시 채워져요.`)}
-  <a class="expedition-entry" href="lounge.html"><img src="assets/icons/luckybox.png" alt=""><div><small>게임 기록과 포인트를 선물로</small><strong>플레이 라운지 · 선물 응모</strong><span>퀴즈 · 기억력 · 숫자 탐색 · 포인트 배분</span></div><b aria-hidden="true">→</b></a>
-  <a class="expedition-entry" href="expedition.html"><img src="assets/avatars/${esc(u.avatar)}.png" alt=""><div><strong>G-DEAL 액션</strong><span>8개 지역 · 이야기와 보스 전투</span></div><b aria-hidden="true">→</b></a>
-<a class="expedition-entry" href="rpg.html" style="background:linear-gradient(120deg,#333b62,#644b63)"><img src="assets/monsters/antro/antro.png" alt=""><div><strong>G-DEAL RPG</strong><span>턴제 전투 · 지역 탐험 · 장비 수집</span></div><b aria-hidden="true">→</b></a>
-<a class="expedition-entry" href="arcade.html" style="background:linear-gradient(120deg,#293963,#345c67)"><img src="assets/monsters/koalbot/koalbot.png" alt=""><div><strong>G-DEAL 아케이드</strong><span>버블 정원 · 별빛 비행대 · 영어·수학·역사 등 6종 퀴즈</span></div><b aria-hidden="true">→</b></a>
+  ${playHub(state, u)}
   <div class="play">
     <section class="card play-card">
       ${secHead('럭키박스', play ? `<span class="sec-note">오늘 남은 횟수 <b>${luckyLeft}</b>/${RULES.luckyPerDay}</span>` : '')}
@@ -1060,7 +1076,7 @@ export function renderCheerPicker(state) {
 
 // ================================================================ 원정대
 export function renderCrew(state, ui) {
-  const S = shownSchedule(state);
+  const S = scheduleOf(state);
   const P = paceOf(state);
   const u = me(state);
   const tab = ui.crewTab || 'alliance';
@@ -1247,7 +1263,7 @@ export function renderFinal(state, ui) {
   const hp = Math.max(0, f.maxHp - f.dmg);
   const open = cheerOpen(state, clockNow());
   const won = !!state.final?.wonAt;
-  const S = shownSchedule(state);
+  const S = scheduleOf(state);
   const P = paceOf(state);
 
   const seals = BOSSES.map((b) => {
@@ -1320,12 +1336,12 @@ export function renderFinal(state, ui) {
   }
 
   return `
-  ${pageHead('최종 결전', `${eventDateLabel(S)} 한마당 현장에서, 원정대 모두가 힘을 합쳐 대마왕 글리치를 물리쳐요.`)}
+  ${pageHead('최종 결전', `${finalWhen(state) ? `${finalWhen(state)}, ` : ''}원정대 모두가 힘을 합쳐 대마왕 글리치를 물리쳐요.`)}
   <div class="final">
     <section class="card final-hero ${won ? 'is-won' : ''}" style="--boss:${FINAL_BOSS.color}">
       <div class="final-hero__boss">${bossImg(FINAL_BOSS.id, 64)}</div>
       <div class="final-hero__body">
-        <span class="eyebrow">${onDay ? (won ? '승리!' : 'TODAY · 결전 중') : `${eventCountdown(S)} · ${eventDateLabel(S)}`}</span>
+        <span class="eyebrow">${onDay ? (won ? '승리!' : 'TODAY · 결전 중') : isFree(state) ? '프리 모드' : `${eventCountdown(S)} · ${eventDateLabel(S)}`}</span>
         <h2>${esc(FINAL_BOSS.name)}</h2>
         <p>${esc(FINAL_BOSS.desc)}</p>
         <div class="boss-hp boss-hp--final"><span style="width:${pct(hp, f.maxHp)}%"></span></div>
@@ -1414,16 +1430,25 @@ export function renderAdmin(state, ui) {
 
   const S = scheduleOf(state);
   const P = paceOf(state);
-  const weekText = ov.week < 1 ? '원정대 모집 중' : ov.week >= FINAL_WEEK ? '결전의 날(현장)' : `${ov.week}${P.round} (전체 ${ov.weeks}번)`;
-  const nextText = ov.week + 1 >= FINAL_WEEK ? '결전의 날(현장)로 넘기기' : `${ov.week + 1}${P.round}로 넘기기`;
+  const weekText = ov.week < 1 ? '원정대 모집 중' : ov.week >= FINAL_WEEK ? '결전의 날' : `${ov.week}${P.round} (전체 ${ov.weeks}번)`;
+  const nextText = ov.week + 1 >= FINAL_WEEK ? '결전의 날로 넘기기' : `${ov.week + 1}${P.round}로 넘기기`;
   const goldenOn = (ov.goldenUntil || 0) > clockNow();
   const fin = ov.final;
   const cheerOn = fin && !fin.wonAt && fin.cheerUntil > clockNow();
   const totalCheer = fin ? Object.values(fin.cheers || {}).reduce((s, n) => s + n, 0) : 0;
   const prizes = ui.adminPrizes || ov.prizes;
+  // 시작·종료 두 칸. 새 시즌은 다음 0시부터 4주를 미리 넣어 두고, 일정 칸은 저장된 날짜를 보여 준다
+  const kstDayMs = 24 * 3600 * 1000;
+  const nextMidnight = Math.floor((clockNow() + 9 * 3600 * 1000) / kstDayMs) * kstDayMs - 9 * 3600 * 1000 + kstDayMs;
+  const fresh = defaultSchedule(nextMidnight);
+  const seasonDraft = { start: ui.seasonStart ?? kstInput(fresh.start), end: ui.seasonEnd ?? kstInput(fresh.end) };
+  const schedDraft = { start: ui.schedDraft?.start ?? kstInput(S.start), end: ui.schedDraft?.end ?? kstInput(S.end) };
+  const periodSum = (start, end) => (!Number.isFinite(start) || !Number.isFinite(end) || end <= start
+    ? '종료는 시작보다 뒤로 골라 주세요.'
+    : `<b>${whenText(start)}</b> 시작 → <b>${whenText(end)}</b> 최종 결전 · ${periodLabel((end - start) / EVENT.weeks)}마다 ${EVENT.weeks}회차`);
 
   return `
-  ${pageHead('운영자', `참가자 ${num(ov.userCount)}명 · ${weekText} · 현장 모임 ${eventDateLabel(S)}${S.quick ? ` · 미리 해 보기(${P.label})` : ''}`)}
+  ${pageHead('운영자', `참가자 ${num(ov.userCount)}명 · ${weekText} · 최종 결전 ${eventDateLabel(S)}${S.quick ? ` · 미리 해 보기(${P.label})` : ''}`)}
   <a class="expedition-entry" href="lounge.html#admin"><img src="assets/icons/mystery.png" alt=""><div><small>포인트 응모 선물 관리</small><strong>선물 등록 · 수량 · 회차 · 추첨</strong><span>선물 최대 10종 · 수량별 당첨자 선정 · 지급 확인</span></div><b aria-hidden="true">→</b></a>
   <div class="admin">
     <section class="card">
@@ -1487,15 +1512,13 @@ export function renderAdmin(state, ui) {
       <p class="sec-desc">대원 계정·아바타·포인트·아이템과 지식의 숲·RPG·아케이드·라운지 기록은 그대로 두고, 보스·커뮤니티 경험치·시상과 개인 시즌 기록(먹이, 보스 피해, 맞힌 문제, AI 카드)을 0부터 다시 쌓아요. 지금까지의 기록은 랭킹 보드의 지난 기록에 남아요.</p>
       <div class="admin-sched">
         <label class="admin-sched__field"><span>시작</span>
-          <input type="datetime-local" id="seasonStart" value="${ui.seasonStart ?? kstInput(seasonDefaultStart())}">
+          <input type="datetime-local" id="seasonStart" value="${seasonDraft.start}">
+        </label>
+        <label class="admin-sched__field"><span>종료</span>
+          <input type="datetime-local" id="seasonEnd" value="${seasonDraft.end}">
         </label>
       </div>
-      <p class="admin-sched__sum">${(() => {
-        const start = fromKstInputView(ui.seasonStart ?? kstInput(seasonDefaultStart()));
-        const end = eventDefaultMs();
-        if (!Number.isFinite(start) || start >= end) return '시작 시각을 현장 결전 전으로 골라 주세요.';
-        return `<b>${whenText(start)}</b> 시작, ${periodLabel((end - start) / EVENT.weeks)}마다 ${EVENT.weeks}회차 → <b>${eventDateLabelDefault()}</b> 현장 결전`;
-      })()}</p>
+      <p class="admin-sched__sum">${periodSum(fromKstInputView(seasonDraft.start), fromKstInputView(seasonDraft.end))}</p>
       <div class="admin-golden">
         <button class="btn btn--primary" data-action="admin-season-start">정규 시즌 시작</button>
       </div>
@@ -1514,27 +1537,18 @@ export function renderAdmin(state, ui) {
     </section>
 
     <section class="card">
-      ${secHead('일정 (시작 · 간격)', `<span class="sec-note">회차마다 ${P.label}${S.quick ? ' · 미리 해 보기' : ''}</span>`)}
-      <p class="sec-desc">시작 시각에 1${P.round}가 열리고, 고른 <b>간격</b>마다 다음 회차로 넘어가요. ${EVENT.weeks}회차가 끝나는 시각이 곧 <b>현장 결전</b>이에요. 날짜와 시각은 한국 시간이에요.</p>
+      ${secHead('일정 (시작 · 종료)', `<span class="sec-note">회차마다 ${P.label}${S.quick ? ' · 미리 해 보기' : ''}</span>`)}
+      <p class="sec-desc">기록은 그대로 두고 날짜만 바꿔요. 시작 시각에 1${P.round}가 열리고 종료 시각에 최종 결전이 열리며, 그 사이를 ${EVENT.weeks}회차로 똑같이 나눠요. 날짜와 시각은 한국 시간이에요.</p>
       <div class="admin-sched">
         <label class="admin-sched__field"><span>시작</span>
-          <input type="datetime-local" id="schedStart" value="${ui.schedDraft?.start ?? kstInput(S.start)}">
+          <input type="datetime-local" id="schedStart" value="${schedDraft.start}">
           <button class="btn btn--soft btn--sm" data-action="admin-sched-now">지금</button>
-          <button class="btn btn--soft btn--sm" data-action="admin-sched-nov">11월 21일</button>
+        </label>
+        <label class="admin-sched__field"><span>종료</span>
+          <input type="datetime-local" id="schedEnd" value="${schedDraft.end}">
         </label>
       </div>
-      <p class="sec-desc admin-sched__quick">회차 간격 고르기</p>
-      <div class="admin-golden">
-        ${Object.entries(PACES).map(([k, q]) => `
-          <button class="btn btn--soft ${(ui.schedGap ?? paceKeyFor(S)) === k ? 'is-active' : ''}" data-action="admin-sched-gap" data-gap="${k}">${q.label}</button>`).join('')}
-      </div>
-      <p class="admin-sched__sum">${(() => {
-        const gap = PACES[ui.schedGap ?? paceKeyFor(S)];
-        const start = ui.schedDraft?.start ? fromKstInputView(ui.schedDraft.start) : S.start;
-        if (!gap || !Number.isFinite(start)) return '간격을 골라 주세요.';
-        const end = start + EVENT.weeks * gap.ms;
-        return `${gap.label}마다 ${EVENT.weeks}번 → <b>${whenText(start)}</b> 시작, <b>${whenText(end)}</b> 현장 결전`;
-      })()}</p>
+      <p class="admin-sched__sum">${periodSum(fromKstInputView(schedDraft.start), fromKstInputView(schedDraft.end))}</p>
       <div class="admin-golden">
         <button class="btn btn--primary" data-action="admin-sched-save">이 일정으로 저장</button>
       </div>
@@ -1542,11 +1556,6 @@ export function renderAdmin(state, ui) {
         ${BOSSES.map((b) => `<li${state.week === b.week ? ' class="is-now"' : ''}><b>${b.week}${P.round}</b><span>${weekDates(S, b.week).start} ~ ${weekDates(S, b.week).end}</span><small>${esc(b.name)}</small></li>`).join('')}
         <li${state.week >= FINAL_WEEK ? ' class="is-now"' : ''}><b>결전</b><span>${eventDateLabel(S)}</span><small>${esc(FINAL_BOSS.name)}</small></li>
       </ol>
-      <p class="sec-desc admin-sched__quick">지금 바로 시작 — 누르는 순간 이번 회차가 새로 시작되고, 그 뒤로 이 간격마다 넘어가요</p>
-      <div class="admin-golden">
-        ${Object.entries(PACES).map(([k, q]) => `<button class="btn btn--soft" data-action="admin-pace" data-pace="${k}">${q.label}마다</button>`).join('')}
-      </div>
-      <p class="sec-desc admin-pace__note">미리 해 보기가 끝나면 “프리 모드”로 돌리거나 “정규 시즌 시작”을 누르세요. 대원 계정은 그대로 남아요.</p>
     </section>
 
     <section class="card">

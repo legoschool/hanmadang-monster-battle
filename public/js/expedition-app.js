@@ -1,11 +1,11 @@
-import {showOpening} from './opening-story.js?v=quest10';
+import {showOpening} from './opening-story.js?v=evt1';
 import {loadArtImage} from './character-art.js?v=quest10';
 import {TEAMS} from './config.js';
 import {petGrowthMarkup} from './pet-growth.js?v=growth1';
 import {levelInfo} from './game.js';
 import {companionSpec} from './expedition-companions.js?v=growth1';
 import {BIOMES} from './expedition-environment.js?v=pet1';
-import {storyPages,StoryDirector,CHAPTERS} from './expedition-story.js?v=action1';
+import {storyPages,StoryDirector,CHAPTERS} from './expedition-story.js?v=evt1';
 import * as API from './api.js';
 import {loadLookQuick} from './player-look.js?v=look1';
 import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=story5';
@@ -69,8 +69,8 @@ function renderLobby(){
   const z=zoneById(zone),lv=profile.level,weapon=gearById(profile.weapon),charm=gearById(profile.charm);
   const spots=[[18,38],[37,25],[64,22],[84,37],[82,68],[62,78],[35,78],[16,68]];
   $('expedition').innerHTML=header()+`<section class="lobby">
-    <div class="intro"><div><h1>G-DEAL 액션</h1><p>여덟 지역의 한마당 기록을 회수하세요.</p></div><span class="season-tag">${ZONES.length}개 지역 · ${profile.total}문제 · 내 속도로</span></div>
-    <p class="chapter-status">이 기기 회수 기록: ${new Set(storyRead.filter(r=>r.beat==='win').map(r=>r.zone)).size} / 8 · ${esc(CHAPTERS.find(c=>c[0]===zone)?.[1]||'')}</p><div class="lobby-grid"><div class="map-card"><div class="map-scene"><span class="map-label">한마당 기록 지도</span>
+    <div class="intro"><div><h1>G-DEAL 액션</h1><p>여덟 지역의 원정 기록을 회수하세요.</p></div><span class="season-tag">${ZONES.length}개 지역 · ${profile.total}문제 · 내 속도로</span></div>
+    <p class="chapter-status">이 기기 회수 기록: ${new Set(storyRead.filter(r=>r.beat==='win').map(r=>r.zone)).size} / 8 · ${esc(CHAPTERS.find(c=>c[0]===zone)?.[1]||'')}</p><div class="lobby-grid"><div class="map-card"><div class="map-scene"><span class="map-label">원정 기록 지도</span>
       <svg class="map-path" viewBox="0 0 800 270" aria-hidden="true"><path d="M88 98 Q80 35 220 30 T600 63 Q760 110 665 194 T248 205 Q32 210 88 98" fill="none" stroke="#b9b58055" stroke-width="17"/><path d="M88 98 Q80 35 220 30 T600 63 Q760 110 665 194 T248 205 Q32 210 88 98" fill="none" stroke="#a8b18d" stroke-width="1.5" stroke-dasharray="4 9"/></svg>
       ${[5,24,46,70,93].map((x,i)=>`<i class="map-tree" style="left:${x}%;top:${i%2?58:4}%;opacity:.55"></i>`).join('')}
       <img class="map-hero" src="assets/avatars/${esc(profile.avatar)}.png" alt="내 원정대 아바타">

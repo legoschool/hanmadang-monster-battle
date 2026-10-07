@@ -6,7 +6,7 @@ export async function showOpening({force=false}={}){
  if(!force&&openingSeen())return;
  const look=cachedLook(),calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
  const scenes=[
-  ['G-DEAL 기록실','한마당을 기다리던 날','커뮤니티가 함께 만든 활동과 아이디어가 한마당 기록실에 모이고 있었다.'],
+  ['G-DEAL 기록실','원정을 앞둔 날','커뮤니티가 함께 만든 활동과 아이디어가 G-DEAL 기록실에 모이고 있었다.'],
   ['긴급 신호','연결이 끊겼다','출처를 확인하지 않은 파일에서 바이러스가 번졌다. 기록은 흩어지고, 연락망이 하나씩 꺼졌다.'],
   [look.petName||'동행 펫','아직 지울 수 없는 것', '“이 안에는 우리가 함께 만든 시간이 있어요. 원본 신호가 남아 있어요. 저와 같이 찾아 주세요.”'],
   ['글리치','혼란이 모습을 드러냈다','글리치는 손상된 기록에 숨어 오류를 반복시키고, 가짜 목소리와 거짓 정보를 퍼뜨렸다.'],

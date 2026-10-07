@@ -3,7 +3,7 @@ import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, MODES, SERVER_READY, spriteOf
 import * as G from './game.js';
 import * as API from './api.js';
 import { rememberLook } from './player-look.js?v=look1';
-import * as V from './views.js?v=season1';
+import * as V from './views.js?v=evt1';
 import { esc, num, icon, openModal, updateModal, closeModal, modalOpen, toast, floatText, bump, confetti, wait, timeLeft, now, setServerNow } from './ui.js';
 
 const POLL_MS = 12000;
@@ -15,7 +15,7 @@ const ui = {
   startMode: new URLSearchParams(location.search).get('mode') === 'resume' ? 'resume' : new URLSearchParams(location.search).get('mode') === 'join' ? 'join' : null,
   pickTeam: null, pickAvatar: null, quizReveal: null, crewTab: 'alliance', crewMode: 'week',
   giftKind: 'food', giftTeam: null, rpsLast: null, busy: false, codeRevealed: false, hintsShown: {}, boardKey: 'dmg',
-  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null, keyShown: false, keyDraft: '', schedGap: null,
+  findName: '', foundHint: null, hintQ: '', hintA: '', cardOpen: null, keyShown: false, keyDraft: '',
   adminOverview: null, adminError: '', adminPrizes: null, schedDraft: null,
   seenHit: 0, seenRounds: null, seenPrizes: null,
   cheerQueue: 0, cheerInflight: 0, cheerPending: 0,
@@ -131,7 +131,7 @@ function render() {
   if (!me() && name !== 'admin') {
     app.classList.add('is-onboarding');
     $('view').innerHTML = V.renderOnboarding(state, ui);
-    document.title = `${EVENT.name} ${EVENT.title}`;
+    document.title = EVENT.title;
     return;
   }
   app.classList.toggle('is-onboarding', !me());
@@ -155,7 +155,7 @@ function render() {
     else a.removeAttribute('aria-current');
   });
   const label = name === 'admin' ? '운영자' : V.NAV.find((n) => n.route === name)?.label;
-  document.title = `${label} · ${EVENT.name} ${EVENT.title}`;
+  document.title = `${label} · ${EVENT.title}`;
 }
 
 function onRouteChange() {
@@ -828,52 +828,27 @@ const actions = {
   },
   'admin-next-week': async () => {
     const next = ui.adminOverview.week + 1;
-    if (!confirm(`${next > ui.adminOverview.weeks ? '결전의 날(현장)' : `${next}${pace().round}`}로 넘길까요? ${pace().prev} 시상과 팀 몫 보상이 지급되고, 못 잡은 보스는 도망가요. 되돌릴 수 없어요.`)) return;
+    if (!confirm(`${next > ui.adminOverview.weeks ? '결전의 날' : `${next}${pace().round}`}로 넘길까요? ${pace().prev} 시상과 팀 몫 보상이 지급되고, 못 잡은 보스는 도망가요. 되돌릴 수 없어요.`)) return;
     const res = await adminCall('nextWeek');
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
     else if (res) toast(`<span><b>${res.week > ui.adminOverview.weeks ? '결전의 날' : `${res.week}${pace().round}`}</b>가 시작됐어요</span>`, 'good');
-  },
-  'admin-pace': async (el) => {
-    const Q = PACES[el.dataset.pace];
-    if (!confirm(`빠른 미리 해 보기: 지금 회차를 바로 새로 시작하고, ${Q.label}마다 다음 회차가 열리게 할까요?`)) return;
-    const res = await adminCall('pace', { pace: el.dataset.pace });
-    if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
-    else if (res) {
-      ui.schedDraft = null;
-      render();
-      toast(`<span><b>${Q.label}마다</b> 새 회차가 열려요 (미리 해 보기)</span>`, 'good');
-    }
   },
   'admin-sched-now': () => {
     ui.schedDraft = { ...(ui.schedDraft || {}), start: kstInput(now()) };
     render();
   },
-  'admin-sched-nov': () => {
-    const s = new Date(G.eventDefaultMs() - EVENT.weeks * 7 * 24 * 3600 * 1000);
-    ui.schedDraft = { ...(ui.schedDraft || {}), start: kstInput(s.getTime()) };
-    ui.schedGap = 'week';
-    render();
-  },
-  'admin-sched-gap': (el) => {
-    ui.schedGap = el.dataset.gap;
-    ui.schedDraft = { ...(ui.schedDraft || {}), start: $('schedStart')?.value || ui.schedDraft?.start };
-    render();
-  },
   'admin-sched-save': async () => {
     const start = fromKstInput($('schedStart').value);
-    const gap = PACES[ui.schedGap || ''] || PACES[G.paceKeyFor(G.scheduleOf(state))];
-    if (!Number.isFinite(start) || !gap) return toast('<span>시작 시각과 간격을 정해 주세요</span>', 'warn');
-    const end = start + EVENT.weeks * gap.ms;
-    const sch = { start, end, quick: gap.ms < 24 * 3600 * 1000 };
-    const P = G.paceFor(sch);
-    const msg = `이 일정으로 저장할까요?\n\n시작: ${G.weekDates(sch, 1).start}\n간격: ${gap.label}마다 (${EVENT.weeks}회차)\n현장 결전: ${G.eventDateLabel(sch)}`
+    const end = fromKstInput($('schedEnd').value);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return toast('<span>종료는 시작보다 뒤로 골라 주세요</span>', 'warn');
+    const sch = { start, end };
+    const msg = `이 일정으로 저장할까요?\n\n시작: ${G.weekDates(sch, 1).start}\n간격: ${G.paceFor(sch).label}마다 (${EVENT.weeks}회차)\n최종 결전: ${G.eventDateLabel(sch)}`
       + (start <= now() ? '\n\n시작 시각이 이미 지났으면 지금 바로 그 회차로 넘어가요.' : '');
     if (!confirm(msg)) return;
     const res = await adminCall('schedule', { start, end });
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
     else if (res) {
       ui.schedDraft = null;
-      ui.schedGap = null;
       render();
       toast('<span><b>일정을 저장했어요</b></span>', 'good');
     }
@@ -895,8 +870,8 @@ const actions = {
     if (!confirm(`「${mode.label}」(${mode.sub})로 바꿀까요? 지금 회차가 새로 시작돼요.`)) return;
     let res;
     if (mode.project) {
-      const end = G.eventDefaultMs();
-      res = await adminCall('schedule', { start: end - EVENT.weeks * 7 * 24 * 3600 * 1000, end });
+      const sch = G.defaultSchedule(now());
+      res = await adminCall('schedule', { start: sch.start, end: sch.end });
     } else {
       res = await adminCall('pace', { pace: mode.pace });
     }
@@ -1007,10 +982,10 @@ const actions = {
   },
   'admin-season-start': async () => {
     const start = fromKstInput($('seasonStart')?.value);
-    const end = G.eventDefaultMs();
-    if (!Number.isFinite(start) || start >= end) return toast('<span>시작 시각을 현장 결전 전으로 골라 주세요</span>', 'warn');
+    const end = fromKstInput($('seasonEnd')?.value);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return toast('<span>종료는 시작보다 뒤로 골라 주세요</span>', 'warn');
     const sch = { start, end };
-    const typed = prompt(`정규 시즌을 시작할까요?\n\n시작: ${G.weekDates(sch, 1).start}\n간격: ${G.paceFor(sch).label}마다 (${EVENT.weeks}회차)\n현장 결전: ${G.eventDateLabel(sch)}\n\n`
+    const typed = prompt(`정규 시즌을 시작할까요?\n\n시작: ${G.weekDates(sch, 1).start}\n간격: ${G.paceFor(sch).label}마다 (${EVENT.weeks}회차)\n최종 결전: ${G.eventDateLabel(sch)}\n\n`
       + '대원 계정·포인트·아이템과 지식의 숲·RPG·아케이드·라운지 기록은 남고, 보스·커뮤니티 경험치·시상과 개인 시즌 기록은 0부터 시작해요.\n'
       + '계속하려면 "시즌 시작"이라고 적어 주세요.');
     if (typed?.trim() !== '시즌 시작') return;
@@ -1018,8 +993,8 @@ const actions = {
     if (res && !res.ok) toast(`<span>${esc(res.reason)}</span>`, 'warn');
     else if (res) {
       ui.seasonStart = null;
+      ui.seasonEnd = null;
       ui.schedDraft = null;
-      ui.schedGap = null;
       ui.adminPrizes = null;
       ui.seenRounds = 0;
       ui.seenPrizes = new Set();
@@ -1075,7 +1050,9 @@ document.addEventListener('input', (e) => {
   }
   if (t.dataset.prizeName !== undefined) editablePrizes()[Number(t.dataset.prizeName)].name = t.value;
   if (t.id === 'schedStart') ui.schedDraft = { ...(ui.schedDraft || {}), start: t.value };
+  if (t.id === 'schedEnd') ui.schedDraft = { ...(ui.schedDraft || {}), end: t.value };
   if (t.id === 'seasonStart') ui.seasonStart = t.value;
+  if (t.id === 'seasonEnd') ui.seasonEnd = t.value;
   if (t.id === 'nickname') ui.nickname = t.value;
   if (t.id === 'hintQ') ui.hintQ = t.value;
   if (t.id === 'hintA') ui.hintA = t.value;
@@ -1086,7 +1063,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.dataset.prizeAward !== undefined) editablePrizes()[Number(t.dataset.prizeAward)].award = t.value;
-  if (t.id === 'seasonStart') render();   // 시작 시각을 바꾸면 회차 간격 요약을 다시 계산한다
+  if (['seasonStart', 'seasonEnd', 'schedStart', 'schedEnd'].includes(t.id)) render();   // 날짜를 바꾸면 회차 간격 요약을 다시 계산한다
 });
 
 window.addEventListener('hashchange', onRouteChange);
@@ -1147,7 +1124,7 @@ async function boot() {
     $('view').innerHTML = `
       <div class="boot">
         <img class="px" src="assets/icons/luckybox.png" width="96" height="96" alt="">
-        <p><b>${EVENT.name} ${EVENT.title}를 준비하고 있어요.</b><br>곧 문이 열려요. 조금만 기다려 주세요!</p>
+        <p><b>${EVENT.title}를 준비하고 있어요.</b><br>곧 문이 열려요. 조금만 기다려 주세요!</p>
       </div>`;
     return;
   }

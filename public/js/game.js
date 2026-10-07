@@ -1,9 +1,9 @@
 // 게임 규칙. 모든 함수는 state를 직접 바꾸고 결과 객체를 돌려준다.
 // 판정은 서버(server/api.js)가 이 파일로 한다. 브라우저는 계산된 값을 화면에 보여 줄 때만 쓴다.
 //
-// 일정은 '주' 단위다. week 0 = 시즌 시작 전, 1~4 = 사전 원정 주, FINAL_WEEK = 현장 모임(최종 결전).
+// 일정은 회차 단위다. week 0 = 시즌 시작 전, 1~4 = 원정 회차, FINAL_WEEK = 끝 날짜의 최종 결전.
 // 협력형: 모든 커뮤니티가 한 원정대다. 원래 하던 활동(먹이·퀴즈·가위바위보)이 그대로 그 주 보스 공격이 되고,
-// 모두 함께 보스를 쓰러뜨리면 참여자 전원이 보상을 받는다. 현장 모임 날에는 다 함께 대마왕 글리치와 싸운다.
+// 모두 함께 보스를 쓰러뜨리면 참여자 전원이 보상을 받는다. 끝 날짜에는 다 함께 대마왕 글리치와 싸운다.
 import {
   EVENT, TEAMS, RULES, LUCKY_BOX, GACHA, ITEMS, STAGES, BOSSES, FINAL_BOSS, AVATARS, PRIZE_AWARDS, DEFAULT_PRIZES, PACES, LEVELS, SKILL_LEVEL, expForLevel,
 } from './config.js';
@@ -26,21 +26,19 @@ export const isAvatar = (id) => AVATARS.some((a) => a.id === id);
 
 // ---------------------------------------------------------------- 일정
 // 일정(schedule)은 게임 상태에 저장된다: { start, end, quick }
-//   start: 1주차(1회차)가 열리는 시각, end: 현장 결전이 시작되는 시각. 그 사이를 4번으로 똑같이 나눈다.
-//   기본값: 게임을 만든(초기화한) 순간 바로 시작 → 12월 19일(토) 0시 결전. 운영자 화면에서 두 날짜를 고친다.
+//   start: 1회차가 열리는 시각, end: 최종 결전이 시작되는 시각. 그 사이를 4번으로 똑같이 나눈다.
+//   기본값: 게임을 만든(초기화한) 순간 바로 시작 → 4주 뒤 결전. 운영자 화면에서 두 날짜를 고친다.
 //   quick: 운영자가 고른 "빠른 미리 해 보기"(10분·30분·1시간·1일). 혼자서도 해 볼 수 있게 보스 체력을 낮춘다.
-const EVENT_MS = Date.parse(`${EVENT.eventDate}T00:00:00+09:00`);
-export const eventDefaultMs = () => EVENT_MS;
 const LEGACY_MS = { week: 7 * DAY, day: DAY, hour: HOUR, min30: 30 * MIN, min10: 10 * MIN };
 
 export function defaultSchedule(now = Date.now()) {
-  const end = EVENT_MS > now + EVENT.weeks * MIN ? EVENT_MS : now + EVENT.weeks * 7 * DAY;
-  return { start: Math.floor(now / MIN) * MIN, end, quick: false };
+  const start = Math.floor(now / MIN) * MIN;
+  return { start, end: start + EVENT.weeks * 7 * DAY, quick: false };
 }
 
 // 예전 모양({ pace, start, real })도 읽어 준다
 export function normalizeSchedule(sch) {
-  if (!sch) return { start: EVENT_MS - EVENT.weeks * 7 * DAY, end: EVENT_MS, quick: false };
+  if (!sch) return defaultSchedule();
   if (sch.end) return sch;
   const ms = LEGACY_MS[sch.pace] || LEGACY_MS.week;
   return { start: sch.start, end: sch.start + EVENT.weeks * ms, quick: !sch.real };
@@ -116,7 +114,7 @@ export function weekDates(sch, week) {
 
 export const eventDateLabel = (sch) => (isMidnight(sch.end) ? dateLabel(sch.end) : `${dateLabel(sch.end)} ${clockLabel(sch.end)}`);
 
-// 현장 결전까지 남은 날 (달력 기준, 당일 0)
+// 최종 결전까지 남은 날 (달력 기준, 당일 0)
 export function daysToEvent(sch, now = Date.now()) {
   const kstToday = Math.floor((now + 9 * HOUR) / DAY);
   const kstEvent = Math.floor((sch.end + 9 * HOUR) / DAY);
@@ -175,7 +173,7 @@ const who = (u) => ({ teamId: u.teamId, uid: u.id, avatar: u.avatar });
 
 const notOpen = (state) => (state.week < 1
   ? { ok: false, reason: `${weekDates(scheduleOf(state), 1).start}에 1${paceOf(state).round} 원정이 시작돼요. 조금만 기다려 주세요!` }
-  : { ok: false, reason: '사전 원정이 끝났어요. 현장 최종 결전에서 만나요!' });
+  : { ok: false, reason: '원정 회차가 끝났어요. 최종 결전에서 만나요!' });
 
 // 주간 기록을 건드리지 않고 보상만 준다 (주가 끝날 때 주는 보상용)
 function grant(u, { food = 0, premium = 0, points = 0 }) {
@@ -202,7 +200,7 @@ export function newGameState() {
   };
   for (const t of TEAMS) state.teams[t.id] = newTeam(t.id, 0);
   state.week = 1;                       // 프리 모드는 바로 1회차부터 (정규 시즌으로 바꾸면 날짜에 맞춰진다)
-  pushFeed(state, 'crown', `${EVENT.name} ${EVENT.title}에 오신 걸 환영해요! ${EVENT.slogan}`);
+  pushFeed(state, 'crown', `${EVENT.title}에 오신 걸 환영해요! ${EVENT.slogan}`);
   return state;
 }
 
@@ -269,7 +267,7 @@ export function setMode(state, mode) {
   if ((state.mode || 'free') === v) return { ok: false, reason: '이미 그 모드예요' };
   // 프리 모드에 남아 있던 일정이 이미 끝났으면, 바꾸는 순간 사전 원정이 모두 끝나고 결전으로 넘어가 버린다
   if (v === 'season' && scheduleOf(state).end <= Date.now()) {
-    return { ok: false, reason: '저장된 일정의 현장 결전 시각이 이미 지났어요. "정규 시즌 시작"에서 날짜를 정해 시작해 주세요.' };
+    return { ok: false, reason: '저장된 일정의 최종 결전 시각이 이미 지났어요. "정규 시즌 시작"에서 날짜를 정해 시작해 주세요.' };
   }
   state.mode = v;
   if (v === 'free') {
@@ -977,7 +975,7 @@ export const hasCrown = (state, teamId) => state.teams[teamId].crownWeek === sta
 
 // ---------------------------------------------------------------- 한 주 마무리
 export function advanceWeek(state) {
-  if (state.week >= FINAL_WEEK) return { ok: false, reason: '이미 현장 모임 날이에요' };
+  if (state.week >= FINAL_WEEK) return { ok: false, reason: '이미 최종 결전 날이에요' };
   const w = state.week;
   let award = null;
 
@@ -1043,7 +1041,7 @@ export function advanceWeek(state) {
 
   if (state.week === FINAL_WEEK) {
     state.final = createFinal(state);
-    pushFeed(state, 'glitch', `사전 원정 끝! 봉인 조각 ${state.final.seals.length}개를 모았어요. ${eventDateLabel(scheduleOf(state))} 한마당 현장에서 대마왕 글리치와 최종 결전!`, { boss: 'glitch' });
+    pushFeed(state, 'glitch', `사전 원정 끝! 봉인 조각 ${state.final.seals.length}개를 모았어요. ${eventDateLabel(scheduleOf(state))} 대마왕 글리치와 최종 결전!`, { boss: 'glitch' });
   } else {
     const next = bossOf(state.week);
     pushFeed(state, 'luckybox', `${state.week}${R} 원정 시작! ${josa(next.name, '이/가')} 나타났어요. 다 함께 물리쳐요!`, { boss: next.id });
@@ -1071,7 +1069,7 @@ export function setSchedule(state, start, end, now = Date.now()) {
   }
   state.schedule = sch;
   const P = paceFor(sch);
-  pushFeed(state, 'booster', `운영진이 일정을 정했어요: ${weekDates(sch, 1).start} 시작 → ${eventDateLabel(sch)} 현장 결전. ${P.label}마다 새 ${P.round}가 열려요!`);
+  pushFeed(state, 'booster', `운영진이 일정을 정했어요: ${weekDates(sch, 1).start} 시작 → ${eventDateLabel(sch)} 최종 결전. ${P.label}마다 새 ${P.round}가 열려요!`);
   return { ok: true };
 }
 
@@ -1109,7 +1107,7 @@ export function syncWeek(state, now = Date.now()) {
 
 // ---------------------------------------------------------------- 정규 시즌 시작
 // 전체 초기화와 달리 대원 계정(닉네임·힌트·아바타·커뮤니티), 포인트·아이템, 지식의 숲·RPG·아케이드·라운지 기록은 남긴다.
-// 보스·커뮤니티 경험치·시상, 그리고 현장 상(지식왕·에이스·꾸준상)을 정하는 개인 기록만 0부터 다시 쌓는다.
+// 보스·커뮤니티 경험치·시상, 그리고 결전 상(지식왕·에이스·꾸준상)을 정하는 개인 기록만 0부터 다시 쌓는다.
 const SEASON_RESET = ['food', 'premium', 'totalPoints', 'totalDmg', 'totalCorrect', 'visitedWeeks', 'bossRewards', 'cards',
   'onTime', 'clears', 'laps', 'weekly', 'daily'];
 export function startSeason(state, start, end, now = Date.now()) {
@@ -1131,12 +1129,12 @@ export function startSeason(state, start, end, now = Date.now()) {
   Object.assign(state, { mode: 'season', lap: 1, week: 0, schedule: sch, bosses: {}, hits: [], awards: {}, final: null, goldenUntil: 0, feed: [] });
   delete state.bossAdjust;               // 미리 해 보기·프리 모드 성적으로 정해진 자동 조절은 버린다
   state.prizes = state.prizes.map((p) => ({ ...p, winner: null, openedAt: 0 }));
-  pushFeed(state, 'crown', `정규 시즌: ${weekDates(sch, 1).start} 시작 → ${eventDateLabel(sch)} 현장 결전. ${paceFor(sch).label}마다 새 ${paceFor(sch).round}가 열려요!`);
+  pushFeed(state, 'crown', `정규 시즌: ${weekDates(sch, 1).start} 시작 → ${eventDateLabel(sch)} 최종 결전. ${paceFor(sch).label}마다 새 ${paceFor(sch).round}가 열려요!`);
   syncWeek(state, now);
   return { ok: true, week: state.week, archived: !!archived };
 }
 
-// ---------------------------------------------------------------- 최종 결전 (12/19 현장)
+// ---------------------------------------------------------------- 최종 결전 (끝 날짜)
 // 결전 전에도 지금까지 모은 봉인과 예상 체력을 보여 준다
 // 결전의 날에 실제로 움직인 사람 수 (퀴즈·먹이든 응원이든 한 번이라도 한 사람)
 export const presentCount = (state) => Object.values(state.users)

@@ -1,4 +1,4 @@
-// 제3회 한마당 G-DEAL 몬스터 원정대 — 설정
+// G-DEAL 몬스터 원정대 — 설정
 // 운영하면서 바꿀 값(일정, 팀, 보상 수치, 확률)은 모두 이 파일에서 고친다.
 
 // 게임 서버(수파베이스) 주소. 수파베이스 프로젝트를 만든 뒤 Project URL을 넣는다.
@@ -8,18 +8,16 @@ const isLocal = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].in
 export const API_BASE = isLocal || !SUPABASE_URL ? '/api' : `${SUPABASE_URL}/functions/v1/api`;
 export const SERVER_READY = isLocal || !!SUPABASE_URL;
 
-// 원정은 4회차로 나뉘고, 끝 날짜(현장 모임)에 다 함께 최종 결전을 한다.
+// 원정은 4회차로 나뉘고, 끝 날짜에 다 함께 최종 결전을 한다.
 // 회차는 시간이 되면 자동으로 넘어가고, 운영자 화면에서 앞당겨 넘길 수도 있다.
 export const EVENT = {
-  name: '제3회 한마당',
   title: 'G-DEAL 몬스터 원정대',
   slogan: '우리는 모두 G-DEAL!',
-  eventDate: '2026-12-19', // 현장 모임 · 최종 결전 (끝 날짜 기본값, 운영자 화면에서 바꿀 수 있음)
   weeks: 4,                // 사전 참여 주 수
 };
 
-// 일정: 운영자 화면에서 시작·끝(현장 결전) 날짜를 정하고, 그 사이를 4번으로 똑같이 나눠 회차가 바뀐다.
-// 처음(초기화 뒤)에는 "지금 바로 시작 → 12월 19일(토) 0시 결전"이다.
+// 일정: 운영자 화면에서 시작·끝(최종 결전) 날짜를 정하고, 그 사이를 4번으로 똑같이 나눠 회차가 바뀐다.
+// 처음(초기화 뒤)에는 "지금 바로 시작 → 4주 뒤 결전"이다.
 // 아래는 운영자 화면의 "빠른 미리 해 보기" 버튼: 지금부터 회차마다 이 시간씩.
 const HOUR = 3600 * 1000;
 // 문제·카드 수준 — 운영자가 행사 전체에 하나로 정한다 (참가자는 고르지 않는다)
@@ -49,7 +47,7 @@ export const STORY = {
 
 // 진행 모드 — 정규 시즌(날짜대로 회차가 흐름) / 프리 모드(날짜 없이 혼자서도 쭉쭉)
 export const MODE_INFO = {
-  season: { label: '정규 시즌', desc: '정한 간격마다 회차가 넘어가고, 마지막 날 현장 결전까지 함께 가요' },
+  season: { label: '정규 시즌', desc: '정한 간격마다 회차가 넘어가고, 마지막 날 최종 결전까지 함께 가요' },
   free:   { label: '프리 모드', desc: '날짜와 상관없이 문제·카드가 다 열리고, 보스를 잡으면 바로 다음 보스가 나와요' },
 };
 
@@ -59,7 +57,7 @@ export const MODES = [
   { key: 'class40', label: '수업 한 차시', sub: '40분 · 회차 10분', pace: 'min10' },
   { key: 'half',    label: '반나절',      sub: '2시간 · 회차 30분', pace: 'min30' },
   { key: 'oneday',  label: '하루 만에',   sub: '4시간 · 회차 1시간', pace: 'hour' },
-  { key: 'project', label: '4주 프로젝트', sub: '1주일씩 · 현장 결전까지', project: true },
+  { key: 'project', label: '4주 프로젝트', sub: '지금부터 1주일씩 4주', project: true },
 ];
 
 // 회차 간격 — 운영자가 고른다 (짧은 간격은 '미리 해 보기'라 보스 최소 체력이 낮아진다)
@@ -103,7 +101,7 @@ export const TEAMS = [
     about: 'G-DEAL의 소식과 이야기를 바깥에 알리는 팀',
     skill: { key: 'cheer',  name: '확성기',       effect: '현장 응원이 1.1배로 전해짐' } },
   { id: 'maninyang', community: '운영사무국',      monster: '매니냥',   color: '#d9a55b', desc: '행사 구석구석을 척척 챙기는 고양이 매니저',
-    about: '한마당과 모임 살림을 구석구석 챙기는 팀',
+    about: '행사와 모임 살림을 구석구석 챙기는 팀',
     skill: { key: 'dmg',    name: '운영 지원',     effect: '보스에게 주는 피해 5% 더' } },
   { id: 'h2o',       community: 'H2O',            monster: '또롱이',   color: '#3fc6d8', desc: '맑은 물방울 속에 따뜻한 마음을 품은 요정',
     about: '마음을 돌보는 수업과 관계를 함께 공부하는 사회정서 모임',
@@ -194,7 +192,7 @@ export const RULES = {
   friend: { giftCapPerWeek: 5 },  // 다른 팀에게 준 선물을 우정 점수로 세는 한도 (한 사람, 한 주)
   awards: { mvpPremium: 1, friendPoints: 20, joinPoints: 20, joinMinMembers: 3 },
 
-  // 12/19 현장 최종 결전
+  // 마지막 날 최종 결전
   // 글리치 최대 체력은 결전 날 0시에 정한다: (9마리 한 라운드 공격 + 예상 응원) ÷ roundShare
   // 한 라운드에 체력의 40%쯤 깎이도록 해서, 봉인 4개면 2라운드, 봉인이 적으면 3라운드쯤 걸린다.
   final: {
@@ -238,13 +236,13 @@ export const ITEMS = {
 
 // 현장 상품 "?" 상자: 어떤 상으로 받는지 (상품 이름은 운영자가 넣고, 받은 사람이 열 때 공개)
 export const PRIZE_AWARDS = {
-  finalMvp:  { label: '최종 결전 MVP 팀', kind: 'team', desc: '12/19 결전에서 가장 큰 피해를 준 팀' },
-  seasonMvp: { label: '시즌 MVP 팀',      kind: 'team', desc: '4주 동안 팀 몫 달성률이 가장 높은 팀' },
+  finalMvp:  { label: '최종 결전 MVP 팀', kind: 'team', desc: '최종 결전에서 가장 큰 피해를 준 팀' },
+  seasonMvp: { label: '시즌 MVP 팀',      kind: 'team', desc: '시즌 동안 팀 몫 달성률이 가장 높은 팀' },
   friend:    { label: '시즌 우정상 팀',   kind: 'team', desc: '다른 팀을 가장 많이 응원하고 선물한 팀' },
   join:      { label: '시즌 참여왕 팀',   kind: 'team', desc: '팀원들이 가장 꾸준히 참여한 팀' },
-  king:      { label: '시즌 지식왕',      kind: 'user', desc: '4주 동안 퀴즈를 가장 많이 맞힌 사람' },
-  ace:       { label: '시즌 에이스 대원', kind: 'user', desc: '4주 동안 보스에게 가장 큰 피해를 준 사람' },
-  cheerKing: { label: '현장 응원왕',      kind: 'user', desc: '12/19 결전에서 응원을 가장 많이 한 사람' },
+  king:      { label: '시즌 지식왕',      kind: 'user', desc: '시즌 동안 퀴즈를 가장 많이 맞힌 사람' },
+  ace:       { label: '시즌 에이스 대원', kind: 'user', desc: '시즌 동안 보스에게 가장 큰 피해를 준 사람' },
+  cheerKing: { label: '현장 응원왕',      kind: 'user', desc: '최종 결전에서 응원을 가장 많이 한 사람' },
   steady:    { label: '꾸준상',           kind: 'user', desc: '열린 날에 바로 AI 한 조각을 가장 많이 읽은 사람' },
   lucky:     { label: '행운 추첨',        kind: 'user', desc: '참여한 모든 대원 중 운영자가 추첨' },
 };

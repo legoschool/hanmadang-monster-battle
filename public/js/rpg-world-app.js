@@ -1,7 +1,7 @@
 import {BOSS_ART,bossSprite} from './rpg-art.js?v=art8';
 import * as API from './api.js';
-import {REGIONS,EQUIPMENT,PET_ROLES,PET_NAMES,fresh,stats,startAdventure,travel,fight,equip} from './rpg-rules.js?v=rpg1';
-import {STORIES} from './rpg-story.js?v=story4';
+import {REGIONS,EQUIPMENT,PET_ROLES,PET_NAMES,fresh,stats,startAdventure,travel,fight,equip} from './rpg-rules.js?v=evt1';
+import {STORIES} from './rpg-story.js?v=evt1';
 import {cachedLook,loadLook} from './player-look.js?v=look1';
 import {Sprites} from './arcade-render.js?v=quest10';
 import {ArcadeAudio} from './arcade-audio.js?v=arcade2';
@@ -37,8 +37,9 @@ function paint(){stopViews();const r=profile.run;root.innerHTML=header();root.se
 function fieldContent(r,t){if(r.phase==='complete')return `<div class="field-message"><img src="${esc(look.petSrc)}" alt=""><div><b>구역 복구 완료</b><p>${esc(STORIES[r.region].ending)}</p><small>경험치 +${r.gained} · ${demo?'체험':(r.paid||0)+'P'}${r.newLoot?' · '+EQUIPMENT[r.loot].name+' 획득':''}</small></div></div><div class="field-buttons">${r.region<2?btn('다음 구역','start',`data-region="${r.region+1}"`,'primary'):btn('지역 선택','camp','','primary')}${btn('장비 착용','gear')}</div>`;
  if(panel==='supply')return `<div class="field-message"><img src="${esc(look.petSrc)}" alt=""><div><b>${esc(look.petName)}</b><p>앞쪽 오염 구역으로 갈 준비를 하자. 지금 회복할까, 회복약을 챙길까?</p></div></div><div class="field-buttons">${btn('샘 · 체력 회복','rest','','primary')}${btn('상자 · 회복약 +2','chest')}</div>`;
  if(panel==='archive')return `<div class="field-message"><img src="${esc(look.petSrc)}" alt=""><div><b>원본 기록 발견</b><p>${esc(STORIES[r.region].shrine)}</p></div></div><div class="field-buttons">${btn('기록 풀기 · 회복','quiz','','primary')}${btn('관문으로 이동','go')}</div>`;
- if(r.phase==='question'){const q=r.question;return `<div class="field-message"><div><b>${esc(q.preset)} · 시간 제한 없음</b><p>${esc(q.text)}</p></div></div><div class="answer-grid">${q.options.map((x,i)=>btn(esc(x),'answer',`data-choice="${i}"`)).join('')}</div>${btn('건너뛰기','answer','data-choice="-1"')}`;}
- const line=r.phase==='intro'?['한마당 기록이 사라지고 있어. 저 중계기에 오류의 흔적이 남아 있어. 가까이 가서 조사하자.','한마당 안내로 위장한 파일에서 악성 전송이 시작됐어. 중계기를 조사해 어디로 퍼지고 있는지 찾자.','진짜와 거짓 기록이 뒤섞였어. 중계기에 남은 원문을 찾고 서로 다른 기록을 대조하자.'][r.region]:r.phase==='fork'?'차단된 길이 열렸어. 다음 구역으로 가기 전에 보급 지점에 들르자.':r.phase==='shrine'?STORIES[r.region].victory[1]:r.boss?STORIES[r.region].bossLines[1][1]:r.node===3?STORIES[r.region].encounters[1][0][1]:STORIES[r.region].enemyInfo;
+ if(r.phase==='review'){const f=r.feedback||{};return `<div class="field-message"><div><b>${f.correct?'정답이에요':'틀렸어요'}</b>${f.answer?`<p>정답: <strong>${esc(f.answer)}</strong></p>`:''}<p>${esc(f.explain||'')}</p>${f.correct?`<p>체력·펫 게이지 회복${r.bonus?` · +${r.bonus}P`:''}</p>`:''}</div></div><div class="field-buttons">${btn('계속','go','','primary')}</div>`;}
+  if(r.phase==='question'){const q=r.question;return `<div class="field-message"><div><b>${esc(q.preset)} · 시간 제한 없음</b><p>${esc(q.text)}</p></div></div><div class="answer-grid">${q.options.map((x,i)=>btn(esc(x),'answer',`data-choice="${i}"`)).join('')}</div>${btn('건너뛰기','answer','data-choice="-1"')}`;}
+ const line=r.phase==='intro'?['G-DEAL 기록이 사라지고 있어. 저 중계기에 오류의 흔적이 남아 있어. 가까이 가서 조사하자.','G-DEAL 안내로 위장한 파일에서 악성 전송이 시작됐어. 중계기를 조사해 어디로 퍼지고 있는지 찾자.','진짜와 거짓 기록이 뒤섞였어. 중계기에 남은 원문을 찾고 서로 다른 기록을 대조하자.'][r.region]:r.phase==='fork'?'차단된 길이 열렸어. 다음 구역으로 가기 전에 보급 지점에 들르자.':r.phase==='shrine'?STORIES[r.region].victory[1]:r.boss?STORIES[r.region].bossLines[1][1]:r.node===3?STORIES[r.region].encounters[1][0][1]:STORIES[r.region].enemyInfo;
  return `<div class="field-message"><img src="${esc(look.petSrc)}" alt=""><div><b>${esc(look.petName)}</b><p>${esc(line)}</p></div></div>`;
 }
 async function arrive(){const r=profile.run;if(!r||mode!=='map')return;audio.play('item');if(r.phase==='intro')await action('go');else if(r.phase==='battle'){battleActive=true;mode='battle';await nextDecision();}else if(r.phase==='fork'){panel='supply';paint();}else if(r.phase==='shrine'){panel='archive';paint();}}
@@ -59,7 +60,7 @@ async function action(type,data={}){if(busy)return;busy=true;const before=struct
  if(type==='solve'&&r?.phase==='victory'){toast(`길이 열렸습니다 · 경험치 +${r.gained} · 펫 성장 +1`);await action('go');}
  else if(type==='solve'&&r?.phase==='complete'){mode='map';panel='';paint();audio.play('clear');}
  else if(type==='solve'&&r?.phase==='battle'&&!r.combatQuestion)await nextDecision();
- else if(type==='answer'&&r?.phase==='review'){toast(r.feedback.explain);await action('go');}
+ else if(type==='answer'&&r?.phase==='review'){audio.play(r.feedback.correct?'item':'hit');paint();}
 }
 async function animate(before,after,move){profile=before;delete profile.run.combatQuestion;mode='battle';paint();const r=before.run,n=after.run,st=stats(before),role=PET_ROLES[r.pet],loss=r.enemy.hp-n.enemy.hp,raw=move==='attack'?st.attack:move==='pet'&&['beam','burst'].includes(role)?st.attack+20:0,direct=Math.min(loss,r.enemy.intent==='guard'?Math.ceil(raw*.55):raw),heal=move==='potion'?Math.min(45,r.maxHp-r.hp):move==='pet'&&role==='heal'?Math.min(42,r.maxHp-r.hp):0;
  const meter=()=>{const bar=document.getElementById('enemy-bar'),e=document.getElementById('enemy-value'),h=document.getElementById('hero-value');if(bar)bar.style.width=r.enemy.hp/r.enemy.maxHp*100+'%';if(e)e.textContent=r.enemy.hp+' / '+r.enemy.maxHp;if(h)h.textContent='체력 '+r.hp+'/'+r.maxHp;};

@@ -1,9 +1,9 @@
 import * as API from './api.js';
-import {REGIONS as BASE_REGIONS,EQUIPMENT,PET_ROLES,PET_NAMES,fresh,stats,levelOf,startAdventure,travel,fight,equip} from './rpg-rules.js?v=rpg1';
+import {REGIONS as BASE_REGIONS,EQUIPMENT,PET_ROLES,PET_NAMES,fresh,stats,levelOf,startAdventure,travel,fight,equip} from './rpg-rules.js?v=evt1';
 import {cachedLook,loadLook} from './player-look.js?v=look1';
 import {Sprites} from './arcade-render.js?v=mobile3';
 import {mountScene} from './rpg-scene.js?v=rpg2';
-import {STORIES,CAMPAIGN} from './rpg-story.js?v=story4';
+import {STORIES,CAMPAIGN} from './rpg-story.js?v=evt1';
 const REGIONS=BASE_REGIONS.map((r,i)=>({...r,goal:STORIES[i].goal,ending:STORIES[i].ending}));
 import {ArcadeAudio} from './arcade-audio.js?v=arcade2';
 const root=document.getElementById('rpg'),status=document.getElementById('rpg-status');
