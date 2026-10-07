@@ -1,4 +1,4 @@
-import {showOpening} from './opening-story.js?v=evt1';
+import {showOpening} from './opening-story.js?v=cinema1';
 import {loadArtImage} from './character-art.js?v=quest10';
 import {TEAMS} from './config.js';
 import {petGrowthMarkup} from './pet-growth.js?v=growth1';
@@ -9,26 +9,26 @@ import {storyPages,StoryDirector,CHAPTERS} from './expedition-story.js?v=evt1';
 import * as API from './api.js';
 import {loadLookQuick} from './player-look.js?v=look1';
 import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=story5';
-import {ExpeditionEngine} from './expedition-engine.js?v=growth1';
-import {ExpeditionRenderer} from './expedition-renderer.js?v=quest10';
-import {ExpeditionAudio} from './expedition-audio.js?v=story5';
+import {ExpeditionEngine} from './expedition-engine.js?v=cinema1';
+import {ExpeditionRenderer} from './expedition-renderer.js?v=cinema1';
+import {ExpeditionAudio} from './expedition-audio.js?v=cinema1';
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let state,user,profile,library=[],zone='code',theme='mixed',mode='survival',gentle=true,difficulty='beginner',gameSpeed=.7,autoSkills=true,questionGap=60,engine=null,run=null,pending=null;
+let state,user,profile,library=[],zone='code',theme='mixed',mode='survival',gentle=true,difficulty='beginner',gameSpeed=1,autoSkills=true,questionGap=60,engine=null,run=null,pending=null;
 try{const options=JSON.parse(localStorage.getItem('expedition-comfort')||'{}');if(['beginner','gentle','standard'].includes(options.difficulty))difficulty=options.difficulty;if([.5,.7,1].includes(options.gameSpeed))gameSpeed=options.gameSpeed;if(typeof options.autoSkills==='boolean')autoSkills=options.autoSkills;if([30,45,60].includes(options.questionGap))questionGap=options.questionGap;}catch{}gentle=difficulty!=='standard';
 function saveComfort(){try{localStorage.setItem('expedition-comfort',JSON.stringify({difficulty,gameSpeed,autoSkills,questionGap}));}catch{}}
 let helpPage=0,helpReturn=null,helpSeen=false;
-function comfortControls(){return `<div class="comfort-controls"><label>전투 난이도 <select id="battleDifficulty">${[['beginner','입문 · 추천 / 체력 220 · 피해 절반'],['gentle','여유 / 체력 150'],['standard','표준 / 체력 100']].map(([id,label])=>`<option value="${id}" ${difficulty===id?'selected':''}>${label}</option>`).join('')}</select></label><label>게임 속도 <select id="gameSpeed">${[[.5,'아주 천천히 · 0.5배'],[.7,'천천히 · 0.7배 (추천)'],[1,'기본 · 1배']].map(([id,label])=>`<option value="${id}" ${gameSpeed===id?'selected':''}>${label}</option>`).join('')}</select></label><label><input id="autoSkills" type="checkbox" ${autoSkills?'checked':''}> 스킬과 펫 기술도 자동으로 사용</label><small>입문은 적 수가 적고 느리며 받는 피해가 절반이에요. 속도는 이동·공격·전투 시간을 함께 늦춥니다. 변경은 지금 적용되고 다음에도 기억해요.</small></div>`;}
+function comfortControls(){return `<div class="comfort-controls"><button type="button" class="primary" data-action="battleBoost">직접 스킬 쓰기 · 소리 켜기</button><label>전투 난이도 <select id="battleDifficulty">${[['beginner','입문 · 추천 / 체력 220 · 피해 절반'],['gentle','여유 / 체력 150'],['standard','표준 / 체력 100']].map(([id,label])=>`<option value="${id}" ${difficulty===id?'selected':''}>${label}</option>`).join('')}</select></label><label>게임 속도 <select id="gameSpeed">${[[.5,'아주 천천히 · 0.5배'],[.7,'천천히 · 0.7배'],[1,'기본 · 1배 (추천)']].map(([id,label])=>`<option value="${id}" ${gameSpeed===id?'selected':''}>${label}</option>`).join('')}</select></label><label><input id="autoSkills" type="checkbox" ${autoSkills?'checked':''}> 스킬과 펫 기술도 자동으로 사용</label><small>입문은 적 수가 적고 느리며 받는 피해가 절반이에요. 속도는 이동·공격·전투 시간을 함께 늦춥니다. 변경은 지금 적용되고 다음에도 기억해요.</small></div>`;}
 function playHelp(done){const wasPlaying=engine?.phase==='playing';if(wasPlaying)engine.pause();helpPage=0;helpReturn=done||(()=>{if(wasPlaying)engine?.resume();});paintHelp();}
 function paintHelp(){const steps=[['1. 이동만 해 보세요','PC는 방향키 또는 WASD, 휴대폰은 화면을 누른 채 원하는 방향으로 밀어요. 왼쪽 방향 버튼을 눌러도 됩니다.','가까운 적은 자동 공격해요. 자동 기술을 켜면 스킬과 펫도 알아서 도와줍니다.'],['2. 붉은 표시를 피하고, 보석을 모아요','적과 붉은 원·길에서 조금 떨어져 보세요. 적이 남긴 보석에 가까이 가면 자동으로 모이고 레벨이 올라요.','어려우면 오른쪽 위 ‘쉬기’에서 난이도와 속도를 즉시 낮추세요. 더 느리게 해도 보상이 줄지 않아요.'],['3. 문제는 서두르지 않아도 돼요','문제가 나오면 전투가 완전히 멈춥니다. 힌트를 보고 다시 답하거나 해설을 보고 넘어갈 수 있어요.','전투 중 ‘방법’에서 이 안내를 다시 볼 수 있어요. 이미 받은 지식 보상은 쓰러져도 남아요.']][helpPage];dialog(`<div class="eyebrow">처음 플레이 안내 · ${helpPage+1} / 3</div><h2>${steps[0]}</h2><p class="help-lead">${steps[1]}</p><div class="hint">${steps[2]}</div>${helpPage===0?comfortControls():''}<div class="dialog-actions"><button class="secondary" data-action="helpPrev" ${helpPage===0?'disabled':''}>이전</button><button class="primary" data-action="helpNext">${helpPage===2?'준비됐어요 · 시작':'다음'}</button><button class="plain" data-action="helpDone">안내 닫기</button></div>`);}
 function endHelp(){const done=helpReturn;helpReturn=null;helpSeen=true;closeDialog();done?.();}
-let storyTimer=0;
+let storyTimer=0;const storyVoice=new Audio();storyVoice.preload='auto';storyVoice.volume=.9;
 let story=null,storyDirector=new StoryDirector(),storyRead=[];
 try{const saved=JSON.parse(localStorage.getItem('expedition-story-read')||'[]');if(Array.isArray(saved))storyRead=saved.filter(x=>ZONES.some(z=>z.id===x.zone)&&['intro','trail','boss','seal','win','rest'].includes(x.beat));}catch{}
 let busy=false,frame=0,lastFrame=0,hudTime=0,noticeTimer,keys=new Set(),pad={x:0,y:0},stick=null;
 let view='lobby',answered=0,auto=true,lastMove={x:1,y:0};
-let preferences={sound:true,music:false,volume:.22,calm:matchMedia('(prefers-reduced-motion: reduce)').matches,quality:'high'};
+let preferences={sound:true,music:true,volume:.28,voice:true,calm:matchMedia('(prefers-reduced-motion: reduce)').matches,quality:'high'};
 try{const saved=JSON.parse(localStorage.getItem('expedition-presentation')||'null');if(saved)preferences={...preferences,...saved};}catch{}
 let calmEffects=!!preferences.calm,renderer=null,endingRemaining=-1,training=false;
 const THEMES={mixed:'전체 골고루',region:'선택한 지역 주제',stories:'AI·디지털 사건 이야기',trivia:'생활 속 일반 상식',everyday:'AI 활용·디지털 생활'};
@@ -41,18 +41,18 @@ function notice(text){$('notice').textContent=text;$('notice').style.display='bl
 function dialog(html){$('expedition').inert=true;$('dialog').hidden=false;$('dialog').innerHTML=`<div class="modal-cover"><section class="dialog-card" role="dialog" aria-modal="true">${html}</section></div>`;keys.clear();pad={x:0,y:0};stick=null;$('dialog').querySelector('input,button,a')?.focus({preventScroll:true});}
 function showStory(beat,done,storyZone=zone){
   const paused=engine?.phase==='playing';if(paused)engine.pause();if(engine&&view==='battle')hud();
-  audio.update(false);keys.clear();pad={x:0,y:0};stick=null;
-  story={pages:storyPages(storyZone,beat,profile?.name),index:0,done,paused,zone:storyZone};
+  audio.update(false);audio.setPaused(true);keys.clear();pad={x:0,y:0};stick=null;
+  story={pages:storyPages(storyZone,beat,profile?.name),index:0,done,paused,zone:storyZone,beat};
   if(!storyRead.some(x=>x.zone===storyZone&&x.beat===beat)){storyRead.push({zone:storyZone,beat});try{localStorage.setItem('expedition-story-read',JSON.stringify(storyRead));}catch{}}
-  paintStory();clearInterval(storyTimer);storyTimer=setInterval(()=>{if(!story||story.hold||document.hidden)return;story.elapsed=(story.elapsed||0)+.25;const seconds=Math.max(6,story.pages[story.index].text.length*.09);if(story.elapsed>=seconds){if(story.index+1<story.pages.length){story.index++;paintStory();}else endStory();}},250);
+  paintStory();clearInterval(storyTimer);storyTimer=setInterval(()=>{if(!story||story.hold||document.hidden)return;story.elapsed=(story.elapsed||0)+.25;const seconds=Math.max(6,story.pages[story.index].text.length*.09);if(story.voiceActive&&!story.voiceFailed?storyVoice.ended:story.elapsed>=seconds){if(story.index+1<story.pages.length){story.index++;paintStory();}else endStory();}},250);
 }
 function paintStory(){
- story.elapsed=0;const p=story.pages[story.index],z=zoneById(story.zone);
- dialog(`<div class="story-scene" style="--story-color:${z.color}"><div class="story-art" aria-hidden="true"><div class="story-orbit"></div><img src="assets/avatars/${esc(profile?.avatar||'a05')}.png" alt=""><img class="story-enemy" src="assets/bosses/${z.boss}.png" alt=""></div><div class="story-topline"><span>${z.name} · 액션 이야기</span><span>${story.index+1} / ${story.pages.length}</span></div><h2 id="storyTitle">${esc(p.title)}</h2><div class="story-speaker">${esc(p.speaker)}</div><p class="story-prose">${esc(p.text)}</p><div class="dialog-actions"><button class="secondary" data-action="storyPause">${story.hold?'계속':'멈춤'}</button><button class="plain" data-action="storySkip">건너뛰기</button></div></div>`);
+ story.elapsed=0;const p=story.pages[story.index],z=zoneById(story.zone);storyVoice.pause();story.voiceActive=preferences.sound&&preferences.voice!==false;story.voiceFailed=false;const voiceKey=`${story.zone}-${story.beat}-${story.index}`;story.voiceKey=voiceKey;if(story.voiceActive){storyVoice.src=`assets/audio/stories/${voiceKey}.mp3`;storyVoice.onerror=()=>{if(story?.voiceKey===voiceKey)story.voiceFailed=true;};if(!story.hold)storyVoice.play().catch(()=>{if(story?.voiceKey===voiceKey)story.voiceFailed=true;});}
+ dialog(`<div class="story-scene" style="--story-color:${z.color}"><div class="story-art" aria-hidden="true"><div class="story-orbit"></div><img src="assets/avatars/${esc(profile?.avatar||'a05')}.png" alt=""><img class="story-enemy" src="assets/bosses/${z.boss}.png" alt=""></div><div class="story-topline"><span>${z.name} · 액션 이야기</span><span>${story.index+1} / ${story.pages.length}</span></div><h2 id="storyTitle">${esc(p.title)}</h2><div class="story-speaker">${esc(p.speaker)}</div><p class="story-prose">${esc(p.text)}</p><div class="dialog-actions"><button class="secondary" data-action="storyPause">${story.hold?'계속':'멈춤'}</button><button class="secondary" data-action="storyNext">다음</button><button class="plain" data-action="storySkip">건너뛰기</button></div></div>`);
  $('dialog').querySelector('[role="dialog"]').setAttribute('aria-labelledby','storyTitle');
  $('dialog').querySelector('[data-action=storyPause]').focus({preventScroll:true});
 }
-function endStory(){clearInterval(storyTimer);const current=story;if(!current)return;story=null;closeDialog();if(current.paused)engine?.resume();lastFrame=performance.now();current.done?.();}
+function endStory(){clearInterval(storyTimer);storyVoice.pause();storyVoice.removeAttribute('src');storyVoice.load();const current=story;if(!current)return;story=null;closeDialog();if(current.paused)engine?.resume();audio.setPaused(false);lastFrame=performance.now();current.done?.();}
 function storyJournal(){dialog(`<div class="eyebrow">STORY JOURNAL</div><h2>지나온 이야기</h2><p>이 기기에서 만난 장면입니다. 다시 읽어도 경험치와 보상은 바뀌지 않아요.</p><div class="story-journal">${storyRead.length?storyRead.map((r,i)=>`<button class="secondary" data-story-replay="${i}">${zoneById(r.zone).name} · ${storyPages(r.zone,r.beat,profile?.name)[0].title}</button>`).join(''):'<p>원정을 출발하면 첫 이야기가 펼쳐집니다.</p>'}</div><div class="dialog-actions"><button class="primary" data-action="close">돌아가기</button></div>`);}
 function closeDialog(){$('expedition').inert=false;$('dialog').hidden=true;$('dialog').innerHTML='';$('arena')?.focus({preventScroll:true});}
 async function request(type,params={}){const {result}=await API.act(type,params);if(!result?.ok)throw new Error(result?.reason||'원정 서버 응답을 확인하지 못했어요. 서버 업데이트가 필요할 수 있어요.');if(result.profile)profile=result.profile;return result;}
@@ -64,7 +64,7 @@ function login(message='공동 원정에서 커뮤니티와 아바타를 고르�
   $('expedition').innerHTML=header()+`<section class="login-card"><h1>G-DEAL 액션</h1><p>${esc(message)}</p><a class="primary" href="index.html#/home">원정대에 참여하기</a><p class="muted">참여한 뒤 홈의 ‘G-DEAL 액션’에서 돌아오세요.</p><button class="secondary" data-action="guestTraining">가입 없이 전투 체험</button><p class="muted">체험에서는 이름이나 플레이 기록을 서버에 저장하지 않습니다.</p></section>`;
 }
 function renderLobby(){
-  story=null;cancelAnimationFrame(frame);engine=null;renderer=null;training=false;endingRemaining=-1;view='lobby';audio.update(false);run=null;pending=null;closeDialog();
+  storyVoice.pause();story=null;cancelAnimationFrame(frame);engine=null;renderer=null;training=false;endingRemaining=-1;view='lobby';audio.update(false);run=null;pending=null;closeDialog();
   if(!user){login();return;}
   const z=zoneById(zone),lv=profile.level,weapon=gearById(profile.weapon),charm=gearById(profile.charm);
   const spots=[[18,38],[37,25],[64,22],[84,37],[82,68],[62,78],[35,78],[16,68]];
@@ -86,7 +86,7 @@ function renderLobby(){
   </section>`;
 }
 function settingsDialog(){
- dialog(`<div class="eyebrow">PRESENTATION</div><h2>나에게 맞는 전투 연출</h2><div class="settings-list"><label><input id="soundSetting" type="checkbox" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><label><input id="musicSetting" type="checkbox" ${preferences.music?'checked':''}> 전투 배경 선율</label><label>소리 크기 <input id="volumeSetting" aria-label="소리 크기" type="range" min="0" max="50" value="${Math.round(preferences.volume*100)}"></label><label><input id="calmSetting" type="checkbox" ${preferences.calm?'checked':''}> 화면 흔들림과 입자 줄이기</label><label>화면 품질 <select id="qualitySetting"><option value="high" ${preferences.quality==='high'?'selected':''}>선명하게</option><option value="low" ${preferences.quality==='low'?'selected':''}>가볍게</option></select></label></div><p class="muted">공격 범위와 적의 공격 예고는 어느 설정에서도 표시됩니다. 소리는 출발 버튼을 누른 뒤 재생돼요.</p><div class="dialog-actions"><button class="primary" data-action="settingsDone">설정 완료</button></div>`);
+ dialog(`<div class="eyebrow">PRESENTATION</div><h2>나에게 맞는 전투 연출</h2><div class="settings-list"><label><input id="soundSetting" type="checkbox" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><label><input id="voiceSetting" type="checkbox" ${preferences.voice!==false?'checked':''}> 이야기·전투 음성 안내</label><label><input id="musicSetting" type="checkbox" ${preferences.music?'checked':''}> 전투 배경 선율</label><label>소리 크기 <input id="volumeSetting" aria-label="소리 크기" type="range" min="0" max="50" value="${Math.round(preferences.volume*100)}"></label><label><input id="calmSetting" type="checkbox" ${preferences.calm?'checked':''}> 화면 흔들림과 입자 줄이기</label><label>화면 품질 <select id="qualitySetting"><option value="high" ${preferences.quality==='high'?'selected':''}>선명하게</option><option value="low" ${preferences.quality==='low'?'selected':''}>가볍게</option></select></label></div><p class="muted">공격 범위와 적의 공격 예고는 어느 설정에서도 표시됩니다. 소리는 출발 버튼을 누른 뒤 재생돼요.</p><div class="dialog-actions"><button class="primary" data-action="settingsDone">설정 완료</button></div>`);
 }
 function trainingMenu(){dialog(`<div class="eyebrow">TRAINING GROUNDS</div><h2>세 무기를 직접 써 보세요.</h2><p>보상과 기록이 없는 체험 전투입니다. 모든 무기를 시험할 수 있고 체력이 넉넉합니다.</p><label class="training-region">체험할 지역 <select id="trainingZone">${ZONES.map(z=>`<option value="${z.id}" ${zone===z.id?'selected':''}>${z.name}</option>`).join('')}</select></label><div class="training-weapons">${['blade','wand','orbit'].map(id=>`<button data-training="${id}"><img src="${gearImage(id)}" alt=""><b>${gearById(id).name}</b><small>${id==='blade'?'대형 검격과 충격파':id==='wand'?'별빛 탄환과 방사 폭발':'회전 궤도와 중력장'}</small></button>`).join('')}</div><div class="dialog-actions"><button class="secondary" data-action="close">돌아가기</button></div>`);}
 async function startTraining(weapon,quick=false){
@@ -137,7 +137,7 @@ function tick(t){
   const dt=Math.min(.05,(t-lastFrame)/1000);lastFrame=t;
   if(story){renderer.draw(engine,0,{stick:null});frame=requestAnimationFrame(tick);return;}
   const beat=storyDirector.due(engine);if(beat&&storyDirector.take(beat)){showStory(beat,()=>{});frame=requestAnimationFrame(tick);return;}
-  engine.step(dt,movement());renderer.draw(engine,dt,{stick});audio.update(engine.phase==='playing'&&engine.entrance<=0);
+  engine.step(dt,movement());renderer.draw(engine,dt,{stick});audio.setPaused(!['playing','won','lost'].includes(engine.phase));audio.update(engine.phase==='playing'&&engine.entrance<=0,{boss:!!engine.boss});
   if(t-hudTime>90){hud();hudTime=t;}
   if(engine.event){const event=engine.event;engine.event=null;
     if(event==='question'){if(training){engine.continueQuestion(true);engine.upgrade('heart');}else showQuestion();}
@@ -199,7 +199,7 @@ async function finish(afterStory=false){
 
 document.addEventListener('click',async e=>{
   const el=e.target.closest('button');if(!el||el.disabled)return;
-  if(story){if(el.dataset.action==='storyPause'){story.hold=!story.hold;el.textContent=story.hold?'계속':'멈춤';return;}if(el.dataset.action==='storyNext'){if(story.index+1<story.pages.length){story.index++;paintStory();}else endStory();}else if(el.dataset.action==='storyBack'&&story.index>0){story.index--;paintStory();}else if(el.dataset.action==='storySkip')endStory();return;}
+  if(story){if(el.dataset.action==='storyPause'){story.hold=!story.hold;el.textContent=story.hold?'계속':'멈춤';if(story.hold)storyVoice.pause();else if(story.voiceActive&&!story.voiceFailed)storyVoice.play().catch(()=>{if(story)story.voiceFailed=true;});return;}if(el.dataset.action==='storyNext'){if(story.index+1<story.pages.length){story.index++;paintStory();}else endStory();}else if(el.dataset.action==='storyBack'&&story.index>0){story.index--;paintStory();}else if(el.dataset.action==='storySkip')endStory();return;}
   if(el.dataset.storyReplay!==undefined){const r=storyRead[Number(el.dataset.storyReplay)];if(r)showStory(r.beat,storyJournal,r.zone);return;}
   if(el.dataset.training){startTraining(el.dataset.training);return;}
   if(el.dataset.zone){zone=el.dataset.zone;renderLobby();return;}
@@ -208,7 +208,7 @@ document.addEventListener('click',async e=>{
   if(el.dataset.answer!==undefined){submitAnswer(Number(el.dataset.answer));return;}
   if(el.dataset.continue){if(mode==='study'){if(answered>=3&&storyDirector.take('trail'))showStory('trail',()=>showQuestion());else showQuestion();return;}engine.continueQuestion(el.dataset.continue==='correct');if(engine.phase==='upgrade')showUpgrades();else closeDialog();return;}
   if(el.dataset.upgrade){engine.upgrade(el.dataset.upgrade);closeDialog();return;}
-  const action=el.dataset.action;
+  const action=el.dataset.action;if(action==='battleBoost'){gameSpeed=1;autoSkills=false;preferences.sound=true;preferences.music=true;preferences.voice=true;savePreferences();saveComfort();if(engine){engine.gameSpeed=1;engine.autoSkills=false;}audio.unlock();if($('gameSpeed'))$('gameSpeed').value='1';if($('autoSkills'))$('autoSkills').checked=false;notice('기본 속도 1배 · E 스킬 · Q 합동 기술');if(engine?.phase==='paused'){closeDialog();engine.resume();audio.setPaused(false);}return;}
   if(action==='start')start();
   if(action==='guide'||action==='playHelp')playHelp();
   if(action==='helpPrev'){helpPage=Math.max(0,helpPage-1);paintHelp();}
@@ -224,7 +224,7 @@ document.addEventListener('click',async e=>{
   if(action==='library')showLibrary();
   if(action==='close'){closeDialog();renderLobby();}
   if(action==='pause')pause();
-  if(action==='resume'){closeDialog();engine.resume();}
+  if(action==='resume'){closeDialog();engine.resume();audio.setPaused(false);}
   if(action==='attack')engine?.attack();
   if(action==='skill')engine?.skill();
   if(action==='petSkill'&&!engine?.petSkill())notice('가까운 적을 향해 합동 기술을 써보세요.');
@@ -236,7 +236,7 @@ document.addEventListener('click',async e=>{
   if(action==='lobby')renderLobby();
   if(action==='again'){renderLobby();start();}
 });
-document.addEventListener('change',e=>{if(e.target.id==='calm'){preferences.calm=e.target.checked;savePreferences();}const setting={soundSetting:'sound',musicSetting:'music',calmSetting:'calm',qualitySetting:'quality'}[e.target.id];if(setting){preferences[setting]=e.target.type==='checkbox'?e.target.checked:e.target.value;savePreferences();if(preferences.sound)audio.unlock();}if(e.target.id==='volumeSetting'){preferences.volume=Number(e.target.value)/100;savePreferences();}if(e.target.id==='trainingZone'&&ZONES.some(z=>z.id===e.target.value))zone=e.target.value;if(e.target.id==='questionTheme')theme=e.target.value;if(e.target.id==='mode')mode=e.target.value;if(e.target.id==='battleDifficulty'){difficulty=e.target.value;gentle=difficulty!=='standard';engine?.setDifficulty(difficulty);saveComfort();}if(e.target.id==='gameSpeed'){gameSpeed=Number(e.target.value);if(engine)engine.gameSpeed=gameSpeed;saveComfort();}if(e.target.id==='autoSkills'){autoSkills=e.target.checked;if(engine)engine.autoSkills=autoSkills;saveComfort();}if(e.target.id==='questionPace'){questionGap=Number(e.target.value);saveComfort();}if(e.target.id==='auto'){auto=e.target.checked;if($('autoLabel'))$('autoLabel').textContent=auto?'자동 공격 켜짐':'직접 공격';}});
+document.addEventListener('change',e=>{if(e.target.id==='calm'){preferences.calm=e.target.checked;savePreferences();}const setting={soundSetting:'sound',musicSetting:'music',voiceSetting:'voice',calmSetting:'calm',qualitySetting:'quality'}[e.target.id];if(setting){preferences[setting]=e.target.type==='checkbox'?e.target.checked:e.target.value;savePreferences();if(preferences.sound)audio.unlock();}if(e.target.id==='volumeSetting'){preferences.volume=Number(e.target.value)/100;savePreferences();}if(e.target.id==='trainingZone'&&ZONES.some(z=>z.id===e.target.value))zone=e.target.value;if(e.target.id==='questionTheme')theme=e.target.value;if(e.target.id==='mode')mode=e.target.value;if(e.target.id==='battleDifficulty'){difficulty=e.target.value;gentle=difficulty!=='standard';engine?.setDifficulty(difficulty);saveComfort();}if(e.target.id==='gameSpeed'){gameSpeed=Number(e.target.value);if(engine)engine.gameSpeed=gameSpeed;saveComfort();}if(e.target.id==='autoSkills'){autoSkills=e.target.checked;if(engine)engine.autoSkills=autoSkills;saveComfort();}if(e.target.id==='questionPace'){questionGap=Number(e.target.value);saveComfort();}if(e.target.id==='auto'){auto=e.target.checked;if($('autoLabel'))$('autoLabel').textContent=auto?'자동 공격 켜짐':'직접 공격';}});
 document.addEventListener('keydown',e=>{
   if(!$('dialog').hidden){
     if(e.key==='Tab'){
@@ -254,7 +254,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>{keys.clear();pad={x:0,y:0};stick=null;if(engine?.phase==='playing')pause();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&engine?.phase==='playing')pause();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)return;if(story){story.hold=true;storyVoice.pause();const b=document.querySelector('[data-action=storyPause]');if(b)b.textContent='계속';}else if(engine?.phase==='playing')pause();});
 window.addEventListener('beforeunload',e=>{if(run&&['battle','study'].includes(view)){e.preventDefault();e.returnValue='';}});
 
 async function boot(){

@@ -22,16 +22,16 @@ export class ExpeditionRenderer{
   }
   light(c,x,y,size,color,alpha=1){c.save();c.globalAlpha=alpha;c.globalCompositeOperation='lighter';c.drawImage(this.glow(color),x-size/2,y-size/2,size,size);c.restore();}
   consume(events){for(const e of events){
-    const durations={petSkill:1.2,petAttack:.35,attack:.42,hit:.48,skill:1.35,dash:.45,kill:.7,pickup:.38,level:1.2,upgrade:1.2,bossIntro:1.8,bossAttack:.65,meteor:.8,rage:1.6,victory:2.5,defeat:1.8,combo:1.1,hurt:.35};
+    const durations={spawn:.65,wave:1.6,petSkill:1.2,petAttack:.35,attack:.42,hit:.48,skill:1.35,dash:.45,kill:.7,pickup:.38,level:1.2,upgrade:1.2,bossIntro:1.8,bossAttack:.65,meteor:.8,rage:1.6,victory:2.5,defeat:1.8,combo:1.1,hurt:.35};
     const fx={...e,age:0,duration:durations[e.kind]||.6};this.fx.push(fx);
     if(e.kind==='attack')this.swing=e.angle;
     if(['skill','meteor','victory','rage'].includes(e.kind)){this.shake=Math.max(this.shake,e.kind==='victory'?14:9);this.flash=Math.max(this.flash,e.kind==='skill'?.1:.06);}
     if(e.kind==='hurt'){this.hurt=.45;this.shake=Math.max(this.shake,5);}
-    if(e.kind==='hit'&&e.big)this.shake=Math.max(this.shake,5);
+    if(e.kind==='hit')this.shake=Math.max(this.shake,e.big?6:e.boss?3:1.8);
     const count=this.calm?0:({hit:7,kill:22,skill:64,meteor:36,upgrade:40,victory:100,dash:16}[e.kind]||0);
     const color=e.kind==='meteor'?'#ff977f':e.kind==='victory'?'#ffe4a0':COLORS[e.weapon]||'#b3ffe2';
     for(let i=0;i<count;i++){const angle=i*2.39996,speed=(e.kind==='skill'?160:60)+(i%9)*23;this.sparks.push({x:e.x,y:e.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,age:0,life:.4+(i%7)*.11,color,size:2+i%4});}
-    this.audio?.play(e.kind==='petSkill'?'upgrade':e.kind==='petAttack'?'pickup':e.kind,e);
+    this.audio?.play(e.kind==='petAttack'?'pickup':e.kind,e);
   }this.fx=this.fx.slice(-90);this.sparks=this.sparks.slice(-(this.quality==='low'?120:360));}
   draw(engine,dt,{stick=null}={}){
     const begun=performance.now();this.consume(engine.fxEvents.splice(0));
@@ -68,7 +68,7 @@ export class ExpeditionRenderer{
     for(const z of e.hazards){const f=clamp(1-z.ttl/1.8,0,1);c.fillStyle='#ff614d30';circle(c,z.x,z.y,z.r);c.fill();c.strokeStyle='#ffae87';c.lineWidth=3;c.stroke();c.lineWidth=6;c.beginPath();c.arc(z.x,z.y,z.r,-Math.PI/2,-Math.PI/2+TAU*f);c.stroke();c.lineWidth=2;c.beginPath();c.moveTo(z.x-12,z.y);c.lineTo(z.x+12,z.y);c.moveTo(z.x,z.y-12);c.lineTo(z.x,z.y+12);c.stroke();}
   }
   drawEntity(c,e,engine){
-    c.save();c.translate(e.x,e.y);c.fillStyle='#020b17a0';c.beginPath();c.ellipse(0,15,e.kind==='boss'?69:e.kind==='hero'?33:27,12,0,0,TAU);c.fill();c.imageSmoothingEnabled=false;
+    c.save();c.translate(e.x,e.y);const impact=this.fx.findLast(f=>f.kind==='hit'&&f.targetId===e.id&&f.age<.18);if(impact&&!this.calm){const recoil=Math.sin(impact.age/.18*Math.PI)*(impact.big?11:6);c.translate(Math.cos(impact.angle)*recoil,Math.sin(impact.angle)*recoil);}if(e.arrival>0)c.globalAlpha=Math.max(.15,1-e.arrival/.5);c.fillStyle='#020b17a0';c.beginPath();c.ellipse(0,15,e.kind==='boss'?69:e.kind==='hero'?33:27,12,0,0,TAU);c.fill();c.imageSmoothingEnabled=false;
     if(e.kind==='pet'){
       const pet=this.image(e.image),size=e.size,bob=this.calm?0:Math.sin(this.clock*5)*3;
       this.light(c,0,-12,size*1.6,e.color,e.charge>=100?.32:.12);
@@ -143,6 +143,7 @@ export class ExpeditionRenderer{
       c.textAlign='center';c.font=`900 ${f.big?37:25}px system-ui`;c.lineWidth=4;c.strokeStyle='#152135';c.fillStyle=f.big?'#ffe191':'#fff9df';c.globalAlpha=Math.min(1,k*3);const y=f.y-50-ease*35;c.strokeText(String(f.damage),f.x,y);c.fillText(String(f.damage),f.x,y);
     }else if(['kill','meteor','upgrade','victory'].includes(f.kind)){
       const r=f.kind==='victory'?340:f.kind==='upgrade'?180:f.kind==='meteor'?f.radius:55,col=f.kind==='meteor'?'#ff996b':f.kind==='victory'?'#ffdf8c':color;this.light(c,f.x,f.y,r*2.8,col,k*.8);c.globalAlpha=k;c.strokeStyle=col;c.lineWidth=8*k+1;circle(c,f.x,f.y,10+ease*r);c.stroke();if(f.kind==='victory')this.runes(c,f.x,f.y,10+ease*r,f.age,col,k);
+    }else if(f.kind==='spawn'){c.globalAlpha=k*.8;c.strokeStyle='#bc88ef';c.lineWidth=3;circle(c,f.x,f.y,12+ease*38);c.stroke();this.light(c,f.x,f.y,85,'#ac76ed',k*.35);
     }else if(f.kind==='pickup'){this.light(c,f.x,f.y,65,color,k*.5);}
     c.restore();
   }
@@ -150,13 +151,23 @@ export class ExpeditionRenderer{
     const vignette=c.createRadialGradient(w/2,h/2,Math.min(w,h)*.3,w/2,h/2,Math.max(w,h)*.75);vignette.addColorStop(0,'#040c1800');vignette.addColorStop(1,this.hurt>0?'#912c3b90':'#030b187c');c.fillStyle=vignette;c.fillRect(0,0,w,h);
     if(!this.calm&&this.flash>0){c.fillStyle=`rgba(255,221,158,${this.flash})`;c.fillRect(0,0,w,h);}
     const intro=this.fx.find(f=>f.kind==='bossIntro'),victory=this.fx.find(f=>f.kind==='victory'),defeat=this.fx.find(f=>f.kind==='defeat');
-    if(intro){const t=intro.age/intro.duration,alpha=Math.min(1,t*6,(1-t)*5),boss=BOSS_TYPES[this.zone.boss];c.save();c.globalAlpha=alpha;c.fillStyle='#06101ddd';const top=h*.29,boxH=w<600?150:175;c.fillRect(0,top,w,boxH);c.fillStyle=boss.color;c.fillRect(0,top,w,2);c.fillRect(0,top+boxH,w,2);const art=this.image(`assets/bosses/${this.zone.boss}.png`);if(art.complete&&art.naturalWidth){c.imageSmoothingEnabled=false;c.globalAlpha=alpha*.65;c.drawImage(art,w*.14-90,top-45,230,230);c.globalAlpha=alpha;}c.textAlign='center';c.fillStyle=boss.color;c.font='bold 12px system-ui';c.fillText('GUARDIAN ENCOUNTER',w*.58,top+40);c.fillStyle='#fff7df';c.font=`900 ${w<600?29:46}px system-ui`;c.fillText(boss.name,w*.58,top+88);c.font=`${w<600?12:15}px system-ui`;c.fillStyle='#cbdad8';c.fillText(boss.skill,w/2,top+boxH-25);c.restore();}
-    if(victory||defeat){const f=victory||defeat,t=f.age;c.save();c.globalAlpha=clamp(t*2,0,1);c.fillStyle='#07142288';c.fillRect(0,h*.3,w,h*.32);c.textAlign='center';c.fillStyle=victory?'#ffe1a0':'#dce9fa';c.font=`900 ${w<600?38:72}px system-ui`;c.fillText(victory?'VICTORY':'다시, 한 걸음',w/2,h*.44);c.font=`bold ${w<600?15:22}px system-ui`;c.fillText(victory?'지식 수호자를 물리쳤습니다':'배운 지식과 장비는 남아 있어요',w/2,h*.52);c.restore();}
+    if(intro){const t=intro.age/intro.duration,alpha=Math.min(1,t*6,(1-t)*5),boss=BOSS_TYPES[this.zone.boss];c.save();c.globalAlpha=alpha;c.fillStyle='#06101ddd';const top=h*.29,boxH=w<600?150:175;c.fillRect(0,top,w,boxH);c.fillStyle=boss.color;c.fillRect(0,top,w,2);c.fillRect(0,top+boxH,w,2);const art=this.image(`assets/bosses/${this.zone.boss}.png`);if(art.complete&&art.naturalWidth){c.imageSmoothingEnabled=false;c.globalAlpha=alpha*.65;c.drawImage(art,w*.14-90,top-45,230,230);c.globalAlpha=alpha;}c.textAlign='center';c.fillStyle=boss.color;c.font='bold 12px system-ui';c.fillText('보스 출현',w*.58,top+40);c.fillStyle='#fff7df';c.font=`900 ${w<600?29:46}px system-ui`;c.fillText(boss.name,w*.58,top+88);c.font=`${w<600?12:15}px system-ui`;c.fillStyle='#cbdad8';c.fillText(boss.skill,w/2,top+boxH-25);c.restore();}
+    if(victory||defeat){const f=victory||defeat,t=f.age;c.save();c.globalAlpha=clamp(t*2,0,1);c.fillStyle='#07142288';c.fillRect(0,h*.3,w,h*.32);c.textAlign='center';c.fillStyle=victory?'#ffe1a0':'#dce9fa';c.font=`900 ${w<600?38:72}px system-ui`;c.fillText(victory?'보스 처치':'다시 도전',w/2,h*.44);c.font=`bold ${w<600?15:22}px system-ui`;c.fillText(victory?'지식 수호자를 물리쳤습니다':'배운 지식과 장비는 남아 있어요',w/2,h*.52);c.restore();}
     if(!intro&&!victory&&!defeat){const skill=this.fx.findLast(f=>f.kind==='skill'),combo=this.fx.findLast(f=>f.kind==='combo');
-      if(skill){c.save();c.textAlign='center';c.globalAlpha=Math.min(1,(1-skill.age/skill.duration)*3);c.fillStyle='#071724c9';c.fillRect(w*.12,h*.7-27,w*.76,55);c.fillStyle=COLORS[skill.weapon];c.font=`900 ${w<600?25:36}px system-ui`;c.fillText(skill.weapon==='blade'?'섬광 베기':skill.weapon==='wand'?'별빛 폭풍':'궤도 붕괴',w/2,h*.7+10);c.restore();}
-      else if(engine.bannerTime>0){c.textAlign='center';c.font=`bold ${w<600?14:20}px system-ui`;c.fillStyle='#ffe2b1';c.fillText(engine.banner,w/2,h*.7);}
-      if(combo){c.save();c.textAlign='right';c.globalAlpha=1-combo.age/combo.duration;c.fillStyle='#ffe0a0';c.font=`900 ${w<600?26:42}px system-ui`;c.fillText(`${combo.count} COMBO`,w-25,h*.36);c.restore();}
+      if(skill&&(this.calm||skill.age>=.7)){c.save();c.textAlign='center';c.globalAlpha=Math.min(1,(1-skill.age/skill.duration)*3);c.fillStyle='#071724c9';c.fillRect(w*.12,h*.7-27,w*.76,55);c.fillStyle=COLORS[skill.weapon];c.font=`900 ${w<600?25:36}px system-ui`;c.fillText(skill.weapon==='blade'?'섬광 베기':skill.weapon==='wand'?'별빛 폭풍':'궤도 붕괴',w/2,h*.7+10);c.restore();}
+      else if(!skill&&engine.bannerTime>0){c.textAlign='center';c.font=`bold ${w<600?14:20}px system-ui`;c.fillStyle='#ffe2b1';c.fillText(engine.banner,w/2,h*.7);}
+      if(combo){c.save();c.textAlign='right';c.globalAlpha=1-combo.age/combo.duration;c.fillStyle='#ffe0a0';c.font=`900 ${w<600?26:42}px system-ui`;c.fillText(`${combo.count} 연속 처치`,w-25,h*.36);c.restore();}
     }
+    const special=this.fx.findLast(f=>['skill','petSkill'].includes(f.kind)&&f.age<.7);
+    if(special&&!intro&&!victory&&!this.calm){
+      const k=Math.sin(Math.min(1,special.age/.7)*Math.PI),y=h*(w<600?.33:.23),boxH=w<600?62:82;
+      c.save();c.globalAlpha=k*.95;c.fillStyle='#10283bea';c.beginPath();c.moveTo(0,y);c.lineTo(w*.78,y);c.lineTo(w*.9,y+boxH);c.lineTo(0,y+boxH);c.fill();c.strokeStyle=special.kind==='petSkill'?'#9affde':COLORS[special.weapon];c.lineWidth=3;c.beginPath();c.moveTo(0,y+boxH);c.lineTo(w*.9,y+boxH);c.stroke();
+      const art=this.image(special.kind==='petSkill'&&engine.pet?engine.pet.image:`assets/avatars/${this.profile.avatar}.png`);
+      if(art.complete&&art.naturalWidth)c.drawImage(art,18,y-20,boxH+30,boxH+30);
+      c.textAlign='left';c.font=`900 ${w<600?23:33}px system-ui`;c.fillStyle='#fff3c9';c.fillText(special.kind==='petSkill'?'펫 합동 공격':special.weapon==='blade'?'섬광 베기':special.weapon==='wand'?'별빛 폭풍':'궤도 붕괴',boxH+58,y+boxH*.63);c.restore();
+    }
+    const rush=this.fx.findLast(f=>['dash','skill','petSkill'].includes(f.kind)&&f.age<.3);
+    if(rush&&!this.calm){c.save();c.globalAlpha=(1-rush.age/.3)*.4;c.strokeStyle='#c7fff5';c.lineWidth=2;for(let i=0;i<18;i++){const a=i*TAU/18,r=Math.max(w,h)*.5;c.beginPath();c.moveTo(w/2+Math.cos(a)*r*.75,h/2+Math.sin(a)*r*.75);c.lineTo(w/2+Math.cos(a)*r,h/2+Math.sin(a)*r);c.stroke();}c.restore();}
     // A dangerous enemy outside the camera gets a directional marker on narrow screens.
     if(engine.boss?.hp>0&&w<700){const {scale}=viewMetrics(w,h),b=engine.boss,x=(b.x-this.cam.x)*scale,y=(b.y-this.cam.y)*scale;if(x<35||x>w-35||y<180||y>h-110){const px=clamp(x,25,w-25),py=clamp(y,190,h-125);c.save();c.translate(px,py);c.rotate(Math.atan2(y-h/2,x-w/2));c.fillStyle='#ffc08a';c.beginPath();c.moveTo(13,0);c.lineTo(-9,-8);c.lineTo(-9,8);c.closePath();c.fill();c.restore();}}
   }
