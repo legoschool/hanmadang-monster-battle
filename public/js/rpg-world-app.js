@@ -1,3 +1,4 @@
+import {gameHeader} from './service-shell.js?v=unified1';
 import {BOSS_ART,bossSprite} from './rpg-art.js?v=art8';
 import * as API from './api.js';
 import {REGIONS,EQUIPMENT,PET_ROLES,PET_NAMES,fresh,stats,startAdventure,travel,fight,equip} from './rpg-rules.js?v=evt1';
@@ -20,7 +21,7 @@ appearance(look);for(const k of ['bugbug','glitch','bubble','doppel','halluci'])
 try{sound=localStorage.getItem('gdeal-rpg-sound')!=='off';}catch{}audio.configure({sound,volume:.2});
 function toast(text){const t=document.getElementById('rpg-status');t.textContent=text;clearTimeout(tipTimer);tipTimer=setTimeout(()=>t.textContent='',6500);}
 for(const art of BOSS_ART)sprites.load(art.id,art.src);
-function header(){const r=profile.run;return `<header class="world-header"><a href="games.html" aria-label="게임 선택">← 게임 선택</a><strong>아카이브 원정</strong><div class="header-actions">${btn(sound?'소리 켬':'소리 끔','sound','aria-pressed="'+sound+'"')}${btn('지역','camp')}${btn('장비','gear')}</div></header><div class="player-strip"><span><img src="${esc(look.avatarSrc)}" alt="">${esc(look.name||'탐험가')} <b>Lv.${stats(profile).level}</b></span><span class="pet-strip"><img src="${esc(look.petSrc)}" alt="">${esc(look.petName)} <b>성장 ${Math.min(6,1+Math.floor(profile.bond/3))}</b></span><span>${r&&live()?'체력 '+r.hp+'/'+r.maxHp:demo?'체험':wallet+' P'}</span></div>`;}
+function header(){const r=profile.run;return gameHeader('아카이브 원정',demo)+`<div class="world-toolbar">${btn(sound?'소리 켬':'소리 끔','sound','aria-pressed="'+sound+'"')}${btn('지역','camp')}${btn('장비','gear')}</div><div class="player-strip"><span><img src="${esc(look.avatarSrc)}" alt="">${esc(look.name||'탐험가')} <b>Lv.${stats(profile).level}</b></span><span class="pet-strip"><img src="${esc(look.petSrc)}" alt="">${esc(look.petName)} <b>성장 ${Math.min(6,1+Math.floor(profile.bond/3))}</b></span><span>${r&&live()?'체력 '+r.hp+'/'+r.maxHp:demo?'체험':wallet+' P'}</span></div>`;}
 function storyName(r){return r.boss?STORIES[r.region].bossName:STORIES[r.region].enemyName;}
 function targetFor(r){const index=r.phase==='intro'?1:r.phase==='fork'?3:['shrine','question','review'].includes(r.phase)?5:r.phase==='complete'?6:r.boss?6:r.node===3?4:2;return {...placesFor(r.region)[index],index,name:r.phase==='intro'?'중계기 조사':r.phase==='fork'?'보급 선택':['shrine','question','review'].includes(r.phase)?'원본 기록 확인':r.phase==='complete'?'구역 복구 완료':storyName(r)};}
 function stopViews(){if(map){pos=map.position();map.stop();map=null;}stopBattle();stopBattle=()=>{};}
