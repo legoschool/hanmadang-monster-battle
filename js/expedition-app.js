@@ -7,12 +7,13 @@ import {companionSpec} from './expedition-companions.js?v=growth1';
 import {BIOMES} from './expedition-environment.js?v=pet1';
 import {storyPages,StoryDirector,CHAPTERS} from './expedition-story.js?v=evt1';
 import * as API from './api.js';
-import {loadLookQuick} from './player-look.js?v=look1';
+import {loadLookQuick,cachedLook} from './player-look.js?v=look1';
 import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=story5';
 import {ExpeditionEngine} from './expedition-engine.js?v=cinema2';
 import {ExpeditionRenderer} from './expedition-renderer.js?v=cinema2';
 import {ExpeditionAudio} from './expedition-audio.js?v=cinema2';
 
+const demoEntry=new URLSearchParams(location.search).get('demo')==='1';
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state,user,profile,library=[],zone='code',theme='mixed',mode='survival',gentle=true,difficulty='beginner',gameSpeed=1,autoSkills=true,questionGap=60,engine=null,run=null,pending=null;
@@ -59,7 +60,7 @@ async function request(type,params={}){const {result}=await API.act(type,params)
 let demoTeam=null;
 function petSpec(){const team=TEAMS.find(t=>t.id===(user?.teamId||demoTeam))||TEAMS[0];return companionSpec(team,user?levelInfo(state?.teams?.[team.id]?.exp||0).level:3);}
 function petCard(){const p=petSpec();return '<div class="companion-profile"><img src="'+p.image+'" alt="'+p.monsterName+'"><div><b>동행 펫 · '+p.monsterName+'</b><span>Lv.'+p.level+' · '+p.stage+' 단계</span><small>'+p.skillName+' · 자동 공격 + 합동 기술</small><small>'+(user?'Lv.1 새싹 → Lv.3 동료 → Lv.7 수호. 먹이와 배움으로 함께 키워요.':'체험에서는 Lv.3 펫이 함께해요.')+'</small></div></div>'+(user?'<details class=pet-growth-more><summary>펫 성장과 전투 효과 보기</summary>'+petGrowthMarkup(TEAMS.find(t=>t.id===user.teamId)||TEAMS[0],state?.teams?.[user.teamId]?.exp||0)+'</details>':'');}
-function header(){return `<header class="top"><div class="brand"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>G-DEAL 액션</span></div><a href="index.html#/home">홈</a></header>`;}
+function header(){return `<header class="top"><div class="brand"><img src="assets/brand/gdeal.svg" alt="G-DEAL"><span>G-DEAL 액션</span></div><a href="games.html">게임 선택</a></header>`;}
 function login(message='공동 원정에서 커뮤니티와 아바타를 고르면 이곳에서도 같은 대원으로 이어집니다.'){
   $('expedition').innerHTML=header()+`<section class="login-card"><h1>G-DEAL 액션</h1><p>${esc(message)}</p><a class="primary" href="index.html#/home">원정대에 참여하기</a><p class="muted">참여한 뒤 홈의 ‘G-DEAL 액션’에서 돌아오세요.</p><button class="secondary" data-action="guestTraining">가입 없이 전투 체험</button><p class="muted">체험에서는 이름이나 플레이 기록을 서버에 저장하지 않습니다.</p></section>`;
 }
@@ -158,7 +159,7 @@ function hud(){
   for(const action of ['attack','skill','dash']){const control=document.querySelector(`[data-action="${action}"]`);if(control)control.disabled=engine.phase!=='playing'||engine.entrance>0||(action==='skill'&&engine.skillCd>0)||(action==='dash'&&engine.dashCd>0);}
   $('bossHud').hidden=!b;if(b){$('bossBar').style.width=`${Math.max(0,b.hp/b.maxHp*100)}%`;$('bossText').textContent=`${Math.max(0,Math.ceil(b.hp))} / ${b.maxHp} · 봉인 해제 ${engine.seals}회`;}
 }
-function pause(){if(!engine||engine.phase!=='playing')return;engine.pause();dialog(`<div class="eyebrow">TAKE YOUR TIME</div><h2>잠깐 쉬어가요.</h2><p>전투 시간과 적의 움직임이 멈췄습니다.<br>이번 원정 ${engine.kills}마리 처치 · 전투 Lv.${engine.rank}<br>내 영구 레벨 Lv.${profile.level} · 배운 문제 ${profile.mastered?.length||0}개</p>${comfortControls()}<label><input type="checkbox" id="soundSetting" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><br><label><input type="checkbox" id="calm" ${calmEffects?'checked':''}> 화면 흔들림 · 입자 효과 줄이기</label><br><label><input type="checkbox" id="auto" ${auto?'checked':''}> 자동 공격</label><div class="dialog-actions"><button class="primary" data-action="resume">계속하기</button>${training?'<button class="secondary" data-action="trainingMenu">다른 지역 · 무기 체험</button>':''}<a href="audio-credits.html" target="_blank" rel="noopener">음악 출처</a><button class="secondary" data-action="finish">${training?'체험 마치기':'기록하고 로비로'}</button></div>`);}
+function pause(){if(!engine||engine.phase!=='playing')return;engine.pause();dialog(`<div class="eyebrow">TAKE YOUR TIME</div><h2>잠깐 쉬어가요.</h2><p>전투 시간과 적의 움직임이 멈췄습니다.<br>이번 원정 ${engine.kills}마리 처치 · 전투 Lv.${engine.rank}<br>내 영구 레벨 Lv.${profile.level} · 배운 문제 ${profile.mastered?.length||0}개</p>${comfortControls()}<label><input type="checkbox" id="soundSetting" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><br><label><input type="checkbox" id="calm" ${calmEffects?'checked':''}> 화면 흔들림 · 입자 효과 줄이기</label><br><label><input type="checkbox" id="auto" ${auto?'checked':''}> 자동 공격</label><div class="dialog-actions"><button class="primary" data-action="resume">계속하기</button>${training?'<button class="secondary" data-action="trainingMenu">다른 지역 · 무기 체험</button>':''}<a class="secondary" href="games.html">게임 선택</a><a href="audio-credits.html" target="_blank" rel="noopener">음악 출처</a><button class="secondary" data-action="finish">${training?'체험 마치기':'기록하고 로비로'}</button></div>`);}
 async function showQuestion(afterStory=false){
 
   keys.clear();pad={x:0,y:0};stick=null;
@@ -170,7 +171,7 @@ async function showQuestion(afterStory=false){
       ${q.type==='short'?`<form id="shortForm" class="short-form"><input id="shortAnswer" aria-label="주관식 답" placeholder="짧게 적어 주세요" maxlength="100" autocomplete="off"><button class="primary" type="submit">정답 확인</button></form>`:`<div class="answers">${q.options.map((o,i)=>`<button class="answer" data-answer="${i}"><em>${i+1}</em>${esc(o)}</button>`).join('')}</div>`}
       <div class="answer-status" id="answerStatus" role="status"></div><button class="plain" data-action="hint">${q.type==='short'?'초성·설명 힌트 보기':'힌트 보기'}</button><div id="hintBox" class="hint" hidden>${esc(q.hint)}</div><p class="muted">${mode==='study'?'시간 제한이 없어요.':'지금은 전투가 멈춰 있어요.'} 틀려도 힌트를 보고 다시 답할 수 있습니다.</p><div class="dialog-actions"><button class="secondary" data-action="skip">해설 보고 넘어가기</button><button class="plain" data-action="finish">이번 원정 마치기</button></div>`);
     $('shortForm')?.addEventListener('submit',e=>{e.preventDefault();submitAnswer($('shortAnswer').value);});
-  }catch(e){dialog(`<h2>연결을 기다리고 있어요.</h2><p>${esc(e.message)}</p><p class="muted">전투는 멈춰 있습니다. 연결 후 같은 문제부터 이어갈 수 있어요.</p><div class="dialog-actions"><button class="primary" data-action="retryQuestion">다시 불러오기</button><a href="audio-credits.html" target="_blank" rel="noopener">음악 출처</a><button class="secondary" data-action="finish">원정 마치기</button></div>`);}
+  }catch(e){dialog(`<h2>연결을 기다리고 있어요.</h2><p>${esc(e.message)}</p><p class="muted">전투는 멈춰 있습니다. 연결 후 같은 문제부터 이어갈 수 있어요.</p><div class="dialog-actions"><button class="primary" data-action="retryQuestion">다시 불러오기</button><a class="secondary" href="games.html">게임 선택</a><a href="audio-credits.html" target="_blank" rel="noopener">음악 출처</a><button class="secondary" data-action="finish">원정 마치기</button></div>`);}
 }
 async function submitAnswer(answer,skip=false){
   if(busy||!pending)return;if(!skip&&typeof answer==='string'&&!answer.trim())return notice('답을 적어 주세요.');
@@ -201,7 +202,7 @@ document.addEventListener('click',async e=>{
   const el=e.target.closest('button');if(!el||el.disabled)return;
   if(story){if(el.dataset.action==='storyPause'){story.hold=!story.hold;el.textContent=story.hold?'계속':'멈춤';if(story.hold)storyVoice.pause();else if(story.voiceActive&&!story.voiceFailed)storyVoice.play().catch(()=>{if(story)story.voiceFailed=true;});return;}if(el.dataset.action==='storyNext'){if(story.index+1<story.pages.length){story.index++;paintStory();}else endStory();}else if(el.dataset.action==='storyBack'&&story.index>0){story.index--;paintStory();}else if(el.dataset.action==='storySkip')endStory();return;}
   if(el.dataset.storyReplay!==undefined){const r=storyRead[Number(el.dataset.storyReplay)];if(r)showStory(r.beat,storyJournal,r.zone);return;}
-  if(el.dataset.training){startTraining(el.dataset.training);return;}
+  if(el.dataset.training){await audio.unlock();startTraining(el.dataset.training,demoEntry);return;}
   if(el.dataset.zone){zone=el.dataset.zone;renderLobby();return;}
   if(el.dataset.equip){if(busy)return;busy=true;try{await request('expeditionEquip',{item:el.dataset.equip});gearDialog();}catch(err){notice(err.message);}finally{busy=false;}return;}
   if(el.dataset.library){showLibrary(el.dataset.library);return;}
@@ -233,7 +234,7 @@ document.addEventListener('click',async e=>{
   if(action==='skip')submitAnswer('',true);
   if(action==='retryQuestion')showQuestion();
   if(action==='finish')finish();
-  if(action==='lobby')renderLobby();
+  if(action==='lobby'){if(demoEntry)renderDemoMenu();else renderLobby();}
   if(action==='again'){renderLobby();start();}
 });
 document.addEventListener('change',e=>{if(e.target.id==='calm'){preferences.calm=e.target.checked;savePreferences();}const setting={soundSetting:'sound',musicSetting:'music',voiceSetting:'voice',calmSetting:'calm',qualitySetting:'quality'}[e.target.id];if(setting){preferences[setting]=e.target.type==='checkbox'?e.target.checked:e.target.value;savePreferences();if(preferences.sound)audio.unlock();}if(e.target.id==='volumeSetting'){preferences.volume=Number(e.target.value)/100;savePreferences();}if(e.target.id==='trainingZone'&&ZONES.some(z=>z.id===e.target.value))zone=e.target.value;if(e.target.id==='questionTheme')theme=e.target.value;if(e.target.id==='mode')mode=e.target.value;if(e.target.id==='battleDifficulty'){difficulty=e.target.value;gentle=difficulty!=='standard';engine?.setDifficulty(difficulty);saveComfort();}if(e.target.id==='gameSpeed'){gameSpeed=Number(e.target.value);if(engine)engine.gameSpeed=gameSpeed;saveComfort();}if(e.target.id==='autoSkills'){autoSkills=e.target.checked;if(engine)engine.autoSkills=autoSkills;saveComfort();}if(e.target.id==='questionPace'){questionGap=Number(e.target.value);saveComfort();}if(e.target.id==='auto'){auto=e.target.checked;if($('autoLabel'))$('autoLabel').textContent=auto?'자동 공격 켜짐':'직접 공격';}});
@@ -257,15 +258,10 @@ window.addEventListener('blur',()=>{keys.clear();pad={x:0,y:0};stick=null;if(eng
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)return;if(story){story.hold=true;storyVoice.pause();const b=document.querySelector('[data-action=storyPause]');if(b)b.textContent='계속';}else if(engine?.phase==='playing')pause();});
 window.addEventListener('beforeunload',e=>{if(run&&['battle','study'].includes(view)){e.preventDefault();e.returnValue='';}});
 
+function renderDemoMenu(){cancelAnimationFrame(frame);engine=null;renderer=null;view='lobby';training=true;run=null;storyVoice.pause();story=null;audio.update(false);closeDialog();$('expedition').innerHTML=header()+`<section class="lobby demo-lobby"><div class="intro"><div><span class="eyebrow">로그인 없는 체험</span><h1>보스 돌파</h1><p>무기를 고르면 전투가 시작됩니다.<br>방향키·WASD 또는 화면 밀기로 이동 · 가까운 적은 자동 공격</p></div><img src="assets/bosses/bugbug.png" alt="버그 군주" width="140"></div><div class="training-weapons">${['blade','wand','orbit'].map(id=>`<button data-training="${id}"><img src="${gearImage(id)}" alt=""><b>${gearById(id).name}</b><small>${id==='blade'?'근접 검격':id==='wand'?'원거리 탄환':'회전 궤도'}</small><span>플레이 →</span></button>`).join('')}</div><p class="muted">E 스킬 · Q 펫 기술 · Shift 회피. 휴대폰은 화면 버튼으로 조작합니다.<br>체험 기록과 포인트는 저장되지 않습니다.</p><a class="secondary" href="games.html">다른 게임 선택</a></section>`;}
 async function boot(){
-  if(new URLSearchParams(location.search).get('demo')==='1'){
-    // 로그인한 사람은 체험에서도 내 아바타와 내 커뮤니티 펫이 나온다
-    const look=await loadLookQuick();demoTeam=look.teamId;
-    profile={name:look.name||'체험 대원',avatar:look.avatar,level:1,charm:null,weapon:'blade'};zone='code';
-    document.addEventListener('pointerdown',()=>audio.unlock(),{once:true});
-    document.addEventListener('keydown',()=>audio.unlock(),{once:true});
-    await startTraining('blade',true);engine.pause();$('expedition').inert=true;await showOpening();$('expedition').inert=false;keys.clear();engine.resume();lastFrame=performance.now();return;
-  }
+  if(demoEntry){autoSkills=false;const look=cachedLook();demoTeam=look.teamId;profile={name:look.name||'체험 대원',avatar:look.avatar,level:1,charm:null,weapon:'blade'};zone='code';renderDemoMenu();return;}
+
   try{state=await API.fetchState();user=state.users?.[state.me];if(!user){login();await showOpening();return;}const r=await request('expeditionLibrary');profile=r.profile;renderLobby();await showOpening();}
   catch(e){$('expedition').innerHTML=header()+`<section class="login-card"><h1>연결을 확인해 주세요.</h1><p>${esc(e.message)}</p><button class="primary" id="retryBoot">다시 연결</button><p><a href="index.html#/home">공동 원정으로</a></p></section>`;$('retryBoot').onclick=boot;}
 }

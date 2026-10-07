@@ -6,12 +6,14 @@ import { ArcadeRenderer, Sprites, SPRITE_SOURCES } from './arcade-render.js?v=qu
 import { ArcadeAudio } from './arcade-audio.js?v=arcade2';
 import { cachedLook, loadLook } from './player-look.js?v=look1';
 
+const guestOnly=new URLSearchParams(location.search).get('demo')==='1';
+const requestedGame=new URLSearchParams(location.search).get('game');
 const root = document.getElementById('arcade-root'), status = document.getElementById('arcade-status');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const button = (text, act, extra = '', primary = false) => `<button class="button ${primary ? 'primary' : ''}" data-act="${act}" ${extra}>${text}</button>`;
 
 let state = null, adminData = null, run = null, sim = null, renderer = null, inputs = [], bits = 0, heldBits = 0;
-let frameId = 0, last = 0, acc = 0, paused = true, busy = false, demo = false, speed = 0.6, noticeTimer = 0, pending = null;
+let frameId = 0, last = 0, acc = 0, paused = true, busy = false, demo = false, speed = 1, noticeTimer = 0, pending = null;
 let preview = 'english', sent = false, drag = null, intro = 0, hitstop = 0, endWait = 0, previews = [];
 const audio = new ArcadeAudio();
 let prefs = { sound: true, music: true };
@@ -46,7 +48,7 @@ function stop() { cancelAnimationFrame(frameId); paused = true; bits = 0; drag =
 async function home() {
   document.body.classList.remove('is-playing'); stop(); run = null; pending = null; sim = null;
   if (location.hash === '#admin') return adminHome();
-  if (API.getToken()) {
+  if (!guestOnly && API.getToken()) {
     try { state = await action('arcadeState'); }
     catch (e) { root.innerHTML = `<section class="section"><h1>아케이드 연결</h1><p>${esc(e.message)}</p><a class="button primary" href="index.html?join=1&mode=resume">이어서 플레이</a> ${button('다시 연결', 'home')}</section>`; return; }
   } else state = null;
@@ -67,7 +69,7 @@ async function home() {
       <p>적을 한 마리 이상 잡고 마치면 완료 10P + 처치 수(최대 20P) + 퀴즈 정답당 10P. 게임별 하루 한 번, 최대 60P이고 라운지 게임과 합쳐 하루 200P까지예요. 다시 하면 최고 기록만 바뀌어요.</p>
     </details>
     ${state ? leaders() : ''}
-    <p><a href="index.html#/home">홈으로</a></p>`;
+    <p><a href="games.html">전체 게임 선택</a></p>`;
   root.setAttribute('aria-busy', 'false');
   startPreviews();
 }
@@ -320,7 +322,7 @@ root.addEventListener('click', (e) => {
     return;
   }
   perform(async () => {
-    if (a === 'home' || a === 'leave') { if (a === 'leave' && run?.phase === 'playing' && sim?.frame > 0 && !confirm('게임 목록 돌아갈까요? 이 구간은 처음부터 다시 해야 해요.')) return; await home(); }
+    if (a === 'home' || a === 'leave') { if (a === 'leave' && run?.phase === 'playing' && sim?.frame > 0 && !confirm('게임 목록 돌아갈까요? 이 구간은 처음부터 다시 해야 해요.')) return; if(guestOnly){location.href='games.html';return;}await home(); }
     if (a === 'start') await start(b.dataset.kind);
     if (a === 'restore') { demo = false; run = state.run; renderRun(); }
     if (a === 'answer') await answer(+b.dataset.choice);
@@ -350,5 +352,7 @@ window.addEventListener('blur', pause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 window.addEventListener('hashchange', () => { stop(); home(); });
 window.addEventListener('pagehide', stop);
-loadLook().then(useLook);
-home().catch((e) => { tell(e.message); root.innerHTML = '<p>연결하지 못했어요. 새로고침해 주세요.</p>'; });
+if(!guestOnly)loadLook().then(useLook);
+home().then(()=>{if(ARCADE_GAMES[requestedGame]&&location.hash!=='#admin')return start(requestedGame);}).catch((e) => { tell(e.message); root.innerHTML = '<p>연결하지 못했어요. 새로고침해 주세요.</p>'; });
+
+if(guestOnly){document.querySelector('.top nav').innerHTML='<span>체험 · 저장 안 됨</span>';document.querySelector('.top .top-in>a').innerHTML='<span>← 게임 선택</span>';document.querySelector('.top .top-in>a').href='games.html';}
