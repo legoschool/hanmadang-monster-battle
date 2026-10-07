@@ -1,4 +1,4 @@
-import {showOpening} from './opening-story.js?v=cinema1';
+import {showOpening} from './opening-story.js?v=cinema2';
 import {loadArtImage} from './character-art.js?v=quest10';
 import {TEAMS} from './config.js';
 import {petGrowthMarkup} from './pet-growth.js?v=growth1';
@@ -9,9 +9,9 @@ import {storyPages,StoryDirector,CHAPTERS} from './expedition-story.js?v=evt1';
 import * as API from './api.js';
 import {loadLookQuick} from './player-look.js?v=look1';
 import {ZONES,GEAR,heroLevel,gearById,zoneById,gearImage,explorerTitle,BOSS_TYPES} from './expedition-config.js?v=story5';
-import {ExpeditionEngine} from './expedition-engine.js?v=cinema1';
-import {ExpeditionRenderer} from './expedition-renderer.js?v=cinema1';
-import {ExpeditionAudio} from './expedition-audio.js?v=cinema1';
+import {ExpeditionEngine} from './expedition-engine.js?v=cinema2';
+import {ExpeditionRenderer} from './expedition-renderer.js?v=cinema2';
+import {ExpeditionAudio} from './expedition-audio.js?v=cinema2';
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -86,7 +86,7 @@ function renderLobby(){
   </section>`;
 }
 function settingsDialog(){
- dialog(`<div class="eyebrow">PRESENTATION</div><h2>나에게 맞는 전투 연출</h2><div class="settings-list"><label><input id="soundSetting" type="checkbox" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><label><input id="voiceSetting" type="checkbox" ${preferences.voice!==false?'checked':''}> 이야기·전투 음성 안내</label><label><input id="musicSetting" type="checkbox" ${preferences.music?'checked':''}> 전투 배경 선율</label><label>소리 크기 <input id="volumeSetting" aria-label="소리 크기" type="range" min="0" max="50" value="${Math.round(preferences.volume*100)}"></label><label><input id="calmSetting" type="checkbox" ${preferences.calm?'checked':''}> 화면 흔들림과 입자 줄이기</label><label>화면 품질 <select id="qualitySetting"><option value="high" ${preferences.quality==='high'?'selected':''}>선명하게</option><option value="low" ${preferences.quality==='low'?'selected':''}>가볍게</option></select></label></div><p class="muted">공격 범위와 적의 공격 예고는 어느 설정에서도 표시됩니다. 소리는 출발 버튼을 누른 뒤 재생돼요.</p><div class="dialog-actions"><button class="primary" data-action="settingsDone">설정 완료</button></div>`);
+ dialog(`<div class="eyebrow">PRESENTATION</div><h2>나에게 맞는 전투 연출</h2><div class="settings-list"><label><input id="soundSetting" type="checkbox" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><label><input id="voiceSetting" type="checkbox" ${preferences.voice!==false?'checked':''}> 이야기·전투 음성 안내</label><label><input id="musicSetting" type="checkbox" ${preferences.music?'checked':''}> 전투 배경음악</label><label>소리 크기 <input id="volumeSetting" aria-label="소리 크기" type="range" min="0" max="50" value="${Math.round(preferences.volume*100)}"></label><label><input id="calmSetting" type="checkbox" ${preferences.calm?'checked':''}> 화면 흔들림과 입자 줄이기</label><label>화면 품질 <select id="qualitySetting"><option value="high" ${preferences.quality==='high'?'selected':''}>선명하게</option><option value="low" ${preferences.quality==='low'?'selected':''}>가볍게</option></select></label></div><p class="muted">공격 범위와 적의 공격 예고는 어느 설정에서도 표시됩니다. 소리는 출발 버튼을 누른 뒤 재생돼요.</p><p><a href="audio-credits.html" target="_blank" rel="noopener">음악 출처</a></p><div class="dialog-actions"><button class="primary" data-action="settingsDone">설정 완료</button></div>`);
 }
 function trainingMenu(){dialog(`<div class="eyebrow">TRAINING GROUNDS</div><h2>세 무기를 직접 써 보세요.</h2><p>보상과 기록이 없는 체험 전투입니다. 모든 무기를 시험할 수 있고 체력이 넉넉합니다.</p><label class="training-region">체험할 지역 <select id="trainingZone">${ZONES.map(z=>`<option value="${z.id}" ${zone===z.id?'selected':''}>${z.name}</option>`).join('')}</select></label><div class="training-weapons">${['blade','wand','orbit'].map(id=>`<button data-training="${id}"><img src="${gearImage(id)}" alt=""><b>${gearById(id).name}</b><small>${id==='blade'?'대형 검격과 충격파':id==='wand'?'별빛 탄환과 방사 폭발':'회전 궤도와 중력장'}</small></button>`).join('')}</div><div class="dialog-actions"><button class="secondary" data-action="close">돌아가기</button></div>`);}
 async function startTraining(weapon,quick=false){
@@ -158,7 +158,7 @@ function hud(){
   for(const action of ['attack','skill','dash']){const control=document.querySelector(`[data-action="${action}"]`);if(control)control.disabled=engine.phase!=='playing'||engine.entrance>0||(action==='skill'&&engine.skillCd>0)||(action==='dash'&&engine.dashCd>0);}
   $('bossHud').hidden=!b;if(b){$('bossBar').style.width=`${Math.max(0,b.hp/b.maxHp*100)}%`;$('bossText').textContent=`${Math.max(0,Math.ceil(b.hp))} / ${b.maxHp} · 봉인 해제 ${engine.seals}회`;}
 }
-function pause(){if(!engine||engine.phase!=='playing')return;engine.pause();dialog(`<div class="eyebrow">TAKE YOUR TIME</div><h2>잠깐 쉬어가요.</h2><p>전투 시간과 적의 움직임이 멈췄습니다.<br>이번 원정 ${engine.kills}마리 처치 · 전투 Lv.${engine.rank}<br>내 영구 레벨 Lv.${profile.level} · 배운 문제 ${profile.mastered?.length||0}개</p>${comfortControls()}<label><input type="checkbox" id="soundSetting" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><br><label><input type="checkbox" id="calm" ${calmEffects?'checked':''}> 화면 흔들림 · 입자 효과 줄이기</label><br><label><input type="checkbox" id="auto" ${auto?'checked':''}> 자동 공격</label><div class="dialog-actions"><button class="primary" data-action="resume">계속하기</button>${training?'<button class="secondary" data-action="trainingMenu">다른 지역 · 무기 체험</button>':''}<button class="secondary" data-action="finish">${training?'체험 마치기':'기록하고 로비로'}</button></div>`);}
+function pause(){if(!engine||engine.phase!=='playing')return;engine.pause();dialog(`<div class="eyebrow">TAKE YOUR TIME</div><h2>잠깐 쉬어가요.</h2><p>전투 시간과 적의 움직임이 멈췄습니다.<br>이번 원정 ${engine.kills}마리 처치 · 전투 Lv.${engine.rank}<br>내 영구 레벨 Lv.${profile.level} · 배운 문제 ${profile.mastered?.length||0}개</p>${comfortControls()}<label><input type="checkbox" id="soundSetting" ${preferences.sound?'checked':''}> 타격음과 스킬 소리</label><br><label><input type="checkbox" id="calm" ${calmEffects?'checked':''}> 화면 흔들림 · 입자 효과 줄이기</label><br><label><input type="checkbox" id="auto" ${auto?'checked':''}> 자동 공격</label><div class="dialog-actions"><button class="primary" data-action="resume">계속하기</button>${training?'<button class="secondary" data-action="trainingMenu">다른 지역 · 무기 체험</button>':''}<a href="audio-credits.html" target="_blank" rel="noopener">음악 출처</a><button class="secondary" data-action="finish">${training?'체험 마치기':'기록하고 로비로'}</button></div>`);}
 async function showQuestion(afterStory=false){
 
   keys.clear();pad={x:0,y:0};stick=null;
@@ -170,7 +170,7 @@ async function showQuestion(afterStory=false){
       ${q.type==='short'?`<form id="shortForm" class="short-form"><input id="shortAnswer" aria-label="주관식 답" placeholder="짧게 적어 주세요" maxlength="100" autocomplete="off"><button class="primary" type="submit">정답 확인</button></form>`:`<div class="answers">${q.options.map((o,i)=>`<button class="answer" data-answer="${i}"><em>${i+1}</em>${esc(o)}</button>`).join('')}</div>`}
       <div class="answer-status" id="answerStatus" role="status"></div><button class="plain" data-action="hint">${q.type==='short'?'초성·설명 힌트 보기':'힌트 보기'}</button><div id="hintBox" class="hint" hidden>${esc(q.hint)}</div><p class="muted">${mode==='study'?'시간 제한이 없어요.':'지금은 전투가 멈춰 있어요.'} 틀려도 힌트를 보고 다시 답할 수 있습니다.</p><div class="dialog-actions"><button class="secondary" data-action="skip">해설 보고 넘어가기</button><button class="plain" data-action="finish">이번 원정 마치기</button></div>`);
     $('shortForm')?.addEventListener('submit',e=>{e.preventDefault();submitAnswer($('shortAnswer').value);});
-  }catch(e){dialog(`<h2>연결을 기다리고 있어요.</h2><p>${esc(e.message)}</p><p class="muted">전투는 멈춰 있습니다. 연결 후 같은 문제부터 이어갈 수 있어요.</p><div class="dialog-actions"><button class="primary" data-action="retryQuestion">다시 불러오기</button><button class="secondary" data-action="finish">원정 마치기</button></div>`);}
+  }catch(e){dialog(`<h2>연결을 기다리고 있어요.</h2><p>${esc(e.message)}</p><p class="muted">전투는 멈춰 있습니다. 연결 후 같은 문제부터 이어갈 수 있어요.</p><div class="dialog-actions"><button class="primary" data-action="retryQuestion">다시 불러오기</button><a href="audio-credits.html" target="_blank" rel="noopener">음악 출처</a><button class="secondary" data-action="finish">원정 마치기</button></div>`);}
 }
 async function submitAnswer(answer,skip=false){
   if(busy||!pending)return;if(!skip&&typeof answer==='string'&&!answer.trim())return notice('답을 적어 주세요.');
