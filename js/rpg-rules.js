@@ -1,7 +1,7 @@
 export const REGIONS=[
- {id:'forest',name:'안개 숲길',biome:'code',enemy:'bugbug',boss:'glitch',color:'#9ed3a5',intro:'한마당으로 향하는 길이 끊겼다. 안내소에서 보낸 지도 조각을 찾아 숲의 관문을 열어야 한다.',goal:'숲의 관문 열기',ending:'관문이 열렸다. 지도 조각이 가리키는 다음 장소는 배가 멈춘 항구다.',loot:'wand'},
+ {id:'forest',name:'안개 숲길',biome:'code',enemy:'bugbug',boss:'glitch',color:'#9ed3a5',intro:'원정대 본부로 향하는 길이 끊겼다. 안내소에서 보낸 지도 조각을 찾아 숲의 관문을 열어야 한다.',goal:'숲의 관문 열기',ending:'관문이 열렸다. 지도 조각이 가리키는 다음 장소는 배가 멈춘 항구다.',loot:'wand'},
  {id:'harbor',name:'잠든 항구',biome:'web',enemy:'bubble',boss:'doppel',color:'#96cde5',intro:'항구의 등대가 꺼졌다. 부두를 지나는 적을 물리치고 등대의 기록을 찾아야 한다.',goal:'등대 기록 회수',ending:'등대가 다시 켜졌다. 마지막 기록을 실은 배가 성채로 향했던 흔적이 드러났다.',loot:'shield'},
- {id:'citadel',name:'기록의 성채',biome:'safety',enemy:'halluci',boss:'glitch',color:'#d6b3e8',intro:'성채의 파수꾼이 기록실을 봉인했다. 동행 펫과 함께 마지막 관문을 돌파해야 한다.',goal:'기록실 봉인 해제',ending:'세 지역의 기록이 한곳에 모였다. 한마당으로 돌아가는 길이 열렸다. 다른 장비로 지역을 다시 탐험할 수 있다.',loot:'orbit'}
+ {id:'citadel',name:'기록의 성채',biome:'safety',enemy:'halluci',boss:'glitch',color:'#d6b3e8',intro:'성채의 파수꾼이 기록실을 봉인했다. 동행 펫과 함께 마지막 관문을 돌파해야 한다.',goal:'기록실 봉인 해제',ending:'세 지역의 기록이 한곳에 모였다. 원정대 본부로 돌아가는 길이 열렸다. 다른 장비로 지역을 다시 탐험할 수 있다.',loot:'orbit'}
 ];
 export const EQUIPMENT={blade:{name:'탐험 검',slot:'weapon',attack:3,defense:0,image:'blade'},wand:{name:'항로 지팡이',slot:'weapon',attack:7,defense:0,image:'wand'},shield:{name:'기록 방패',slot:'armor',attack:0,defense:3,image:'shield'},orbit:{name:'수호의 고리',slot:'weapon',attack:11,defense:0,image:'orbit'}};
 export const PET_ROLES={koalbot:'beam',antro:'burst',monggeul:'heal',digibugi:'guard',pickling:'burst',droni:'burst',owllab:'burst',hongaengi:'guard',maninyang:'beam',h2o:'heal'};
