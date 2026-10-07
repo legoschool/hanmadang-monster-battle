@@ -43,14 +43,14 @@ export class ExpeditionEngine {
   }
   upgrade(kind){
     if(this.phase!=='upgrade')return;
-    if(this.experience){if(!this.offered.includes(kind))return;this.mods[kind]=true;this.lootHistory.push({id:kind,source:this.rewardSource});if(kind==='heart')this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+45);this.offered=[];if(this.encounter==='cache'){this.encounter='assault';this.waveGoal=this.kills+6;for(let i=0;i<4;i++)this.spawn(230+i*10);}else if(this.encounter==='assault'){this.encounter='boss';this.spawnBoss();}this.phase='playing';this.hero.inv=1.5;this.event=null;this.emit('upgrade',{upgrade:kind});return;}
+    if(this.experience){if(!this.offered.includes(kind))return;this.mods[kind]=true;this.lootHistory.push({id:kind,source:this.rewardSource});if(kind==='heart')this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+45);this.offered=[];if(this.encounter==='cache'){this.encounter='assault';this.waveGoal=this.kills+10;for(let i=0;i<4;i++)this.spawn(230+i*10);}else if(this.encounter==='assault'){this.encounter='boss';this.spawnBoss();}this.phase='playing';this.hero.inv=1.5;this.event=null;this.emit('upgrade',{upgrade:kind});return;}
     if(kind==='power')this.hero.damage*=1.22;
     if(kind==='rapid')this.hero.rate=Math.min(3,this.hero.rate+0.2);
     if(kind==='heart'){this.hero.maxHp+=25;this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+45);}
     if(kind==='magnet'){this.hero.magnet=Math.min(260,this.hero.magnet+40);this.hero.speed=Math.min(285,this.hero.speed+12);}
     this.phase='playing';this.emit('upgrade',{upgrade:kind});this.effects.push({x:this.hero.x,y:this.hero.y,r:20,endR:100,ttl:0.8,max:0.8,color:'#b9f5b0'});
   }
-  offerLoot(source){this.rewardSource=source;this.offered=lootChoices(this);if(!this.offered.length){this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+25);if(this.encounter==='cache'){this.encounter='assault';this.waveGoal=this.kills+6;}else if(this.encounter==='assault'){this.encounter='boss';this.spawnBoss();}this.phase='playing';this.event=null;return;}this.phase='upgrade';this.event='upgrade';}
+  offerLoot(source){this.rewardSource=source;this.offered=lootChoices(this);if(!this.offered.length){this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+25);if(this.encounter==='cache'){this.encounter='assault';this.waveGoal=this.kills+10;}else if(this.encounter==='assault'){this.encounter='boss';this.spawnBoss();}this.phase='playing';this.event=null;return;}this.phase='upgrade';this.event='upgrade';}
   queueAttack(){this.attackBuffer=.18;}
   nearest(){return [...this.enemies,...(this.boss?[this.boss]:[])].filter(e=>e.hp>0).sort((a,b)=>this.dist(a,this.hero)-this.dist(b,this.hero))[0];}
   dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
@@ -90,7 +90,7 @@ export class ExpeditionEngine {
     h.inv=Math.max(h.inv,0.5);
   }
   petSkill(){return castCompanion(this);}
-  hit(e,n,source='hero',chain=false){if(e.hp<=0||e.shield)return;if(e.stun>0){n*=2;if(source==='hero')this.counters++;}if(source==='hero'&&e.kind!=='boss'){const a=Math.atan2(e.y-this.hero.y,e.x-this.hero.x);e.x=Math.max(32,Math.min(1068,e.x+Math.cos(a)*12));e.y=Math.max(32,Math.min(768,e.y+Math.sin(a)*12));}if(chain&&this.mods.chain){const targets=this.enemies.filter(t=>t!==e&&t.hp>0&&this.dist(t,e)<190).slice(0,2);for(const t of targets){this.hit(t,n*.55,'chain');this.emit('chain',{x:e.x,y:e.y,toX:t.x,toY:t.y});}}if(this.pet){this.pet.charge=Math.min(100,this.pet.charge+(source==='pet'?2:1));if(source==='pet')this.pet.dealt+=Math.min(e.hp,n);}e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,targetId:e.id,angle:Math.atan2(e.y-this.hero.y,e.x-this.hero.x),damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&(source==='hero'||n>this.hero.damage*1.8))this.hitStop=Math.max(this.hitStop,n>this.hero.damage*1.8?.055:.025);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
+  hit(e,n,source='hero',chain=false){if(e.hp<=0||e.shield)return;if(this.experience&&!e.stun){if(e.kind==='elite')n*=.2;else if(e.kind==='boss')n*=.65;}if(e.stun>0){n*=2;if(source==='hero')this.counters++;}if(source==='hero'&&e.kind!=='boss'){const a=Math.atan2(e.y-this.hero.y,e.x-this.hero.x);e.x=Math.max(32,Math.min(1068,e.x+Math.cos(a)*12));e.y=Math.max(32,Math.min(768,e.y+Math.sin(a)*12));}if(chain&&this.mods.chain){const targets=this.enemies.filter(t=>t!==e&&t.hp>0&&this.dist(t,e)<190).slice(0,2);for(const t of targets){this.hit(t,n*.55,'chain');this.emit('chain',{x:e.x,y:e.y,toX:t.x,toY:t.y});}}if(this.pet){this.pet.charge=Math.min(100,this.pet.charge+(source==='pet'?2:1));if(source==='pet')this.pet.dealt+=Math.min(e.hp,n);}e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,targetId:e.id,angle:Math.atan2(e.y-this.hero.y,e.x-this.hero.x),damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&(source==='hero'||n>this.hero.damage*1.8))this.hitStop=Math.max(this.hitStop,n>this.hero.damage*1.8?.055:.025);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
   hurt(n,cause='적 접촉'){const h=this.hero;if(this.phase!=='playing'||h.inv>0)return;n*=this.difficultyStats.damage;if(this.pet?.guard>0){this.pet.blocked=(this.pet.blocked||0)+Math.min(h.hp,n)-Math.min(h.hp,n*.55);n*=.55;}this.damageTaken+=n;this.lastHurt=cause;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
     this.texts.push({x:h.x,y:h.y-26,text:`-${n}`,ttl:0.7,color:'#ffa49e'});if(h.hp<=0){this.phase='lost';this.event='end';this.emit('defeat');}}
   spawn(distance=null){
@@ -101,7 +101,7 @@ export class ExpeditionEngine {
     if(this.cinematic)this.emit('spawn',{x,y});
   }
   spawnBoss(){
-    this.bossMade=true;this.boss={id:'boss',x:this.hero.x,y:Math.max(150,this.hero.y-120),hp:this.experience?620:900,maxHp:this.experience?620:900,r:65,kind:'boss',speed:30,attack:2.4,nextSeal:0.72,shield:false,flash:0};
+    this.bossMade=true;this.boss={id:'boss',x:this.hero.x,y:Math.max(150,this.hero.y-120),hp:this.experience?1450:900,maxHp:this.experience?1450:900,r:65,kind:'boss',speed:30,attack:2.4,nextSeal:0.72,shield:false,flash:0};
     this.enemies=this.enemies.slice(0,6);this.texts.push({x:550,y:240,text:'보스 등장',ttl:2,color:'#ffd994'});
     this.banner='수호자가 깨어났습니다';this.bannerTime=2;this.shake=6;this.boss.turn=0;this.boss.enraged=false;this.entrance=this.cinematic?1.7:0;this.emit('bossIntro',{x:this.boss.x,y:this.boss.y,bossType:this.bossType});
   }
@@ -112,7 +112,7 @@ export class ExpeditionEngine {
   }
   encounters(dt){
     for(const bomb of this.bombs){bomb.ttl-=dt;if(bomb.ttl<=0){for(const e of [...this.enemies,...(this.boss?[this.boss]:[])])if(this.dist(e,bomb)<bomb.r+e.r)this.hit(e,this.hero.damage*2,'echo');this.emit('meteor',{x:bomb.x,y:bomb.y,radius:bomb.r});}}this.bombs=this.bombs.filter(b=>b.ttl>0);
-    if(this.encounter==='warmup'&&this.kills>=4){this.encounter='elite';this.enemies=[];this.enemies.push({id:++this.seq,kind:'elite',x:150,y:180,hp:170,maxHp:170,r:34,speed:0,flash:0,cool:1});this.banner='정예 돌진병 · 벽 충돌 뒤 반격';this.bannerTime=2;}
+    if(this.encounter==='warmup'&&this.kills>=4){this.encounter='elite';this.enemies=[];this.enemies.push({id:++this.seq,kind:'elite',x:150,y:180,hp:300,maxHp:300,r:34,speed:0,flash:0,cool:1});this.banner='정예 돌진병 · 벽 충돌 뒤 반격';this.bannerTime=2;}
     else if(this.encounter==='warmup'&&this.enemies.filter(e=>e.hp>0).length<2&&this.kills<4)this.spawn(170);
     else if(this.encounter==='assault'&&this.kills>=this.waveGoal){this.enemies=[];this.requestQuestion('wave');}
     else if(this.encounter==='assault'&&this.enemies.filter(e=>e.hp>0).length<2)this.spawn(210);

@@ -101,7 +101,7 @@ export class ExpeditionRenderer{
       if(e.enraged){c.strokeStyle='#ff8b7166';c.lineWidth=4;circle(c,0,-14,97);c.stroke();}
     }else{
       const enemy=this.image('assets/bosses/'+(e.kind==='ghost'?'halluci':'bugbug')+'.png'),size=e.r*3.4;const bounce=this.calm?0:Math.sin(this.clock*7+e.id)*2;c.translate(0,bounce);if(enemy.complete&&enemy.naturalWidth){if(e.flash>0)c.filter='brightness(1.5)';c.drawImage(enemy,-size/2,-size*.75,size,size);c.filter='none';}
-      if(e.hp<e.maxHp){c.fillStyle='#102834';c.fillRect(-24,-e.r*1.6-9,48,4);c.fillStyle='#f2c789';c.fillRect(-24,-e.r*1.6-9,48*Math.max(0,e.hp/e.maxHp),4);}
+      if(e.kind==='elite'&&!e.stun){c.strokeStyle='#b8c9dc';c.lineWidth=3;circle(c,0,-12,e.r+6);c.stroke();c.font='bold 12px system-ui';c.textAlign='center';c.fillStyle='#e4e9f2';c.fillText('돌진병 · 방어 중',0,-e.r*2.8);}if(e.hp<e.maxHp){c.fillStyle='#102834';c.fillRect(-24,-e.r*1.6-9,48,4);c.fillStyle='#f2c789';c.fillRect(-24,-e.r*1.6-9,48*Math.max(0,e.hp/e.maxHp),4);}
     }c.restore();
   }
   runes(c,x,y,r,angle,color,alpha){c.save();c.translate(x,y);c.rotate(angle);c.globalAlpha=alpha;c.strokeStyle=color;c.lineWidth=2;circle(c,0,0,r);c.stroke();circle(c,0,0,r*.92);c.stroke();for(let i=0;i<12;i++){c.save();c.rotate(i*TAU/12);c.beginPath();c.moveTo(r*.97,-8);c.lineTo(r*1.05,0);c.lineTo(r*.97,8);c.stroke();c.restore();}c.restore();}
