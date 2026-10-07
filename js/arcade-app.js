@@ -135,7 +135,7 @@ function stage() {
   inputs = []; heldBits = 0; sent = false; intro = 0; hitstop = 0; endWait = 0;
   const g = ARCADE_GAMES[run.kind];
   root.innerHTML = `<section class="game-shell ${run.kind}">
-    <div class="game-top"><div><b>${g.name}</b><span>${run.stage + 1} / 3</span></div><div class="row">${button('설정 · 일시정지', 'pause')}</div></div>
+    <div class="game-top"><div><b>${g.name}</b><span>${run.stage + 1} / 3</span></div><div class="row">${button('일시정지', 'pause')}</div></div>
     <div class="board"><canvas id="game-canvas" tabindex="0" aria-label="${g.name} 게임 화면"></canvas>
       <div class="overlay" id="play-overlay">${startPanel()}</div></div>
     ${run.kind === 'bubble'
@@ -355,4 +355,4 @@ window.addEventListener('pagehide', stop);
 if(!guestOnly)loadLook().then(useLook);
 home().then(()=>{if(ARCADE_GAMES[requestedGame]&&location.hash!=='#admin')return start(requestedGame);}).catch((e) => { tell(e.message); root.innerHTML = '<p>연결하지 못했어요. 새로고침해 주세요.</p>'; });
 
-if(guestOnly){document.querySelector('.top nav').innerHTML='<span>체험 · 저장 안 됨</span>';document.querySelector('.top .top-in>a').innerHTML='<span>← 게임 선택</span>';document.querySelector('.top .top-in>a').href='games.html';}
+if(guestOnly){document.querySelector('.service-header nav').innerHTML='<span>체험 · 저장 안 됨</span><a href="games.html">게임 선택</a>';}

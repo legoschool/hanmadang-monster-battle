@@ -1,0 +1,126 @@
+/* Service chrome shared by the catalog, account screens and every game.
+   World art and semantic meters stay in their game stylesheets. */
+:root {
+  color-scheme:dark;
+  --service-bg:#0c171f; --service-panel:#142631; --service-raised:#1c3341;
+  --service-line:#344d5c; --service-text:#eef4ec; --service-muted:#afc3ca;
+  --service-accent:#eacb84; --service-on-accent:#172630; --service-success:#a6e1c6;
+  --service-font:'Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;
+  background:var(--service-bg);
+}
+body.service-ui {
+  --bg:var(--service-bg); --card:var(--service-panel); --line:var(--service-line); --line-2:var(--service-line);
+  --ink:var(--service-text); --ink-2:#d5e1e4; --ink-3:var(--service-muted); --ink-4:var(--service-muted);
+  --muted:var(--service-muted); --font:var(--service-font); --pixel:var(--service-font);
+  --green:#8fcdb5; --green-600:#8fcdb5; --green-700:#a6e1c6; --green-900:#d1e9df;
+  --green-50:#1c3341; --green-100:#244252; --green-200:#497483;
+  --gold:var(--service-accent); --gold-50:#302e29; --gold-700:#f1d593;
+  --pink-50:#3c2834; --blue-50:#1c3341;
+  --grad:linear-gradient(var(--service-raised),var(--service-panel)); --grad-soft:var(--service-raised);
+  margin:0; background:var(--service-bg); color:var(--service-text);
+  font-family:var(--service-font); line-height:1.6; color-scheme:dark;
+}
+body.service-ui:has(#promoLanding[hidden]),body.service-ui.is-playing {background:var(--service-bg)}
+.service-ui *, .service-ui *::before,.service-ui *::after{box-sizing:border-box}
+.service-ui :is(button,input,select,textarea){font-family:var(--service-font)}
+.service-ui :is(a,button,input,select,textarea):focus-visible{outline:3px solid var(--service-accent);outline-offset:3px}
+.service-ui :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){background:var(--service-bg);color:var(--service-text);border-color:var(--service-line);border-radius:8px}
+.service-ui input::placeholder,.service-ui textarea::placeholder{color:#90aab5}
+.service-ui :is(input[type=checkbox],input[type=radio],input[type=range]){accent-color:var(--service-success)}
+.service-ui :is(.muted,.fine,.save-note,.footer-note,.small-link,.empty,.controls-note,.pace-note){color:var(--service-muted)}
+.service-ui :is(.primary,.btn--primary,.game-play,.portal-primary){background:var(--service-accent);border:1px solid var(--service-accent);color:var(--service-on-accent)!important;border-radius:8px;box-shadow:none;font-weight:700}
+.service-ui :is(.primary,.btn--primary,.game-play,.portal-primary):hover:not(:disabled){background:#f6dba1;border-color:#f6dba1;box-shadow:none}
+.service-ui :is(.secondary,.button:not(.primary),.btn--soft,.portal-secondary,.gd-btn:not(.primary)){background:var(--service-raised);border:1px solid var(--service-line);color:var(--service-text);border-radius:8px;box-shadow:none}
+.service-ui :is(.primary,.secondary,.button,.btn,.portal-primary,.portal-secondary){min-height:44px}
+.service-ui :is(.card,.section,.login-card,.hero-card,.zone,.dialog-card,.game-card,.catalog-card,.catalog-services,.hub-disclosure){background:var(--service-panel);border:1px solid var(--service-line);color:var(--service-text);border-radius:16px;box-shadow:0 12px 32px #0002}
+.service-ui :is(.dialog-card,.login-card) h1,.service-ui :is(.dialog-card,.login-card) h2{color:var(--service-text)}
+.service-ui :is(.modal-cover,.modal-backdrop){background:#06111cce;backdrop-filter:blur(7px)}
+.service-ui :is(.dialog-card,.overlay,dialog){color-scheme:dark}
+.service-ui :is(.dialog-card p,.login-card p,.intro p,.section-head span,.dialog-tag,.zone-number,.zone span:last-child,.gear-item small,.upgrade-grid span,.library-card p){color:var(--service-muted)}
+.service-ui :is(.answer,.explanation,.hint,.result-stats>div,.comfort-controls,.play-options,.pet-growth,.companion-profile,.gear-mini button,.gear-item,.upgrade-grid button,.avatar-picker label,.library-filter button,.profile-card){background:var(--service-raised);border-color:var(--service-line);color:var(--service-text)}
+.service-ui :is(.zone.active,.gear-item.equipped,.avatar-picker label:has(input:checked)){background:#244252;border-color:var(--service-success);box-shadow:none}
+.service-ui :is(.answer:hover,.upgrade-grid button:hover){background:#244252;border-color:var(--service-accent)}
+.service-ui :is(.result-stats span,.companion-profile span,.companion-profile small,.pet-growth>small,.pet-growth-next,.play-options>summary,.pet-growth-more>summary){color:var(--service-muted)}
+.service-ui :is(.success-title,.upgrade-symbol){color:var(--service-success)}
+.service-ui :is(.answer-status,.form-error){color:#ffb7ac}
+.service-ui :is(.intro h1,.campaign-heading h1){font-size:clamp(28px,3.4vw,38px);letter-spacing:-1px}
+.service-ui :is(.lobby,#rpg,#arcade-root:not(body.is-playing *),.portal-shell,.hub){max-width:1220px;margin-left:auto;margin-right:auto}
+.service-ui .lobby{padding:28px 32px 48px}
+.service-ui #rpg{padding:0 32px 40px}
+.service-ui #arcade-root{padding-left:32px;padding-right:32px}
+.service-ui .portal-hero{background:radial-gradient(ellipse at 90% 50%,#244252,var(--service-panel) 65%);border-color:var(--service-line)}
+.service-ui .portal-hero-copy h1{color:var(--service-text)}
+.service-ui .training-weapons button{background:var(--service-panel);border-color:var(--service-line);color:var(--service-text);border-radius:16px}
+.service-ui .training-weapons button:hover{background:var(--service-raised);border-color:var(--service-accent)}
+.service-ui .training-weapons button>span{display:block;margin:16px 0 0;padding:10px;border-radius:8px;background:var(--service-accent);color:var(--service-on-accent);font-size:14px;font-weight:700}
+.service-ui .demo-lobby .intro>img{max-width:25%;object-fit:contain}
+/* One header geometry, logo treatment and return position across game lobbies. */
+.service-ui .service-header{max-width:1156px;margin:0 auto 24px;min-height:82px;padding:18px 0;display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--service-line);color:var(--service-text);background:var(--service-bg)}
+.service-ui .service-brand{display:flex;align-items:center;gap:18px;text-decoration:none;color:var(--service-text);min-width:0}
+.service-ui .service-brand img{display:block;width:108px;height:auto;filter:brightness(0) invert(1)}
+.service-ui .service-brand span{font-size:16px;font-weight:700;white-space:nowrap}
+.service-ui .service-header nav{display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap}
+.service-ui .service-header nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;border:1px solid var(--service-line);border-radius:8px;padding:9px 14px;text-decoration:none;font-size:14px;color:var(--service-text);white-space:nowrap;background:var(--service-raised)}
+.service-ui .service-header nav span{color:var(--service-muted);font-size:12px}
+.service-ui .service-header nav a:hover{border-color:var(--service-accent)}
+.service-ui #rpg .service-header{margin-bottom:14px}
+.service-ui .world-toolbar{display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px}
+.service-ui .world-toolbar button{background:var(--service-raised);border:1px solid var(--service-line);color:var(--service-text);min-height:44px;border-radius:8px;padding:8px 14px;font-size:13px}
+.service-ui .player-strip{border-bottom:1px solid var(--service-line)}
+.service-ui :is(.field-console,.combat-console,.equipment-grid button,.map-objective,.enemy-meter){background:var(--service-panel);border-color:var(--service-line);color:var(--service-text)}
+.service-ui .answer-grid button{background:var(--service-raised);border-color:var(--service-line);color:var(--service-text);border-radius:8px}
+.service-ui .answer-grid button:hover{border-color:var(--service-accent)}
+.service-ui .overlay{background:#0c171ff0;color:var(--service-text)}
+.service-ui .overlay h2{font-family:var(--service-font);color:var(--service-text);text-shadow:none}
+.service-ui .overlay .button:not(.primary){background:var(--service-raised);border-color:var(--service-line);color:var(--service-text)}
+.service-ui .control{background:var(--service-raised);border:1px solid var(--service-line);color:var(--service-text);box-shadow:0 4px 0 #050e16}
+.service-ui .control.jump{background:var(--service-accent);border:1px solid var(--service-accent);color:var(--service-on-accent);box-shadow:0 4px 0 #050e16}
+.service-ui .is-playing,.service-ui .game-top{color:var(--service-text)}
+.service-ui.is-playing>.service-header{display:none}
+.service-ui .game-top>div:first-child::before{content:'G-DEAL';display:block;font-size:10px;letter-spacing:.08em;color:var(--service-muted);line-height:1.3}
+.service-ui :is(.hud-box,.pause-btn,.battle-help-button){background:#142631f2;border-color:var(--service-line);color:var(--service-text)}
+.service-ui .battle::after{content:'G-DEAL';position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.08em;color:#c0d2dd;pointer-events:none}
+.service-ui :is(#notice,#rpg-status,#arcade-status){background:var(--service-raised);border:1px solid var(--service-line);color:var(--service-text)}
+/* Account and lounge screens must not switch back to the old light palette. */
+.service-ui #app{background:var(--service-bg);color:var(--service-text);color-scheme:dark}
+.service-ui :is(.sidebar,.topbar,.bottom-nav,dialog,.modal,.onboard__form){background:var(--service-panel);color:var(--service-text);border-color:var(--service-line)}
+.service-ui :is(.day-chip,.mini-chip,.icon-btn,.team-chip,.team-pick__item,.how__item,.feed-item,.shop-item,.play-tile,.ai-card,.story__foes li,.season-team){background:var(--service-raised);color:var(--service-text);border-color:var(--service-line)}
+.service-ui .team-pick__item.is-selected{background:#244252;border-color:var(--service-success)}
+.service-ui :is(.home .arena,.story,.t-banner,.prize,.raid,.onboard__hero){background:var(--service-panel);color:var(--service-text);border-color:var(--service-line)}
+.service-ui :is(.side-nav a.is-active,.bottom-nav a.is-active){background:var(--service-raised);color:var(--service-success)}
+.service-ui :is(.chip,.chip.good,.wallet,.feedback){background:var(--service-raised);color:var(--service-text);border-color:var(--service-line)}
+.service-ui .wallet b{color:var(--service-accent)}
+.service-ui .btn--danger{background:#3c2834;color:#ffb7ac}
+.service-ui #gd-lounge{--bg:var(--service-bg);--panel:var(--service-panel);--soft:var(--service-raised);--ink:var(--service-text);--muted:var(--service-muted);--line:var(--service-line);--green:var(--service-success);--warm:var(--service-raised);color-scheme:dark;font-family:var(--service-font);border:1px solid var(--service-line)}
+.service-ui #gd-lounge .gd-btn.primary{background:var(--service-accent);color:var(--service-on-accent);border-color:var(--service-accent)}
+.service-ui #gd-lounge .arena{background:var(--service-raised)}
+.service-ui .guide-card,.service-ui .guide-dialog{background:var(--service-panel);color:var(--service-text)}
+.service-ui :is(.onboard__start,.onboard__choices button,.gc,.gc-dialog,.guide-fold){background:var(--service-panel);color:var(--service-text);border-color:var(--service-line)}
+.service-ui :is(.gc-card,.gc-image,.gc-prev,.gc-next,.gc-dialog>div,.gc-dialog button,.promo-guide-note,.friendly-reassure){background:var(--service-raised);color:var(--service-text);border-color:var(--service-line)}
+.service-ui :is(.gc-head small,.gc-copy p,.gc-number,.gc-pause,.gc-expand,.gc-foot,.guide-fold>summary,.promo-guide li p,.friendly-intro,.friendly-steps p,.friendly-reassure p,.friendly-extra,.friendly-join,.friendly-note){color:var(--service-muted)}
+.service-ui .onboard .service-header{width:100%;margin:0;padding-top:0}
+.service-ui .onboard-switch{justify-self:start}
+.service-ui .onboard:has(.service-header)>:is(.onboard__crew,.story,.how){display:none}
+.service-ui :is(.avatar-pick__item,.hub-communities,#communityTabs button){background:var(--service-raised);color:var(--service-text);border-color:var(--service-line)}
+.service-ui :is(.community-heading>b,.community-skills b,.community-description h2 span){color:var(--service-success)}
+.service-ui :is(.community-heading>small,.community-skills small){color:var(--service-muted)}
+.service-ui :is(.arena__rule,.skill-chip,.team-about__skill,.onboard__slogan,.play-tile__gain--gift){background:var(--service-raised);color:var(--service-text);border-color:var(--service-line)}
+.service-ui .stage{background:radial-gradient(ellipse at 50% 50%,#2c4e5a,var(--service-panel));border:1px solid var(--service-line)}
+.service-ui .stage::after{background:#1c3341;border-color:var(--service-line)}
+.service-ui .brand__text b,.service-ui .arena__rule{color:var(--service-text)}
+.service-ui :is(.brand>img,.brand--mobile>img){filter:brightness(0) invert(1)}
+.service-ui .map-caption{background:var(--service-panel);border-color:var(--service-line)}
+.service-ui .map-card{background:var(--service-panel);border:1px solid var(--service-line)}
+.service-ui :is(.lobby-foot,.controls-note kbd){color:var(--service-muted)}
+.service-ui .controls-note kbd{background:var(--service-raised)}
+.service-ui :is(.hub,.promo,guide-cards){font-family:var(--service-font)}
+@media(max-width:700px){
+  .service-ui .service-header{margin:0 16px 18px;padding:14px 0;min-height:74px;gap:10px;flex-wrap:wrap}
+  .service-ui .service-brand{gap:10px}.service-ui .service-brand img{width:76px}.service-ui .service-brand span{font-size:13px}
+  .service-ui .service-header nav{gap:6px}.service-ui .service-header nav a{font-size:12px;padding:8px 10px}
+  .service-ui .service-header nav span{display:none}
+  .service-ui .lobby{padding:16px 16px 32px}.service-ui #rpg{padding:0 16px 28px}.service-ui #rpg .service-header{margin-left:0;margin-right:0}
+  .service-ui #arcade-root{padding-left:12px;padding-right:12px}
+  .service-ui .world-toolbar{justify-content:flex-start;gap:6px}.service-ui .world-toolbar button{padding:8px 12px}
+  .service-ui .demo-lobby .intro{gap:8px}.service-ui .demo-lobby .intro p{font-size:13px}
+}
