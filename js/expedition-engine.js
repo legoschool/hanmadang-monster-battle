@@ -1,5 +1,5 @@
 import {lootChoices} from './expedition-loot.js?v=combat1';
-import {makeCompanion,companionStep,castCompanion} from './expedition-companions.js?v=growth1';
+import {makeCompanion,companionStep,castCompanion} from './expedition-companions.js?v=experience1';
 // 순수 전투 시뮬레이션. DOM·서버와 분리해 이동, 충돌, 일시정지, 강화 등을 검사한다.
 export class ExpeditionEngine {
   constructor({weapon='blade',charm=null,level=1,mode='survival',gentle=true,seed=1,bossType='bugbug',cinematic=false,companion=null,questionGap=45,difficulty=null,gameSpeed=1,autoSkills=false,experience=false}={}) {
@@ -16,7 +16,7 @@ export class ExpeditionEngine {
     this.pet=makeCompanion(companion,this.hero);
     Object.assign(this,{experience,mods:{},lootHistory:[],encounter:experience?'warmup':'legacy',attacks:0,damageTaken:0,lastHurt:'',dodges:0,counters:0,offered:[],bombs:[],attackBuffer:0});
     if(mode==='boss'&&!experience) this.spawnBoss();
-    else if(experience||cinematic&&mode==='survival'){for(let i=0;i<3;i++)this.spawn(220+i*22);this.spawnCd=2;this.emit('wave',{count:3});}
+    else if(experience||cinematic&&mode==='survival'){for(let i=0;i<3;i++)this.spawn(experience?105+i*24:220+i*22);this.spawnCd=2;this.emit('wave',{count:3});}
   }
   setDifficulty(value){
     const levels={beginner:{hp:220,speed:.6,damage:.5,spawn:1.7,cap:18},gentle:{hp:150,speed:.8,damage:1,spawn:1,cap:38},standard:{hp:100,speed:1,damage:1,spawn:1,cap:38}};
@@ -43,7 +43,7 @@ export class ExpeditionEngine {
   }
   upgrade(kind){
     if(this.phase!=='upgrade')return;
-    if(this.experience){if(!this.offered.includes(kind))return;this.mods[kind]=true;this.lootHistory.push({id:kind,source:this.rewardSource});if(kind==='heart')this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+45);this.offered=[];if(this.encounter==='cache'){this.encounter='assault';this.waveGoal=this.kills+10;for(let i=0;i<4;i++)this.spawn(230+i*10);}else if(this.encounter==='assault'){this.encounter='boss';this.spawnBoss();}this.phase='playing';this.hero.inv=1.5;this.event=null;this.emit('upgrade',{upgrade:kind});return;}
+    if(this.experience){if(!this.offered.includes(kind))return;this.mods[kind]=true;this.lootHistory.push({id:kind,source:this.rewardSource});if(kind==='heart')this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+45);this.offered=[];if(this.encounter==='cache'){this.encounter='assault';this.waveGoal=this.kills+10;for(let i=0;i<4;i++)this.spawn(230+i*10);}else if(this.encounter==='assault'){this.encounter='boss';this.spawnBoss();}this.phase='playing';this.hero.inv=1.5;this.banner='장비 장착 · 다음 전투';this.bannerTime=1.6;this.event=null;this.emit('upgrade',{upgrade:kind});return;}
     if(kind==='power')this.hero.damage*=1.22;
     if(kind==='rapid')this.hero.rate=Math.min(3,this.hero.rate+0.2);
     if(kind==='heart'){this.hero.maxHp+=25;this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+45);}
@@ -74,7 +74,7 @@ export class ExpeditionEngine {
     const h=this.hero,fromX=h.x,fromY=h.y,len=Math.hypot(dx,dy);if(!len){dx=Math.cos(h.face);dy=Math.sin(h.face);}else{dx/=len;dy/=len;}
     this.effects.push({x:h.x,y:h.y,r:15,endR:42,ttl:0.4,max:0.4,color:'#b2e5ff'});
     h.x=Math.max(40,Math.min(this.width-40,h.x+dx*120));h.y=Math.max(40,Math.min(this.height-40,h.y+dy*120));
-    h.inv=0.65;this.dashCd=2.2;this.dodges++;
+    h.inv=0.65;this.dashCd=2.2;this.dodges++;this.lastDashAt=this.time;this.dashRewarded=false;
     if(this.mods.echo)this.bombs.push({x:fromX,y:fromY,ttl:.55,r:110});
     this.burst(h.x-dx*60,h.y-dy*60,'#99e9ff',22);this.emit('dash',{fromX,fromY,angle:Math.atan2(dy,dx)});
   }
@@ -91,7 +91,7 @@ export class ExpeditionEngine {
   }
   petSkill(){return castCompanion(this);}
   hit(e,n,source='hero',chain=false){if(e.hp<=0||e.shield)return;if(this.experience&&!e.stun){if(e.kind==='elite')n*=.2;else if(e.kind==='boss')n*=.65;}if(e.stun>0){n*=2;if(source==='hero')this.counters++;}if(source==='hero'&&e.kind!=='boss'){const a=Math.atan2(e.y-this.hero.y,e.x-this.hero.x);e.x=Math.max(32,Math.min(1068,e.x+Math.cos(a)*12));e.y=Math.max(32,Math.min(768,e.y+Math.sin(a)*12));}if(chain&&this.mods.chain){const targets=this.enemies.filter(t=>t!==e&&t.hp>0&&this.dist(t,e)<190).slice(0,2);for(const t of targets){this.hit(t,n*.55,'chain');this.emit('chain',{x:e.x,y:e.y,toX:t.x,toY:t.y});}}if(this.pet){this.pet.charge=Math.min(100,this.pet.charge+(source==='pet'?2:1));if(source==='pet')this.pet.dealt+=Math.min(e.hp,n);}e.hp-=n;e.flash=0.15;this.emit('hit',{x:e.x,y:e.y,targetId:e.id,angle:Math.atan2(e.y-this.hero.y,e.x-this.hero.x),damage:Math.round(n),boss:e.kind==='boss',big:n>this.hero.damage*1.8});if(this.cinematic&&(source==='hero'||n>this.hero.damage*1.8))this.hitStop=Math.max(this.hitStop,n>this.hero.damage*1.8?.055:.025);this.burst(e.x,e.y,'#ffe6a0',6);this.texts.push({x:e.x,y:e.y-20,text:String(Math.round(n)),ttl:0.7,color:'#fff3b8'});}
-  hurt(n,cause='적 접촉'){const h=this.hero;if(this.phase!=='playing'||h.inv>0)return;n*=this.difficultyStats.damage;if(this.pet?.guard>0){this.pet.blocked=(this.pet.blocked||0)+Math.min(h.hp,n)-Math.min(h.hp,n*.55);n*=.55;}this.damageTaken+=n;this.lastHurt=cause;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
+  hurt(n,cause='적 접촉'){const h=this.hero;if(this.phase!=='playing')return;if(h.inv>0){if(this.experience&&this.lastDashAt!==undefined&&this.time-this.lastDashAt<=.65&&!this.dashRewarded){this.dashRewarded=true;this.dodgeSaves=(this.dodgeSaves||0)+1;this.skillCd=Math.max(0,this.skillCd-2);this.banner='회피 성공 · 스킬 대기 2초 감소';this.bannerTime=1.2;this.emit('evade',{x:h.x,y:h.y});}return;}if(this.experience&&this.attacks===0&&this.time<12)return;n*=this.difficultyStats.damage;if(this.pet?.guard>0){this.pet.blocked=(this.pet.blocked||0)+Math.min(h.hp,n)-Math.min(h.hp,n*.55);n*=.55;}this.damageTaken+=n;this.lastHurt=cause;h.hp=Math.max(0,h.hp-n);this.emit('hurt',{damage:n});h.inv=this.gentle?1.1:0.7;
     this.texts.push({x:h.x,y:h.y-26,text:`-${n}`,ttl:0.7,color:'#ffa49e'});if(h.hp<=0){this.phase='lost';this.event='end';this.emit('defeat');}}
   spawn(distance=null){
     const angle=this.random()*Math.PI*2,dist=distance??(this.cinematic?260+this.random()*65:330+this.random()*80),h=this.hero;
@@ -133,7 +133,7 @@ export class ExpeditionEngine {
     this.spawnCd-=dt;if(!this.experience&&this.spawnCd<=0&&this.enemies.length<this.difficultyStats.cap){this.spawn();this.spawnCd=Math.max(0.45,1.3-this.time/230)*(this.boss?2.4:1)*this.difficultyStats.spawn;}
     if(!this.experience&&!this.bossMade&&this.time>=150)this.spawnBoss();
     for(const e of this.enemies){
-      e.flash=Math.max(0,e.flash-dt);if(e.hp<=0)continue;if(e.kind==='elite'){this.charger(e,dt);continue;}if(e.arrival>0){e.arrival=Math.max(0,e.arrival-dt);continue;}const d=this.dist(e,h)||1;
+      e.flash=Math.max(0,e.flash-dt);if(e.hp<=0)continue;if(e.kind==='elite'){this.charger(e,dt);continue;}if(e.arrival>0){e.arrival=Math.max(0,e.arrival-dt);continue;}if(this.experience&&this.attacks===0&&this.time<12)continue;const d=this.dist(e,h)||1;
       e.x+=(h.x-e.x)/d*e.speed*dt;e.y+=(h.y-e.y)/d*e.speed*dt;
       if(d<e.r+h.r)this.hurt(this.gentle?8:13);
     }
