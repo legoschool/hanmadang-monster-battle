@@ -115,8 +115,8 @@ export function renderOnboarding(state, ui) {
   const crew = Object.values(state.users);
   return `
   <div class="onboard">
-    ${ui.startMode ? `<header class="onboard__direct"><a href="index.html">← G-DEAL 메인</a><strong>G-DEAL · ${ui.startMode === 'resume' ? '이어서 플레이' : '새 대원 등록'}</strong><button class="btn btn--soft btn--sm" data-action="${ui.startMode === 'resume' ? 'start-join' : 'start-resume'}">${ui.startMode === 'resume' ? '처음 참여하기' : '기존 계정으로 로그인'}</button></header>` : `<section class="onboard__start"><h1>G-DEAL 원정대</h1><div class="onboard__choices"><button data-action="start-join"><strong>처음 참여하기 →</strong></button><button data-action="start-resume"><strong>이어서 플레이 →</strong></button></div></section>`}
-    <section class="onboard__hero">
+    ${ui.startMode ? `<header class="onboard__direct"><a href="games.html">← 게임 선택</a><strong>G-DEAL · ${ui.startMode === 'resume' ? '이어서 플레이' : '새 대원 등록'}</strong><button class="btn btn--soft btn--sm" data-action="${ui.startMode === 'resume' ? 'start-join' : 'start-resume'}">${ui.startMode === 'resume' ? '처음 참여하기' : '기존 계정으로 로그인'}</button></header>` : `<section class="onboard__start"><h1>G-DEAL 원정대</h1><div class="onboard__choices"><a class="btn btn--primary" href="games.html">로그인 없이 게임 고르기</a><button data-action="start-join"><strong>처음 참여하기 →</strong></button><button data-action="start-resume"><strong>이어서 플레이 →</strong></button></div></section>`}
+    <section class="onboard__hero" ${ui.startMode?'hidden':''}>
       <img class="onboard__logo" src="assets/brand/gdeal.svg" alt="G-DEAL" width="240" height="40">
       <h1>몬스터 <em>원정대</em></h1>
       <p class="onboard__slogan">${EVENT.slogan}</p>

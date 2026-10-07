@@ -3,9 +3,12 @@ import { EVENT, RULES, ITEMS, PRIZE_AWARDS, PACES, MODES, SERVER_READY, spriteOf
 import * as G from './game.js';
 import * as API from './api.js';
 import { rememberLook } from './player-look.js?v=look1';
-import * as V from './views.js?v=evt1';
+import * as V from './views.js?v=portal1';
 import { esc, num, icon, openModal, updateModal, closeModal, modalOpen, toast, floatText, bump, confetti, wait, timeLeft, now, setServerNow } from './ui.js';
 
+const destinations={action:'expedition.html',rpg:'rpg.html',bubble:'arcade.html?game=bubble',space:'arcade.html?game=space'};
+const selectedGame=new URLSearchParams(location.search).get('next');
+function continueSelectedGame(){if(me()&&Object.hasOwn(destinations,selectedGame)){location.assign(destinations[selectedGame]);return true;}return false;}
 const POLL_MS = 12000;
 const POLL_FINAL_MS = 4000;   // 결전의 날에는 응원·라운드를 빨리 받아 온다
 const CHEER_FLUSH_MS = 6000;  // 누른 응원을 모아서 보내는 간격 (서버 부담을 줄이려고 넉넉히)
@@ -490,6 +493,7 @@ const actions = {
       err.textContent = e.message;
       return;
     }
+    if(continueSelectedGame())return;
     const t = G.teamById(ui.pickTeam);
     history.replaceState(null, '', '#/home');
     render();
@@ -554,6 +558,7 @@ const actions = {
       return;
     }
     ui.foundHint = null;
+    if(continueSelectedGame())return;
     history.replaceState(null, '', '#/home');
     render();
     toast(`<span><b>${esc(me().name)}</b>님, 다시 만나서 반가워요!</span>`, 'good');
@@ -1140,6 +1145,7 @@ async function boot() {
       </div>`;
     return;
   }
+  if(continueSelectedGame())return;
   render();
   if (currentRoute().name === 'admin' && API.getAdminKey()) adminCall('overview');
   await autoCheckIn();

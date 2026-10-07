@@ -3,7 +3,7 @@ const landing=document.getElementById('promoLanding'),app=document.getElementByI
 const shouldShow=()=>{const q=new URLSearchParams(location.search);return !location.hash&&!q.has('mode')&&!q.has('join');};const show=shouldShow();landing.hidden=!show;app.hidden=show;
 const toggle=document.getElementById('promoToggle'),sound=document.getElementById('promoSound'),status=document.getElementById('promoPlayback');
 function labels(){toggle.textContent=video.paused?'재생':'일시정지';sound.textContent=video.muted?'소리 켜기':'소리 끄기';sound.setAttribute('aria-pressed',String(!video.muted));}
-async function play(){if(landing.hidden||document.hidden||document.querySelector('dialog[open]'))return;video.playbackRate=1;try{await video.play();status.textContent='';}catch{status.textContent='재생 버튼을 누르면 영상을 볼 수 있어요.';}labels();}
+async function play(){if(landing.hidden||document.hidden||!document.getElementById('videoDetails')?.open||document.querySelector('dialog[open]'))return;video.playbackRate=1;try{await video.play();status.textContent='';}catch{status.textContent='재생 버튼을 누르면 영상을 볼 수 있어요.';}labels();}
 video.defaultPlaybackRate=1;video.playbackRate=1;video.preservesPitch=true;
 if(show){video.muted=true;play();}else{video.pause();video.removeAttribute('autoplay');}
 toggle.onclick=()=>video.paused?play():(video.pause(),labels());sound.onclick=()=>{video.muted=!video.muted;labels();};video.onplay=labels;video.onpause=labels;video.onerror=()=>status.textContent='영상을 불러오지 못했어요. 바로 게임 체험과 참여 안내는 사용할 수 있어요.';
@@ -18,3 +18,5 @@ guide.querySelectorAll('a').forEach(a=>a.addEventListener('click',rememberGuide)
 document.getElementById('friendlyExplore').onclick=()=>guide.close();
 guide.addEventListener('close',()=>{rememberGuide();if(!landing.hidden&&!document.hidden)play();});
 let friendlySeen=false;try{friendlySeen=localStorage.getItem(friendlyKey)==='seen';}catch{}
+
+document.getElementById('videoDetails')?.addEventListener('toggle',e=>{if(e.target.open)play();else video.pause();});
