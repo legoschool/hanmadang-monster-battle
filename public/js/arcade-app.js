@@ -1,3 +1,4 @@
+import {inputPreference,setInputPreference,handControl} from './game-experience.js?v=experience1';
 // 아케이드 화면: 게임 목록, 플레이(시작·조작·일시정지·소리), 구간 사이 퀴즈, 결과, 관리자 문제 설정.
 // 점수와 보상은 서버가 입력 기록을 똑같이 다시 돌려서 정한다(arcade-engine.js 공유).
 import * as API from './api.js';
@@ -138,7 +139,7 @@ function stage() {
   sim = createArcade(run.kind, run.seed, run.stage, run.boost);
   inputs = []; heldBits = 0; sent = false; intro = 0; hitstop = 0; endWait = 0;
   const g = ARCADE_GAMES[run.kind];
-  root.innerHTML = `<section class="game-shell ${run.kind}">
+  root.innerHTML = `<section class="game-shell ${run.kind} ${inputPreference()==='left'?'attack-left':''}">
     <div class="game-top"><div><b>${g.name}</b><span>${run.stage + 1} / 3</span></div><div class="row">${button('일시정지', 'pause')}</div></div>
     <div class="board"><canvas id="game-canvas" tabindex="0" aria-label="${g.name} 게임 화면"></canvas>
       <div class="overlay" id="play-overlay">${startPanel()}</div></div>
@@ -155,16 +156,16 @@ function stage() {
 }
 function startPanel() {
   const [a, b] = HOW[run.kind];
-  return `<h2>${run.stage + 1} / 3 구간</h2><p>${a}<br>${b}</p>
+  return `<h2>${ARCADE_GAMES[run.kind].name}</h2><p>${run.stage + 1} / 3 구간</p><ol class="play-steps">${(run.kind==='bubble'?['공격으로 적 가두기','점프로 방울에 닿기','붙은 방울 연쇄 폭발']:['공격 버튼 길게 누르기','다른 손으로 탄환 피하기','P를 모아 탄환 늘리기']).map(x=>`<li>${x}</li>`).join('')}</ol>
     ${run.boost ? '<p class="boost">정답 보너스: 처음 6초 동안 빠르게 발사!</p>' : ''}
     <div class="row center">${button(run.stage === 0 ? '시작' : '시작', 'resume', '', true)}${button('게임 목록', 'leave')}</div>
-    <label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.6" ${speed === 0.6 ? 'selected' : ''}>천천히</option></select></label>`;
+    ${handControl()}<label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.6" ${speed === 0.6 ? 'selected' : ''}>천천히</option></select></label>`;
 }
 function pausePanel() {
   return `<h2>일시정지</h2>
     <div class="row center">${button('이어서 플레이', 'resume', '', true)}</div>
     <div class="row center">${button(soundLabel(), 'sound', 'aria-pressed="' + prefs.sound + '"')}${button(prefs.music ? '음악 켜짐' : '음악 꺼짐', 'music', 'aria-pressed="' + prefs.music + '"')}</div>
-    <label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.6" ${speed === 0.6 ? 'selected' : ''}>천천히</option></select></label>
+    ${handControl()}<label class="speed">속도 <select id="play-speed"><option value="1" ${speed === 1 ? 'selected' : ''}>보통</option><option value="0.6" ${speed === 0.6 ? 'selected' : ''}>천천히</option></select></label>
     <p class="muted">${HOW[run.kind][0]}</p>
     <div class="row center">${button('게임 목록', 'leave')}</div>`;
 }
@@ -221,7 +222,7 @@ function pause() {
   o.innerHTML = pausePanel(); o.hidden = false;
 }
 
-function draw(introText = null) { if (renderer && sim) renderer.draw(sim, { total: run.score, stageNo: run.stage + 1, intro: introText }); }
+function draw(introText = null) { if(matchMedia('(prefers-reduced-motion: reduce)').matches&&renderer){renderer.shake=0;renderer.flash=0;}if (renderer && sim) renderer.draw(sim, { total: run.score, stageNo: run.stage + 1, intro: introText }); }
 
 function tick(time) {
   if (paused) return;
@@ -251,7 +252,7 @@ function tick(time) {
   renderer.update();
   draw();
   const canvas=document.getElementById('game-canvas');canvas.dataset.attacks=sim.attacks||0;canvas.dataset.heroX=Math.round(sim.p.x);canvas.dataset.phase=paused?'paused':'playing';
-  const coach=document.getElementById('combatCoach');if(coach)coach.textContent=sim.kind==='bubble'?`최고 연쇄 ${sim.chainBest} · 공격으로 가두기 → 점프로 터뜨리기`:`무기 ${sim.power}단계 · P는 둥근 적 / 7번째 처치에서 획득`;
+  const coach=document.getElementById('combatCoach');if(coach)coach.textContent=!sim.attacks?'공격 버튼을 길게 누르세요. 이동과 함께 누를 수 있습니다.':sim.kind==='bubble'?(sim.enemies.some(e=>e.trapped)?'적이 갇혔습니다. 점프로 닿으면 붙은 방울이 함께 터집니다.':`최고 연쇄 ${sim.chainBest} · 공격으로 적을 먼저 가두세요.`):sim.items.some(i=>i.kind==='power')?'P 아이템이 나왔습니다. 닿으면 발사하는 탄환이 늘어납니다.':sim.hp<=2?'체력이 적습니다. 공격을 누른 채 탄환 사이로 조금씩 이동하세요.':`무기 ${sim.power}단계 · P는 둥근 적 또는 7번째 처치에서 나옵니다.`;
   if (sim.done) {
     // 쓰러졌을 때는 장면을 조금 더 보여 준 뒤 기록을 보낸다
     if (!endWait) endWait = time + (sim.hp <= 0 ? 1400 : 250);
@@ -342,7 +343,7 @@ root.addEventListener('submit', (e) => {
     if (e.target.id === 'preset-form') { const presets = [...root.querySelectorAll('[name=preset]:checked')].map((x) => x.value); adminData = await adm('arcadeConfigure', { revision: adminData.settings.revision, presets }); renderAdmin(); tell('적용했어요. 새로 시작하는 판부터 나와요.'); }
   });
 });
-root.addEventListener('change', (e) => { if (e.target.id === 'preset-preview') { preview = e.target.value; renderPreview(); } });
+root.addEventListener('change', (e) => {if(e.target.id==='attackSide'){setInputPreference(e.target.value);root.querySelector('.game-shell')?.classList.toggle('attack-left',e.target.value==='left');} if (e.target.id === 'preset-preview') { preview = e.target.value; renderPreview(); } });
 
 const keyBit = (k) => ({ arrowleft: 1, a: 1, arrowright: 2, d: 2, arrowup: 4, w: 4, ' ': 16, j:16, arrowdown: 8, s: 8 }[k] || 0);
 window.addEventListener('keydown', (e) => {
