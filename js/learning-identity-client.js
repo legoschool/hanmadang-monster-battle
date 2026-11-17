@@ -1,8 +1,8 @@
 // The hub master token remains on science-hub-one.vercel.app.
 // This wrapper exposes only this game's short-lived scoped token.
 const GAME = 'gdeal';
-// Enable after gdeal is deployed to the hub catalog and registered in its identity registry.
-const HUB_LOGIN_ENABLED = false;
+const HUB_LOGIN_ENABLED = true;
+export const HUB_URL = 'https://science-hub-one.vercel.app';
 let sdk = null;
 let hadHubIdentity = false;
 let lostHubIdentity = false;
@@ -14,19 +14,26 @@ async function initialize() {
   if (typeof document === 'undefined') return null;
   const entry = new URL(location.href);
   hubRequested = entry.searchParams.get('hub_login') === '1' || new URLSearchParams(entry.hash.slice(1)).has('hub_ticket');
+  legacySelected = !hubRequested && entry.searchParams.get('legacy') === '1';
   if (!HUB_LOGIN_ENABLED) {
     if (hubRequested) lastError = '통합 허브 연결 전입니다. 지딜 계정으로 로그인해 주세요.';
     return null;
   }
   window.addEventListener('hubidentity:lost', () => {
     if (hadHubIdentity) lostHubIdentity = true;
-    window.dispatchEvent(new CustomEvent('learningidentity:lost'));
+    if (!legacySelected) window.dispatchEvent(new CustomEvent('learningidentity:lost'));
   });
   window.addEventListener('hubidentity:error', event => { lastError = event.detail?.message || '통합 로그인 연결을 확인해 주세요.'; });
+  window.addEventListener('hubidentity:update', event => {
+    if (legacySelected || lostHubIdentity) return;
+    hadHubIdentity = true;
+    lastError = null;
+    window.dispatchEvent(new CustomEvent('learningidentity:update', { detail: event.detail }));
+  });
   if (!window.SCIENCE_IDENTITY) {
     await new Promise((resolve, reject) => {
       const tag = document.createElement('script');
-      tag.src = new URL('../identity/game-identity.js?v=20261117learning', import.meta.url).href;
+      tag.src = new URL('../identity/game-identity.js?v=20261117stars', import.meta.url).href;
       tag.dataset.game = GAME;
       tag.onload = resolve;
       tag.onerror = () => reject(Error('통합 로그인 연결을 불러오지 못했어요. 새로고침해 주세요.'));
@@ -47,32 +54,47 @@ export const identityReady = initialize().catch(error => {
 
 export function getLearningCredentials(legacyToken) {
   if (legacySelected) return legacyToken ? {token:legacyToken} : {};
-  if (sdk?.token && sdk?.student) return { hubGameToken: sdk.token };
   // Never silently switch to another account left on a shared classroom browser.
   if (lostHubIdentity) throw Error('통합 로그인이 끝났어요. 다시 로그인해 주세요.');
+  if (sdk?.token && sdk?.student) return { hubGameToken: sdk.token };
   if (hubRequested) throw Error(lastError || '통합 계정을 연결하고 있어요. 잠시 후 다시 확인해 주세요.');
-  return legacyToken ? { token: legacyToken } : {};
+  return {};
 }
 
 export const learningIdentity = {
   ready: identityReady,
   get enabled() { return HUB_LOGIN_ENABLED; },
-  get student() { return legacySelected ? null : sdk?.student || null; },
-  get token() { return legacySelected ? '' : sdk?.token || ''; },
+  get legacy() { return legacySelected; },
+  get student() { return legacySelected || lostHubIdentity ? null : sdk?.student || null; },
+  get token() { return legacySelected || lostHubIdentity ? '' : sdk?.token || ''; },
   get error() { return lastError; },
   credentials: getLearningCredentials,
   async connect() {
     if (!HUB_LOGIN_ENABLED) throw Error('통합 허브 연결 전입니다. 지딜 계정으로 로그인해 주세요.');
     legacySelected = false;
+    const entry = new URL(location.href);
+    entry.searchParams.delete('legacy');
+    history.replaceState(null, '', entry.href);
     await identityReady;
     if (!sdk) throw Error(lastError || '통합 로그인 연결을 불러오지 못했어요.');
     return sdk.connect();
   },
   playing(value) { sdk?.setPlaying(!legacySelected && value === true); },
+  async refresh() { if (!legacySelected && !lostHubIdentity && sdk?.token) return sdk.refresh(); return null; },
   async disconnect() {
+    lostHubIdentity = true;
     if (sdk) await sdk.disconnect();
-    if (hadHubIdentity) lostHubIdentity = true;
   },
   // Explicit UI action only, after the user selects their existing G-DEAL account.
-  useLegacy() { legacySelected = true; sdk?.setPlaying(false); hadHubIdentity = false; lostHubIdentity = false; hubRequested = false; }
+  useLegacy() {
+    legacySelected = true;
+    sdk?.setPlaying(false);
+    hadHubIdentity = false;
+    lostHubIdentity = false;
+    hubRequested = false;
+    const entry = new URL(location.href);
+    entry.searchParams.delete('hub_login');
+    entry.searchParams.set('legacy', '1');
+    history.replaceState(null, '', entry.href);
+  }
 };

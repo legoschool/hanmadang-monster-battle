@@ -1,3 +1,19 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer"><title>지딜 학습 원정대</title><meta name="description" content="과학 자료를 관찰하고 AI·디지털 문제를 해결하는 학습 원정"><meta name="theme-color" content="#163047"><link rel="icon" href="assets/icons/seal.png"><link rel="stylesheet" href="css/learning.css?v=learn1"></head>
-<body class="learning-page"><div class="learn-shell"><header class="learn-header"><a class="learn-brand" href="learn.html"><img src="assets/monsters/koalbot/koalbot.png" alt=""><span>지딜 학습 원정대</span></a><nav class="learn-nav" aria-label="학습 메뉴"><button data-nav="home">학습 지도</button><button data-nav="review">복습</button><button data-nav="records">내 기록</button><button data-nav="rooms">함께하기</button><button data-nav="guide">수업 안내</button><button data-nav="account" id="accountButton">로그인</button></nav></header><p id="connection" class="status" role="status"></p><main id="learning" tabindex="-1"><div class="loading">학습 지도를 불러오고 있어요.</div></main></div><dialog id="learnDialog"><div class="modal-card" id="dialogBody"></div></dialog><script type="module" src="js/learning-app.js?v=learn1"></script></body></html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer"><title>지딜 학습 원정대</title><meta name="description" content="과학 자료를 관찰하고 AI·디지털 문제를 해결하는 학습 원정"><meta name="theme-color" content="#163047"><link rel="icon" href="assets/icons/seal.png"><link rel="stylesheet" href="css/learning.css?v=20261117stars"></head>
+<body class="learning-page">
+<div class="learn-shell">
+  <header class="learn-header">
+    <a class="learn-brand" href="learn.html"><img src="assets/monsters/koalbot/koalbot.png" alt=""><span>지딜 학습 원정대</span></a>
+    <nav class="learn-nav" aria-label="학습 메뉴"><button data-nav="home">학습 지도</button><button data-nav="review">복습</button><button data-nav="records">내 기록</button><button data-nav="rooms">함께하기</button><button data-nav="guide">수업 안내</button><button data-nav="account" id="accountButton">통합 로그인</button><a href="https://science-hub-one.vercel.app/student.html">허브로 돌아가기</a></nav>
+  </header>
+  <aside class="wallet-bar" aria-label="통합 별">
+    <button type="button" class="wallet-button" data-action="starInfo" aria-label="내 통합 별과 지급 안내"><span aria-hidden="true">★</span> <span>내 통합 별</span> <strong data-wallet-value>—</strong></button>
+    <p data-wallet-note>통합 로그인하면 내 별을 모아요.</p>
+  </aside>
+  <p id="connection" class="status" role="status"></p>
+  <main id="learning" tabindex="-1"><div class="loading">학습 지도를 불러오고 있어요.</div></main>
+</div>
+<dialog id="learnDialog"><div class="modal-card" id="dialogBody"></div></dialog>
+<div id="starRewardToast" class="star-reward-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<script type="module" src="js/learning-app.js?v=20261117stars"></script>
+</body></html>
