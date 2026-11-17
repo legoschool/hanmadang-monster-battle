@@ -73,6 +73,20 @@ body.learning-page {
 .learn-nav a { color: var(--ink); font-weight: 700; }
 .learn-nav a:hover { background: #e6eeea; }
 .learn-nav .active, .learn-nav [aria-current='page'] { color: var(--teal-dark); background: #e0eee7; }
+.wallet-bar { display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap; margin: -10px 0 18px; padding: 13px 18px; border: 1px solid #e6d8aa; border-radius: 16px; background: #fff9e8; }
+.learning-page .wallet-button { padding: 3px 0; min-height: 40px; border: 0; background: transparent; gap: 9px; }
+.learning-page .wallet-button:hover:not(:disabled) { background: transparent; }
+.wallet-button > span:first-child { color: #9a6700; font-size: 24px; }
+.wallet-button strong { color: var(--ink); font-size: 24px; }
+.wallet-bar p { flex: 1 1 220px; color: #685c3b; font-size: 14px; }
+.star-stat strong, .star-stat strong [data-wallet-value] { color: #8b5a00; }
+.star-stat strong [data-wallet-value] { font: inherit; }
+.legacy-account { margin-top: 23px; border-top: 1px solid var(--line); padding-top: 16px; }
+.legacy-account summary { cursor: pointer; color: var(--muted); font-weight: 700; }
+.legacy-account[open] > summary { margin-bottom: 15px; }
+.legacy-account > p { margin: 12px 0; }
+.star-reward-toast { position: fixed; z-index: 1000; left: 50%; top: max(16px, env(safe-area-inset-top)); transform: translate(-50%, -10px); max-width: calc(100vw - 28px); width: max-content; padding: 12px 20px; border: 2px solid var(--yellow); border-radius: 16px; background: var(--ink); color: #fff5cc; font-size: 16px; font-weight: 800; text-align: center; box-shadow: 0 8px 30px #16304726; pointer-events: none; opacity: 0; transition: opacity .2s ease, transform .2s ease; }
+.star-reward-toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
 .learn-hero {
   display: grid;
   grid-template-columns: 1.45fr 1fr;
@@ -225,6 +239,8 @@ body.learning-page {
   .learn-header { min-height: 80px; margin-bottom: 20px; gap: 12px; }
   .learn-nav { gap: 5px; }
   .learn-nav a, .learn-nav button { padding: 7px 9px; font-size: 13px; }
+  .wallet-bar { margin-top: 0; padding: 10px 14px; gap: 2px 16px; }
+  .wallet-bar p { font-size: 13px; }
   .learn-hero { grid-template-columns: 1fr; gap: 14px; padding: 26px; }
   .hero-art { min-height: 140px; padding: 0; }
   .hero-art::before { width: 165px; }
@@ -287,7 +303,7 @@ body.learning-page {
 }
 @media print {
   body.learning-page { background: white; font-size: 12pt; }
-  .learn-nav, .learning-page button, .hero-art, .expedition-board, .button-row { display: none !important; }
+  .learn-nav, .learning-page button, .hero-art, .expedition-board, .button-row, .wallet-bar, .star-reward-toast { display: none !important; }
   .learn-shell { max-width: none; padding: 0; }
   .learn-panel, .unit-card, .question-panel { box-shadow: none; break-inside: avoid; }
   .mission-layout { display: block; }
